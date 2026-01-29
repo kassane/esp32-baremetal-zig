@@ -1,7 +1,10 @@
 const std = @import("std");
 
 pub fn build(b: *std.Build) void {
-    const target = b.standardTargetOptions(.{});
+    const target = b.standardTargetOptions(.{
+        .whitelist = xtensa_targets,
+        .default_target = xtensa_targets[0],
+    });
     const optimize = b.standardOptimizeOption(.{});
 
     const esp32 = buildEsp32(b, .{
@@ -46,5 +49,29 @@ fn buildEsp32S3(b: *std.Build, opt: struct {
             .optimize = opt.optimize,
         }),
     });
+    exe.entry = .{ .symbol_name = "call_start_cpu0" };
+    exe.setLinkerScript(b.path("esp32s3/linker.ld"));
     return exe;
 }
+
+const xtensa_targets = &[_]std.Target.Query{
+    // need zig-fork (using espressif-llvm backend) to support this
+    .{
+        .cpu_arch = .xtensa,
+        .cpu_model = .{ .explicit = &std.Target.xtensa.cpu.esp32 },
+        .os_tag = .freestanding,
+        .abi = .none,
+    },
+    .{
+        .cpu_arch = .xtensa,
+        .cpu_model = .{ .explicit = &std.Target.xtensa.cpu.esp32s2 },
+        .os_tag = .freestanding,
+        .abi = .none,
+    },
+    .{
+        .cpu_arch = .xtensa,
+        .cpu_model = .{ .explicit = &std.Target.xtensa.cpu.esp32s3 },
+        .os_tag = .freestanding,
+        .abi = .none,
+    },
+};
