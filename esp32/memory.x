@@ -1,49 +1,46 @@
-/* stolen from esp-hal crate */
+/* ESP32 (Xtensa LX6) memory map.
+ *
+ * Addresses verified against:
+ *   - ESP-IDF v6.0 components/esp_system/ld/esp32/memory.ld.in
+ *   - ESP-IDF v6.0 components/bootloader/subproject/main/ld/esp32/bootloader.ld.in
+ *   - ESP32 Technical Reference Manual rev 3.7, section "System Memory Map"
+ *
+ * NOTE: Earlier versions of this file incorrectly used ESP32-S3 addresses
+ * (0x40370000 / 0x42000020 / 0x3C000020). Those are fixed here.
+ */
 
-/* reserved for ICACHE */
-RESERVE_ICACHE = 0x8000;
-
-VECTORS_SIZE = 0x400;
-
-/* Specify main memory areas
-
- 40370000 <- IRAM/Icache -> 40378000 <- D/IRAM (I) -> 403E0000
-                            3FC88000 <- D/IRAM (D) -> 3FCF0000 <- DRAM/DCache -> 3FD00000
-
- Startup code uses the IRAM from 0x403B9000 to 0x403E0000, which is not available for static
- memory, but can only be used after app starts.
-
- D cache use the memory from high address, so when it's configured to 16K/32K, the region
- 0x3FCF0000 ~ (3FD00000 - DATA_CACHE_SIZE) should be available. This region is not used as
- static memory, leaving to the heap.
-*/
 MEMORY
 {
-  vectors_seg ( RX )     : ORIGIN = 0x40370000 + RESERVE_ICACHE, len = VECTORS_SIZE
-  iram_seg ( RX )        : ORIGIN = 0x40370000 + RESERVE_ICACHE + VECTORS_SIZE, len = 328k - VECTORS_SIZE - RESERVE_ICACHE
-  dram_seg ( RW )        : ORIGIN = 0x3FC88000 , len = 345856 
+  /* Instruction SRAM 0 + SRAM 1 (directly executable, no cache needed)
+     IDF: iram0_0_seg org = 0x40080000, len = 0x20000 (128 KB).
+     SRAM 1 instruction portion starts at 0x400A0000 (when enabled). */
+  iram_seg  (RX)  : ORIGIN = 0x40080000, LENGTH = 0x20000  /* 128 KB */
 
-  /* external flash 
-     The 0x20 offset is a convenience for the app binary image generation.
-     Flash cache has 64KB pages. The .bin file which is flashed to the chip
-     has a 0x18 byte file header, and each segment has a 0x08 byte segment
-     header. Setting this offset makes it simple to meet the flash cache MMU's
-     constraint that (paddr % 64KB == vaddr % 64KB).)
-  */
-  irom_seg ( RX )        : ORIGIN = 0x42000020, len = 4M - 0x20
-  drom_seg ( R )         : ORIGIN = 0x3C000020, len = 4M - 0x20
+  /* Shared D/IRAM viewed as DRAM (data bus side)
+     IDF: dram0_0_seg org = 0x3FFB0000, len = 0x2c200 (~176 KB, no BT reserve). */
+  dram_seg  (RW)  : ORIGIN = 0x3FFB0000, LENGTH = 0x2C200
 
+  /* External Flash – instruction side (mapped via ICache at 0x400C0000-0x40BFFFFF)
+     IDF: iram0_2_seg org = 0x400D0020, len = 0x330000-0x20 (~3.2 MB).
+     0x20 offset: aligns flash cache MMU constraint paddr%64KB == vaddr%64KB. */
+  irom_seg  (RX)  : ORIGIN = 0x400D0020, LENGTH = 0x330000 - 0x20
 
-  /* RTC fast memory (executable). Persists over deep sleep. Only for core 0 (PRO_CPU) */
-  rtc_fast_seg(RWX) : ORIGIN = 0x600fe000, len = 8k
+  /* External Flash – data side (mapped via DCache at 0x3F400000-0x3F7FFFFF)
+     IDF: drom0_0_seg org = 0x3F400020, len = 0x400000-0x20 (4 MB). */
+  drom_seg  (R)   : ORIGIN = 0x3F400020, LENGTH = 0x400000 - 0x20
 
-  /* RTC slow memory (data accessible). Persists over deep sleep. */
-  rtc_slow_seg(RW)       : ORIGIN = 0x50000000, len = 8k
+  /* RTC fast memory – instruction side, executable, persists over deep sleep.
+     IDF: rtc_iram_seg org = 0x400C0000, len = 0x2000. */
+  rtc_fast_seg (RWX) : ORIGIN = 0x400C0000, LENGTH = 0x2000  /* 8 KB */
+
+  /* RTC slow memory – data side, persists over deep sleep.
+     IDF: rtc_slow_seg org = 0x50000000, len = 0x2000. */
+  rtc_slow_seg (RW)  : ORIGIN = 0x50000000, LENGTH = 0x2000  /* 8 KB */
 }
 
-REGION_ALIAS("ROTEXT", irom_seg);
-REGION_ALIAS("RWTEXT", iram_seg);
-REGION_ALIAS("RODATA", drom_seg);
-REGION_ALIAS("RWDATA", dram_seg);
+REGION_ALIAS("ROTEXT",       irom_seg);
+REGION_ALIAS("RWTEXT",       iram_seg);
+REGION_ALIAS("RODATA",       drom_seg);
+REGION_ALIAS("RWDATA",       dram_seg);
 REGION_ALIAS("RTC_FAST_RWTEXT", rtc_fast_seg);
 REGION_ALIAS("RTC_FAST_RWDATA", rtc_fast_seg);
