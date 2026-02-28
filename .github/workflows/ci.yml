@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches:
+      main
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@main
+      - name: Setup zig-espressif-bootstrap (0.16.0-xtensa-dev)
+        run: |
+          mkdir -p $HOME/.local/zig
+          curl --fail -L -o /tmp/zig.tar.xz \
+            https://github.com/kassane/zig-espressif-bootstrap/releases/download/0.16.0-xtensa-dev/zig-relsafe-x86_64-linux-musl-baseline.tar.xz
+          tar -xJf /tmp/zig.tar.xz -C $HOME/.local/zig
+          echo "$HOME/.local/zig/zig-relsafe-x86_64-linux-musl-baseline" >> $GITHUB_PATH
+          rm /tmp/zig.tar.xz
+      - name: Build firmware for ESP32 + ESP32-S3 (default Debug)
+        run: zig build --summary all
