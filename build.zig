@@ -39,24 +39,24 @@ pub fn build(b: *std.Build) void {
     // Use a separate linker script that places all code in IRAM so that
     // qemu-system-xtensa -machine esp32/esp32s3 -kernel <elf> works without
     // the ROM bootloader initialising the flash cache.
-    const qemu_esp32_exe  = buildQemu(b, .{
-        .name           = "esp32_qemu",
-        .src            = "esp32/main.zig",
-        .target         = esp32_target,
-        .optimize       = optimize,
-        .linker_script  = "esp32/qemu.ld",
-        .entry          = .disabled,
+    const qemu_esp32_exe = buildQemu(b, .{
+        .name = "esp32_qemu",
+        .src = "esp32/main.zig",
+        .target = esp32_target,
+        .optimize = optimize,
+        .linker_script = "esp32/qemu.ld",
+        .entry = .disabled,
     });
     const qemu_esp32s3_exe = buildQemu(b, .{
-        .name           = "esp32s3_qemu",
-        .src            = "esp32s3/main.zig",
-        .target         = esp32s3_target,
-        .optimize       = optimize,
-        .linker_script  = "esp32s3/qemu.ld",
-        .entry          = .{ .symbol_name = "call_start_cpu0" },
+        .name = "esp32s3_qemu",
+        .src = "esp32s3/main.zig",
+        .target = esp32s3_target,
+        .optimize = optimize,
+        .linker_script = "esp32s3/qemu.ld",
+        .entry = .{ .symbol_name = "call_start_cpu0" },
     });
 
-    const qemu_esp32_step  = b.step("qemu-esp32",  "Build ESP32 QEMU firmware (IRAM-only)");
+    const qemu_esp32_step = b.step("qemu-esp32", "Build ESP32 QEMU firmware (IRAM-only)");
     qemu_esp32_step.dependOn(&b.addInstallArtifact(qemu_esp32_exe, .{}).step);
 
     const qemu_esp32s3_step = b.step("qemu-esp32s3", "Build ESP32-S3 QEMU firmware (IRAM-only)");
@@ -68,23 +68,24 @@ pub fn build(b: *std.Build) void {
 }
 
 fn buildQemu(b: *std.Build, opt: struct {
-    name:          []const u8,
-    src:           []const u8,
-    target:        std.Build.ResolvedTarget,
-    optimize:      std.builtin.OptimizeMode,
+    name: []const u8,
+    src: []const u8,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
     linker_script: []const u8,
-    entry:         std.Build.Step.Compile.Entry,
+    entry: std.Build.Step.Compile.Entry,
 }) *std.Build.Step.Compile {
     const exe = b.addExecutable(.{
         .name = opt.name,
         .root_module = b.createModule(.{
             .root_source_file = b.path(opt.src),
-            .target           = opt.target,
-            .optimize         = opt.optimize,
+            .target = opt.target,
+            .optimize = opt.optimize,
         }),
     });
+    exe.root_module.strip = true;
     exe.bundle_compiler_rt = true;
-    exe.entry              = opt.entry;
+    exe.entry = opt.entry;
     exe.setLinkerScript(b.path(opt.linker_script));
     return exe;
 }
@@ -101,6 +102,7 @@ fn buildEsp32(b: *std.Build, opt: struct {
             .optimize = opt.optimize,
         }),
     });
+    exe.root_module.strip = true;
     // compiler-rt provides memset/memcpy/memmove/__umoddi3 for freestanding
     exe.bundle_compiler_rt = true;
     exe.entry = .disabled;
@@ -120,6 +122,7 @@ fn buildEsp32S3(b: *std.Build, opt: struct {
             .optimize = opt.optimize,
         }),
     });
+    exe.root_module.strip = true;
     exe.bundle_compiler_rt = true;
     exe.entry = .{ .symbol_name = "call_start_cpu0" };
     exe.setLinkerScript(b.path("esp32s3/linker.ld"));

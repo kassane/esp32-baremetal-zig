@@ -73,8 +73,8 @@ table** to be present on flash (they initialise the flash-cache MMU so the app's
 `irom_seg` at `0x42xxxxxx` becomes accessible).  Extract them from any IDF build:
 
 ```
-$IDF_PATH/build/bootloader/bootloader.bin  → flash offset 0x0
-$IDF_PATH/build/partition_table/partition-table.bin → flash offset 0x8000
+bootloader.bin  → flash offset 0x0
+partition-table.bin → flash offset 0x8000
 ```
 
 ### espflash (alternative 1)
