@@ -5,7 +5,9 @@
 const std = @import("std");
 const mmio = @import("mmio");
 const dsp = @import("dsp");
-const gpio = @import("regs").GPIO; // generated from svd/esp32s3.svd
+const init = @import("init");
+const regs = @import("regs"); // generated from svd/esp32s3.svd
+const gpio = regs.GPIO;
 
 /// Baremetal panic: halt forever (no std runtime to unwind into).
 pub fn panic(_: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
@@ -24,6 +26,7 @@ var mixed: [8]i16 align(16) = undefined;
 // ── Application entry ─────────────────────────────────────────────────────────
 
 export fn app_main() callconv(.c) noreturn {
+    init.disableWatchdogs(regs); // or the chip resets within seconds on real HW
     mmio.writeReg(gpio.ENABLE1_W1TS, led_mask); // GPIO48 as output
 
     // A two-stage DSP pipeline on the PIE unit: saturating-mix the signals

@@ -17,6 +17,10 @@ pub fn build(b: *std.Build) void {
     // imported as `@import(\"dsp\")`.
     const dsp = b.createModule(.{ .root_source_file = b.path("src/dsp.zig") });
 
+    // Startup helpers (watchdog disable, …), imported as `@import(\"init\")`.
+    const init_mod = b.createModule(.{ .root_source_file = b.path("src/init.zig") });
+    init_mod.addImport("mmio", mmio);
+
     // All generated linker scripts live in a single WriteFiles step — no *.ld
     // files on disk.
     const ld = b.addWriteFiles();
@@ -62,7 +66,7 @@ pub fn build(b: *std.Build) void {
         regs_step.dependOn(&b.addInstallFileWithDir(regs_src, .prefix, "gen/" ++ chip.name ++ "_regs.zig").step);
 
         // ── Hardware/flash firmware (.elf + raw .bin) ────────────────────────
-        const hw_exe = addFirmware(b, mmio, dsp, regs, chip, target, optimize, chip.name ++ "_baremetal_zig");
+        const hw_exe = addFirmware(b, mmio, dsp, regs, init_mod, chip, target, optimize, chip.name ++ "_baremetal_zig");
         hw_exe.setLinkerScript(ld.add(chip.name ++ ".ld", flashLinker(b, chip)));
 
         const bin = b.addObjCopy(hw_exe.getEmittedBin(), .{
@@ -77,7 +81,7 @@ pub fn build(b: *std.Build) void {
 
         // ── QEMU firmware (all code in IRAM, no flash-cache MMU needed) ───────
         if (chip.qemu_machine) |machine| {
-            const qemu_exe = addFirmware(b, mmio, dsp, regs, chip, target, optimize, chip.name ++ "_qemu");
+            const qemu_exe = addFirmware(b, mmio, dsp, regs, init_mod, chip, target, optimize, chip.name ++ "_qemu");
             qemu_exe.setLinkerScript(ld.add(chip.name ++ "-qemu.ld", qemuLinker(b, chip)));
 
             const qemu_chip_step = b.step("qemu-" ++ chip.name, "Build " ++ chip.name ++ " QEMU firmware");
@@ -109,6 +113,7 @@ fn addFirmware(
     mmio: *std.Build.Module,
     dsp: *std.Build.Module,
     regs: *std.Build.Module,
+    init_mod: *std.Build.Module,
     comptime chip: Chip,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
@@ -122,6 +127,7 @@ fn addFirmware(
     mod.addImport("mmio", mmio);
     mod.addImport("dsp", dsp);
     mod.addImport("regs", regs);
+    mod.addImport("init", init_mod);
     mod.strip = true;
     // No UBSan runtime on bare metal; Debug safety still traps via our panic.
     mod.sanitize_c = .off;

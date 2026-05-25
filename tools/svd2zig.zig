@@ -34,25 +34,55 @@ pub fn main(init: std.process.Init) !void {
 
 fn generate(gpa: std.mem.Allocator, out: *ArrayList, svd: []const u8) !void {
     const periphs = sliceBetween(svd, "<peripherals>", "</peripherals>", 0) orelse return error.NoPeripherals;
-    var cur = periphs.from;
-    while (std.mem.indexOfPos(u8, svd, cur, "<peripheral")) |open| {
-        if (open >= periphs.to) break;
-        const tag_end = std.mem.indexOfScalarPos(u8, svd, open, '>') orelse break;
-        const close = std.mem.indexOfPos(u8, svd, tag_end, "</peripheral>") orelse break;
-        const block = svd[open..close];
-        cur = close + "</peripheral>".len;
 
-        const name = tagText(block, "name") orelse continue;
-        const base = parseInt(tagText(block, "baseAddress") orelse continue) orelse continue;
-        const derived = std.mem.indexOf(u8, svd[open..tag_end], "derivedFrom=") != null;
+    // First pass: record each peripheral's block by name so `derivedFrom`
+    // peripherals (e.g. TIMG1 from TIMG0) can reuse the parent's registers.
+    var blocks = std.StringHashMap([]const u8).init(gpa);
+    var it = PeriphIter{ .svd = svd, .cur = periphs.from, .to = periphs.to };
+    while (it.next()) |p| if (tagText(p.block, "name")) |n| try blocks.put(n, p.block);
 
-        if (tagText(block, "description")) |d| try out.print(gpa, "/// {s}\n", .{oneLine(d)});
+    it = PeriphIter{ .svd = svd, .cur = periphs.from, .to = periphs.to };
+    while (it.next()) |p| {
+        const name = tagText(p.block, "name") orelse continue;
+        const base = parseInt(tagText(p.block, "baseAddress") orelse continue) orelse continue;
+
+        if (tagText(p.block, "description")) |d| try out.print(gpa, "/// {s}\n", .{oneLine(d)});
         try out.appendSlice(gpa, "pub const ");
         try appendIdent(gpa, out, name, null);
         try out.print(gpa, " = struct {{\n    pub const base: u32 = 0x{X};\n", .{base});
-        if (!derived) try emitRegisters(gpa, out, block);
+        // Registers come from this peripheral, or from its `derivedFrom` parent.
+        const regs_block = if (attrValue(svd[p.open..p.tag_end], "derivedFrom")) |parent|
+            (blocks.get(parent) orelse p.block)
+        else
+            p.block;
+        try emitRegisters(gpa, out, regs_block);
         try out.appendSlice(gpa, "};\n\n");
     }
+}
+
+const Periph = struct { block: []const u8, open: usize, tag_end: usize };
+
+const PeriphIter = struct {
+    svd: []const u8,
+    cur: usize,
+    to: usize,
+
+    fn next(self: *PeriphIter) ?Periph {
+        const open = std.mem.indexOfPos(u8, self.svd, self.cur, "<peripheral") orelse return null;
+        if (open >= self.to) return null;
+        const tag_end = std.mem.indexOfScalarPos(u8, self.svd, open, '>') orelse return null;
+        const close = std.mem.indexOfPos(u8, self.svd, tag_end, "</peripheral>") orelse return null;
+        self.cur = close + "</peripheral>".len;
+        return .{ .block = self.svd[open..close], .open = open, .tag_end = tag_end };
+    }
+};
+
+/// Value of `attr="..."` within an opening tag, or null.
+fn attrValue(tag: []const u8, comptime attr: []const u8) ?[]const u8 {
+    const k = std.mem.indexOf(u8, tag, attr ++ "=\"") orelse return null;
+    const start = k + attr.len + 2;
+    const end = std.mem.indexOfScalarPos(u8, tag, start, '"') orelse return null;
+    return tag[start..end];
 }
 
 fn emitRegisters(gpa: std.mem.Allocator, out: *ArrayList, periph: []const u8) !void {

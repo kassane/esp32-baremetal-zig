@@ -63,9 +63,11 @@ Peripheral register addresses are **not** hardcoded — they're generated from
 CMSIS-SVD by `tools/svd2zig.zig` (a host tool run automatically by `build.zig`).
 For each chip, build.zig runs `svd2zig svd/<chip>.svd <chip>_regs.zig` and
 imports the result as `@import("regs")`; firmware uses e.g.
-`regs.GPIO.OUT_W1TS`. The vendored `svd/*.svd` are the GPIO peripheral extracted
-from [esp-rs/esp-pacs](https://github.com/esp-rs/esp-pacs) (fields stripped to
-keep them small); the generator handles the full SVDs too.
+`regs.GPIO.OUT_W1TS`. The vendored `svd/*.svd` are the GPIO, TIMG0/TIMG1 and
+RTC_CNTL peripherals extracted from [esp-rs/esp-pacs](https://github.com/esp-rs/esp-pacs)
+(fields stripped to keep them small); the generator expands `<dim>` arrays and
+`derivedFrom` peripherals (e.g. TIMG1 inherits TIMG0's registers), and handles
+the full 2.4 MB SVDs too.
 
 ```bash
 zig build regs    # emit the generated modules into zig-out/gen/ to inspect
@@ -73,6 +75,15 @@ zig build regs    # emit the generated modules into zig-out/gen/ to inspect
 
 Using the SVD also surfaces the `*_W1TS` / `*_W1TC` (write-1-to-set / -clear)
 registers, so set/clear GPIO is a single atomic store — no read-modify-write.
+
+### Startup
+
+`src/init.zig` `disableWatchdogs()` clears the TIMG0/TIMG1 (and RTC) watchdogs
+at boot via the generated register addresses — a second-stage bootloader leaves
+the TIMG0 flash-boot watchdog running, so an app that neither feeds nor disables
+it is reset within seconds on real hardware. The RTC watchdog is only touched on
+chips whose `regs` expose the unlock register under the expected name (resolved
+with `comptime @hasDecl`), so one routine is correct for every target.
 
 ### ESP32-S3 SIMD (PIE)
 

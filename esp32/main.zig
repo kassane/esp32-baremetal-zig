@@ -4,7 +4,9 @@
 
 const std = @import("std");
 const mmio = @import("mmio");
-const gpio = @import("regs").GPIO; // generated from svd/esp32.svd
+const init = @import("init");
+const regs = @import("regs"); // generated from svd/esp32.svd
+const gpio = regs.GPIO;
 
 /// Baremetal panic: halt forever (no std runtime to unwind into).
 pub fn panic(_: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
@@ -18,6 +20,7 @@ const led_mask: u32 = @as(u32, 1) << 2;
 // ── Application entry ─────────────────────────────────────────────────────────
 
 export fn main() callconv(.c) noreturn {
+    init.disableWatchdogs(regs); // or the chip resets within seconds on real HW
     mmio.writeReg(gpio.ENABLE_W1TS, led_mask); // GPIO2 as output
 
     while (true) {
