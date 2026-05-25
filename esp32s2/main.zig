@@ -23,6 +23,7 @@ const blink_half_period: u32 = 1_200_000;
 
 export fn app_main() callconv(.c) noreturn {
     init.disableWatchdogs(regs); // or the chip resets within seconds on real HW
+    mmio.puts(regs.UART0.FIFO, "\r\nESP32-S2 baremetal Zig: hello! blinking GPIO18.\r\n");
     mmio.writeReg(gpio.ENABLE_W1TS, led_mask); // GPIO18 as output
     mmio.blink(gpio.OUT_W1TS, gpio.OUT_W1TC, led_mask, blink_half_period);
 }

@@ -139,6 +139,20 @@ zig build run-esp32s3
 # faults (this is what CI runs).
 zig build smoke
 zig build smoke -Dsmoke-seconds=10
+
+# Show the example's UART output (captured from QEMU via `-serial file:`):
+zig build demo            # all QEMU-capable chips
+zig build demo-esp32s3    # just the FFT spectrum example
+```
+
+The firmware writes to UART0 (`regs.UART0.FIFO`); `demo` routes that to a file
+and prints it. `esp32`/`esp32s2` print a hello banner, and **`esp32s3` renders
+the FFT magnitude spectrum of a two-tone signal** as ASCII bars:
+
+```
+ESP32-S3 FFT magnitude spectrum (tones @ bins 4 and 12):
+bin  4 |##############################################
+bin 12 |#######################
 ```
 
 `build.zig` finds `qemu-system-xtensa` on `PATH`; override it with

@@ -37,6 +37,35 @@ pub inline fn halt() noreturn {
     }
 }
 
+// ── UART text output ──────────────────────────────────────────────────────────
+// Write bytes to a UART's FIFO register (e.g. regs.UART0.FIFO). In QEMU the
+// chardev drains instantly; real hardware would also need TX-FIFO flow control.
+
+pub inline fn puts(fifo: u32, s: []const u8) void {
+    for (s) |c| writeReg(fifo, c);
+}
+
+/// Print `v` in decimal.
+pub inline fn printU32(fifo: u32, v: u32) void {
+    if (v == 0) return writeReg(fifo, '0');
+    var buf: [10]u8 = undefined;
+    const p: [*]u8 = &buf; // many-ptr: no bounds-check panic path
+    var n = v;
+    var i: usize = buf.len;
+    while (n != 0) {
+        i -%= 1;
+        p[i] = '0' +% @as(u8, @truncate(n % 10));
+        n /= 10;
+    }
+    while (i < buf.len) : (i +%= 1) writeReg(fifo, p[i]);
+}
+
+/// Print a horizontal bar of `n` '#' characters (no newline).
+pub inline fn bar(fifo: u32, n: usize) void {
+    var i: usize = 0;
+    while (i < n) : (i +%= 1) writeReg(fifo, '#');
+}
+
 // Freestanding C memory builtins. The compiler emits calls to these for struct
 // copies and Debug's `undefined` fill; without libc/compiler-rt we provide them.
 // `[*]` indexing + wrapping loops keep them free of any panic path.

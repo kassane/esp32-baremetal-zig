@@ -47,6 +47,7 @@ pub fn build(b: *std.Build) void {
 
     const qemu_step = b.step("qemu", "Build all QEMU firmware images (IRAM-only)");
     const smoke_step = b.step("smoke", "Boot every QEMU-capable chip and assert no CPU faults");
+    const demo_step = b.step("demo", "Boot QEMU-capable chips and print their UART output");
     const regs_step = b.step("regs", "Generate register modules from svd/*.svd into zig-out/gen/");
     var prev_smoke: ?*std.Build.Step = null;
 
@@ -105,6 +106,19 @@ pub fn build(b: *std.Build) void {
             if (prev_smoke) |p| run_smoke.step.dependOn(p);
             prev_smoke = &run_smoke.step;
             smoke_step.dependOn(&run_smoke.step);
+
+            // `zig build demo[-<chip>]` — same boot, but capture the UART output
+            // to a file and print it (shows the example's output, e.g. FFT bars).
+            const run_demo = b.addRunArtifact(smoke_tool);
+            run_demo.addArg(qemu_bin);
+            run_demo.addArg(machine);
+            run_demo.addFileArg(qemu_exe.getEmittedBin());
+            run_demo.addArg(b.fmt("{d}", .{smoke_seconds}));
+            _ = run_demo.addOutputFileArg(chip.name ++ "-uart.txt");
+            run_demo.stdio = .inherit;
+            const demo_chip = b.step("demo-" ++ chip.name, "Run " ++ chip.name ++ " in QEMU and print its UART output");
+            demo_chip.dependOn(&run_demo.step);
+            demo_step.dependOn(&run_demo.step);
         }
     }
 }

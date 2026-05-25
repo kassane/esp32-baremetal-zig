@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Peripherals (GPIO, timers, RTC_CNTL) extracted from esp-rs/esp-pacs esp32s2.base.svd; fields stripped. -->
+<!-- Peripherals (GPIO, timers, RTC_CNTL, UART0) extracted from esp-rs/esp-pacs esp32s2.base.svd; fields stripped. -->
 <device><name>ESP32S2</name>
 <peripherals>
 <peripheral>
@@ -856,6 +856,188 @@
           <name>DATE</name>
           <addressOffset>0x138</addressOffset>
           <resetValue>0x01906191</resetValue>
+        </register>
+      </registers>
+    </peripheral>
+<peripheral>
+      <name>UART0</name>
+      <description>UART (Universal Asynchronous Receiver-Transmitter) Controller 0</description>
+      <groupName>UART</groupName>
+      <baseAddress>0x3F400000</baseAddress>
+      <registers>
+        <register>
+          <name>FIFO</name>
+          <description>FIFO data register</description>
+          <addressOffset>0x0</addressOffset>
+        </register>
+        <register>
+          <name>INT_RAW</name>
+          <description>Raw interrupt status</description>
+          <addressOffset>0x4</addressOffset>
+        </register>
+        <register>
+          <name>INT_ST</name>
+          <description>Masked interrupt status</description>
+          <addressOffset>0x8</addressOffset>
+        </register>
+        <register>
+          <name>INT_ENA</name>
+          <description>Interrupt enable bits</description>
+          <addressOffset>0xC</addressOffset>
+        </register>
+        <register>
+          <name>INT_CLR</name>
+          <description>Interrupt clear bits</description>
+          <addressOffset>0x10</addressOffset>
+        </register>
+        <register>
+          <name>CLKDIV</name>
+          <description>Clock divider configuration</description>
+          <addressOffset>0x14</addressOffset>
+          <resetValue>0x000002B6</resetValue>
+        </register>
+        <register>
+          <name>AUTOBAUD</name>
+          <description>Autobaud configuration register</description>
+          <addressOffset>0x18</addressOffset>
+          <resetValue>0x00001000</resetValue>
+        </register>
+        <register>
+          <name>STATUS</name>
+          <description>UART status register</description>
+          <addressOffset>0x1C</addressOffset>
+        </register>
+        <register>
+          <name>CONF0</name>
+          <description>Configuration register 0</description>
+          <addressOffset>0x20</addressOffset>
+          <resetValue>0x1800001C</resetValue>
+        </register>
+        <register>
+          <name>CONF1</name>
+          <description>Configuration register 1</description>
+          <addressOffset>0x24</addressOffset>
+          <resetValue>0x0000C060</resetValue>
+        </register>
+        <register>
+          <name>LOWPULSE</name>
+          <description>Autobaud minimum low pulse duration register</description>
+          <addressOffset>0x28</addressOffset>
+          <resetValue>0x000FFFFF</resetValue>
+        </register>
+        <register>
+          <name>HIGHPULSE</name>
+          <description>Autobaud minimum high pulse duration register</description>
+          <addressOffset>0x2C</addressOffset>
+          <resetValue>0x000FFFFF</resetValue>
+        </register>
+        <register>
+          <name>RXD_CNT</name>
+          <description>Autobaud edge change count register</description>
+          <addressOffset>0x30</addressOffset>
+        </register>
+        <register>
+          <name>FLOW_CONF</name>
+          <description>Software flow control configuration</description>
+          <addressOffset>0x34</addressOffset>
+        </register>
+        <register>
+          <name>SLEEP_CONF</name>
+          <description>Sleep mode configuration</description>
+          <addressOffset>0x38</addressOffset>
+          <resetValue>0x000000F0</resetValue>
+        </register>
+        <register>
+          <name>SWFC_CONF0</name>
+          <description>Software flow control character configuration</description>
+          <addressOffset>0x3C</addressOffset>
+          <resetValue>0x000026E0</resetValue>
+        </register>
+        <register>
+          <name>SWFC_CONF1</name>
+          <description>Software flow-control character configuration</description>
+          <addressOffset>0x40</addressOffset>
+          <resetValue>0x00002200</resetValue>
+        </register>
+        <register>
+          <name>IDLE_CONF</name>
+          <description>Frame end idle time configuration</description>
+          <addressOffset>0x44</addressOffset>
+          <resetValue>0x00A40100</resetValue>
+        </register>
+        <register>
+          <name>RS485_CONF</name>
+          <description>RS485 mode configuration</description>
+          <addressOffset>0x48</addressOffset>
+        </register>
+        <register>
+          <name>AT_CMD_PRECNT</name>
+          <description>Pre-sequence timing configuration</description>
+          <addressOffset>0x4C</addressOffset>
+          <resetValue>0x00000901</resetValue>
+        </register>
+        <register>
+          <name>AT_CMD_POSTCNT</name>
+          <description>Post-sequence timing configuration</description>
+          <addressOffset>0x50</addressOffset>
+          <resetValue>0x00000901</resetValue>
+        </register>
+        <register>
+          <name>AT_CMD_GAPTOUT</name>
+          <description>Timeout configuration</description>
+          <addressOffset>0x54</addressOffset>
+          <resetValue>0x0000000B</resetValue>
+        </register>
+        <register>
+          <name>AT_CMD_CHAR</name>
+          <description>AT escape sequence selection configuration</description>
+          <addressOffset>0x58</addressOffset>
+          <resetValue>0x0000032B</resetValue>
+        </register>
+        <register>
+          <name>MEM_CONF</name>
+          <description>UART threshold and allocation configuration</description>
+          <addressOffset>0x5C</addressOffset>
+          <resetValue>0x000A0012</resetValue>
+        </register>
+        <register>
+          <name>MEM_TX_STATUS</name>
+          <description>TX FIFO write and read offset address</description>
+          <addressOffset>0x60</addressOffset>
+        </register>
+        <register>
+          <name>MEM_RX_STATUS</name>
+          <description>RX FIFO write and read offset address</description>
+          <addressOffset>0x64</addressOffset>
+        </register>
+        <register>
+          <name>FSM_STATUS</name>
+          <description>UART transmitter and receiver status</description>
+          <addressOffset>0x68</addressOffset>
+        </register>
+        <register>
+          <name>POSPULSE</name>
+          <description>Autobaud high pulse register</description>
+          <addressOffset>0x6C</addressOffset>
+          <resetValue>0x000FFFFF</resetValue>
+        </register>
+        <register>
+          <name>NEGPULSE</name>
+          <description>Autobaud low pulse register</description>
+          <addressOffset>0x70</addressOffset>
+          <resetValue>0x000FFFFF</resetValue>
+        </register>
+        <register>
+          <name>DATE</name>
+          <description>UART version control register</description>
+          <addressOffset>0x74</addressOffset>
+          <resetValue>0x18082800</resetValue>
+        </register>
+        <register>
+          <name>ID</name>
+          <description>UART ID register</description>
+          <addressOffset>0x78</addressOffset>
+          <resetValue>0x00000500</resetValue>
         </register>
       </registers>
     </peripheral>

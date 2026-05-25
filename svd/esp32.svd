@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Peripherals (GPIO, timers, RTC_CNTL) extracted from esp-rs/esp-pacs esp32.base.svd; fields stripped. -->
+<!-- Peripherals (GPIO, timers, RTC_CNTL, UART0) extracted from esp-rs/esp-pacs esp32.base.svd; fields stripped. -->
 <device><name>ESP32</name>
 <peripherals>
 <peripheral>
@@ -1944,6 +1944,152 @@
           <name>DATE</name>
           <addressOffset>0x13C</addressOffset>
           <resetValue>0x01604280</resetValue>
+        </register>
+      </registers>
+    </peripheral>
+<peripheral>
+      <name>UART0</name>
+      <description>UART (Universal Asynchronous Receiver-Transmitter) Controller 0</description>
+      <groupName>UART</groupName>
+      <baseAddress>0x3FF40000</baseAddress>
+      <registers>
+        <register>
+          <name>FIFO</name>
+          <addressOffset>0x0</addressOffset>
+        </register>
+        <register>
+          <name>INT_RAW</name>
+          <addressOffset>0x4</addressOffset>
+        </register>
+        <register>
+          <name>INT_ST</name>
+          <addressOffset>0x8</addressOffset>
+        </register>
+        <register>
+          <name>INT_ENA</name>
+          <addressOffset>0xC</addressOffset>
+        </register>
+        <register>
+          <name>INT_CLR</name>
+          <addressOffset>0x10</addressOffset>
+        </register>
+        <register>
+          <name>CLKDIV</name>
+          <addressOffset>0x14</addressOffset>
+          <resetValue>0x000002B6</resetValue>
+        </register>
+        <register>
+          <name>AUTOBAUD</name>
+          <addressOffset>0x18</addressOffset>
+          <resetValue>0x00001000</resetValue>
+        </register>
+        <register>
+          <name>STATUS</name>
+          <addressOffset>0x1C</addressOffset>
+        </register>
+        <register>
+          <name>CONF0</name>
+          <addressOffset>0x20</addressOffset>
+          <resetValue>0x0800001C</resetValue>
+        </register>
+        <register>
+          <name>CONF1</name>
+          <addressOffset>0x24</addressOffset>
+          <resetValue>0x00006060</resetValue>
+        </register>
+        <register>
+          <name>LOWPULSE</name>
+          <addressOffset>0x28</addressOffset>
+          <resetValue>0x000FFFFF</resetValue>
+        </register>
+        <register>
+          <name>HIGHPULSE</name>
+          <addressOffset>0x2C</addressOffset>
+          <resetValue>0x000FFFFF</resetValue>
+        </register>
+        <register>
+          <name>RXD_CNT</name>
+          <addressOffset>0x30</addressOffset>
+        </register>
+        <register>
+          <name>FLOW_CONF</name>
+          <addressOffset>0x34</addressOffset>
+        </register>
+        <register>
+          <name>SLEEP_CONF</name>
+          <addressOffset>0x38</addressOffset>
+          <resetValue>0x000000F0</resetValue>
+        </register>
+        <register>
+          <name>SWFC_CONF</name>
+          <addressOffset>0x3C</addressOffset>
+          <resetValue>0x1311E000</resetValue>
+        </register>
+        <register>
+          <name>IDLE_CONF</name>
+          <addressOffset>0x40</addressOffset>
+          <resetValue>0x00A40100</resetValue>
+        </register>
+        <register>
+          <name>RS485_CONF</name>
+          <addressOffset>0x44</addressOffset>
+        </register>
+        <register>
+          <name>AT_CMD_PRECNT</name>
+          <addressOffset>0x48</addressOffset>
+          <resetValue>0x00186A00</resetValue>
+        </register>
+        <register>
+          <name>AT_CMD_POSTCNT</name>
+          <addressOffset>0x4C</addressOffset>
+          <resetValue>0x00186A00</resetValue>
+        </register>
+        <register>
+          <name>AT_CMD_GAPTOUT</name>
+          <addressOffset>0x50</addressOffset>
+          <resetValue>0x00001E00</resetValue>
+        </register>
+        <register>
+          <name>AT_CMD_CHAR</name>
+          <addressOffset>0x54</addressOffset>
+          <resetValue>0x0000032B</resetValue>
+        </register>
+        <register>
+          <name>MEM_CONF</name>
+          <addressOffset>0x58</addressOffset>
+          <resetValue>0x00000088</resetValue>
+        </register>
+        <register>
+          <name>MEM_TX_STATUS</name>
+          <addressOffset>0x5C</addressOffset>
+        </register>
+        <register>
+          <name>MEM_RX_STATUS</name>
+          <addressOffset>0x60</addressOffset>
+        </register>
+        <register>
+          <name>MEM_CNT_STATUS</name>
+          <addressOffset>0x64</addressOffset>
+        </register>
+        <register>
+          <name>POSPULSE</name>
+          <addressOffset>0x68</addressOffset>
+          <resetValue>0x000FFFFF</resetValue>
+        </register>
+        <register>
+          <name>NEGPULSE</name>
+          <addressOffset>0x6C</addressOffset>
+          <resetValue>0x000FFFFF</resetValue>
+        </register>
+        <register>
+          <name>DATE</name>
+          <addressOffset>0x78</addressOffset>
+          <resetValue>0x15122500</resetValue>
+        </register>
+        <register>
+          <name>ID</name>
+          <addressOffset>0x7C</addressOffset>
+          <resetValue>0x00000500</resetValue>
         </register>
       </registers>
     </peripheral>
