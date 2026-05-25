@@ -4,6 +4,7 @@
 
 const std = @import("std");
 const mmio = @import("mmio");
+const dsp = @import("dsp");
 
 /// Baremetal panic: halt forever (no std runtime to unwind into).
 pub fn panic(_: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
@@ -23,32 +24,14 @@ const GPIO_OUT1_REG: u32 = GPIO_BASE + 0x0008;
 /// GPIO output enable – GPIO 32-53
 const GPIO_ENABLE1_REG: u32 = GPIO_BASE + 0x0024;
 
-// ── ESP32-S3 SIMD (PIE) ──────────────────────────────────────────────────────
+// ── ESP32-S3 SIMD (PIE) demo input ────────────────────────────────────────────
 //
-// The LX7 carries Espressif's Processor Instruction Extensions: eight 128-bit
-// vector registers (q0-q7) with integer/DSP ops. `ee.vadds.s8` adds sixteen
-// signed 8-bit lanes with saturation; 128-bit loads/stores require 16-byte
-// alignment. This whole block is gated by the `esp32s3ops` CPU feature, so the
-// same source will not assemble for the LX6 `esp32`.
-
-/// Two 16-lane int8 inputs whose lane-wise sums are all 17 (1+16, 2+15, …).
-var simd_lhs: [16]i8 align(16) = .{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
-var simd_rhs: [16]i8 align(16) = .{ 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1 };
-var simd_sum: [16]i8 align(16) = undefined;
-
-/// `out[i] = saturate(a[i] + b[i])` for sixteen int8 lanes, on the PIE unit.
-inline fn vaddS8(a: *align(16) const [16]i8, b: *align(16) const [16]i8, out: *align(16) [16]i8) void {
-    asm volatile (
-        \\ ee.vld.128.ip q0, %[a], 0
-        \\ ee.vld.128.ip q1, %[b], 0
-        \\ ee.vadds.s8   q2, q0, q1
-        \\ ee.vst.128.ip q2, %[o], 0
-        :
-        : [a] "r" (a),
-          [b] "r" (b),
-          [o] "r" (out),
-        : .{ .q0 = true, .q1 = true, .q2 = true, .memory = true });
-}
+// Two 8-lane int16 vectors (16-byte aligned = one 128-bit PIE vector). Their
+// dot product Σ i² over 1..8 = 204 is computed by `dsp.dotProductS16`, which
+// uses the LX7 Processor Instruction Extensions here and a scalar fallback on
+// chips without them.
+var vec_a: [8]i16 align(16) = .{ 1, 2, 3, 4, 5, 6, 7, 8 };
+var vec_b: [8]i16 align(16) = .{ 1, 2, 3, 4, 5, 6, 7, 8 };
 
 // ── Application entry ─────────────────────────────────────────────────────────
 
@@ -60,11 +43,10 @@ export fn app_main() callconv(.c) noreturn {
     // Enable GPIO48 as output (second bank)
     mmio.setBits(GPIO_ENABLE1_REG, led_mask);
 
-    // Compute the blink half-period on the SIMD unit: every lane is 17, so the
-    // on/off delay is 17 × 70_000 ≈ 1.19M busy-loops. Driving the timing from
-    // simd_sum keeps the vector result live (no dead-code elimination).
-    vaddS8(&simd_lhs, &simd_rhs, &simd_sum);
-    const half_period: u32 = @as(u32, @as(u8, @bitCast(simd_sum[0]))) *% 70_000;
+    // Drive the blink half-period from a real SIMD dot product (= 204), so the
+    // vector result stays live: (204 & 0x3F = 12) + 8 = 20, ×60_000 = 1.2M.
+    const dot = dsp.dotProductS16(&vec_a, &vec_b, vec_a.len);
+    const half_period: u32 = ((dot & 0x3F) +% 8) *% 60_000;
 
     while (true) {
         mmio.setBits(GPIO_OUT1_REG, led_mask); // LED ON

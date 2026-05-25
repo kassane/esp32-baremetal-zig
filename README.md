@@ -59,21 +59,30 @@ Shared register/timing helpers live in `src/mmio.zig` (imported as `mmio`).
 
 ### ESP32-S3 SIMD (PIE)
 
-`esp32s3/main.zig` includes a small example of the LX7's Processor Instruction
-Extensions (Espressif's 128-bit vector unit: eight `q0`–`q7` registers,
-integer/DSP ops). It saturating-adds two 16-lane `int8` vectors with
-`ee.vadds.s8` and uses the result to drive the blink period. Notes:
+`src/dsp.zig` (imported as `dsp`) holds portable DSP kernels. `dotProductS16`
+computes a signed-16-bit dot product using the LX7's Processor Instruction
+Extensions (Espressif's 128-bit vector unit: eight `q0`–`q7` registers, a 40-bit
+multiply-accumulate `ACCX`) and falls back to a scalar loop on chips without
+them. `esp32s3/main.zig` calls it on two 8-lane `int16` vectors (Σ i² = 204) and
+drives the blink period from the result. Notes:
 
-- Enabled by the `esp32s3ops` CPU feature — the same source will not assemble
-  for the LX6 `esp32` (the assembler rejects `ee.*` there).
+- **Portable via comptime:** the SIMD branch is chosen with
+  `comptime dsp.has_simd` (`std.Target.xtensa.featureSetHas(…, .esp32s3ops)`), so
+  the inactive branch is never analysed and `ee.*` never reaches the LX6
+  assembler — the same module builds for esp32, esp32s2 and esp32s3. A
+  `comptime {}` block self-tests the reference value at compile time.
+- **Inline required:** the kernels are `inline` because the prebuilt xtensa
+  backend does not emit cross-module (far) calls; inlining keeps everything in
+  the caller (this is also why `mmio`'s helpers are `inline`).
 - Inline-asm clobbers use the Zig 0.16 struct form, e.g.
-  `: .{ .q0 = true, .q1 = true, .q2 = true }`. This requires a
-  `zig-espressif-bootstrap` build new enough to expose the `q*` clobbers.
-- 128-bit loads/stores (`ee.vld.128.ip` / `ee.vst.128.ip`) need 16-byte-aligned
-  operands. Prefer separate load/op/store instructions over the fused
-  `ee.*.ld/st.incp` forms, which have had buggy LLVM encodings.
-- Verified in QEMU: the `ee.*` instructions execute and the stored result reads
-  back as all `17` (1+16, 2+15, …).
+  `: .{ .q0 = true, .q1 = true }` — needs a `zig-espressif-bootstrap` build new
+  enough to expose the `q*` clobbers.
+- 128-bit loads (`ee.vld.128.ip`) need 16-byte-aligned operands. Prefer separate
+  load/MAC instructions over the fused `ee.*.ld/st.incp` forms, which have had
+  buggy LLVM encodings.
+- Verified in QEMU: `ee.zero.accx` / `ee.vmulas.s16.accx` / `rur.accx_0` execute
+  and the result reads back correctly (e.g. 204, and 11440 for a 32-element
+  vector).
 
 ---
 
