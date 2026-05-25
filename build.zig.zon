@@ -5,7 +5,10 @@
     .paths = .{
         "build.zig",
         "build.zig.zon",
+        "src",
+        "tools",
         "esp32",
+        "esp32s2",
         "esp32s3",
     },
 }
