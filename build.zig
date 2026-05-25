@@ -139,13 +139,6 @@ const esp32_query = std.Target.Query{
     .abi = .none,
 };
 
-const esp32s2_query = std.Target.Query{
-    .cpu_arch = .xtensa,
-    .cpu_model = .{ .explicit = &std.Target.xtensa.cpu.esp32s2 },
-    .os_tag = .freestanding,
-    .abi = .none,
-};
-
 const esp32s3_query = std.Target.Query{
     .cpu_arch = .xtensa,
     .cpu_model = .{ .explicit = &std.Target.xtensa.cpu.esp32s3 },

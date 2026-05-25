@@ -54,11 +54,20 @@ Artifacts land in `zig-out/bin/`:
 ./build.sh qemu-esp32           # ESP32 only
 ./build.sh qemu-esp32s3         # ESP32-S3 only
 
+# Non-interactive boot test: build both QEMU ELFs, boot each chip and assert
+# the firmware runs with no CPU faults (this is what CI runs).
+./build.sh smoke                # SMOKE_SECONDS=5 by default
+
 # Extra flags are forwarded to zig build before QEMU starts
 ./build.sh run-qemu-esp32 -Doptimize=ReleaseSmall
 ```
 
 QEMU artifacts: `zig-out/bin/esp32_qemu`, `zig-out/bin/esp32s3_qemu`.
+
+`build.sh` finds the Zig compiler in this order: the `ZIG` env var, then a
+`zig` already on `PATH`, then the prebuilt-fork default location. Override the
+emulator with `QEMU_BIN=/path/to/qemu-system-xtensa` if it is not at the default
+Espressif install path.
 
 ---
 
@@ -155,6 +164,14 @@ Preferred – use the `build.sh` shortcuts (build + run in one step):
 ./build.sh run-qemu-esp32       # ESP32
 ./build.sh run-qemu-esp32s3     # ESP32-S3
 ```
+
+### Automated boot test (CI)
+
+`./build.sh smoke` boots each chip in QEMU for a few seconds and fails if the
+CPU raises a fault or QEMU exits before the timeout (the blink loop never
+returns, so "still running at timeout" is the pass condition). GitHub Actions
+runs this on every push/PR after building Debug and ReleaseSmall, so a green
+check means the firmware actually boots — not merely that it compiles.
 
 ### Stack addresses used in startup prologue
 

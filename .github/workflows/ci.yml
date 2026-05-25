@@ -2,23 +2,46 @@ name: CI
 
 on:
   push:
-    branches:
-      main
+    branches: [main]
   pull_request:
 
+env:
+  ZIG_VERSION: 0.16.0-xtensa-dev
+  QEMU_RELEASE: esp-develop-9.2.2-20250817
+  QEMU_BUILD: esp_develop_9.2.2_20250817
+
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@main
-      - name: Setup zig-espressif-bootstrap (0.16.0-xtensa-dev)
+        uses: actions/checkout@v4
+
+      - name: Setup zig-espressif-bootstrap (${{ env.ZIG_VERSION }})
         run: |
           mkdir -p $HOME/.local/zig
           curl --fail -L -o /tmp/zig.tar.xz \
-            https://github.com/kassane/zig-espressif-bootstrap/releases/download/0.16.0-xtensa-dev/zig-relsafe-x86_64-linux-musl-baseline.tar.xz
+            https://github.com/kassane/zig-espressif-bootstrap/releases/download/${ZIG_VERSION}/zig-relsafe-x86_64-linux-musl-baseline.tar.xz
           tar -xJf /tmp/zig.tar.xz -C $HOME/.local/zig
           echo "$HOME/.local/zig/zig-relsafe-x86_64-linux-musl-baseline" >> $GITHUB_PATH
           rm /tmp/zig.tar.xz
-      - name: Build firmware for ESP32 + ESP32-S3 (default Debug)
+
+      - name: Build firmware for ESP32 + ESP32-S3 (Debug)
         run: zig build --summary all
+
+      - name: Build firmware for ESP32 + ESP32-S3 (ReleaseSmall)
+        run: zig build --summary all -Doptimize=ReleaseSmall
+
+      - name: Setup Espressif QEMU (xtensa) + runtime libs
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsdl2-2.0-0 libslirp0
+          QEMU_DIR="$HOME/.espressif/tools/qemu-xtensa/${QEMU_BUILD}"
+          mkdir -p "$QEMU_DIR"
+          curl --fail -L -o /tmp/qemu.tar.xz \
+            https://github.com/espressif/qemu/releases/download/${QEMU_RELEASE}/qemu-xtensa-softmmu-${QEMU_BUILD}-x86_64-linux-gnu.tar.xz
+          tar -xJf /tmp/qemu.tar.xz -C "$QEMU_DIR"
+          rm /tmp/qemu.tar.xz
+
+      - name: Boot-test firmware in QEMU (ESP32 + ESP32-S3)
+        run: ./build.sh smoke
