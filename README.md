@@ -95,19 +95,30 @@ with `comptime @hasDecl`), so one routine is correct for every target.
 - `fft` — in-place radix-2 Q15 complex FFT (port of esp-dsp's fixed-point FFT;
   comptime twiddle table, no FPU or compiler-rt)
 
-The vector kernels (`addSatS16`, `dotProductS16`) use Zig's native `@Vector` —
-one portable, clobber-free implementation that builds and runs on every chip
-(`a +| b`, `@reduce(.Add, va *% vb)`). `esp32s3/main.zig` is a spectral-analysis
-example: it generates a Q15 cosine at bin 5, runs `fft`, finds the dominant bin,
-and blinks at a rate proportional to it (verified in QEMU: peak bin = 5). Notes:
+The vector kernels (`addSatS16`, `dotProductS16`) run on the **ESP32-S3 PIE unit
+via inline asm** (`ee.vadds.s16`, `ee.vmulas.s16.accx`) when `esp32s3ops` is
+present, with a scalar fallback otherwise — chosen at comptime.
 
-- **`@Vector` vs PIE asm (researched):** the prebuilt LLVM-xtensa backend
-  *scalarizes* `@Vector` — it does not auto-vectorize to the ESP32-S3 PIE
-  (`ee.*`) instructions (confirmed via QEMU `-d in_asm`: zero `ee.*` emitted).
-  So `@Vector` is portable and idiomatic but not hardware-vectorized; driving the
-  PIE unit still requires inline asm with `q*` register clobbers
-  (`: .{ .q0 = true }`, Zig 0.16 form). Results are identical and verified
-  (dot = 120, saturating add lane 0 = 9).
+**Comptime-generated clobbers (`dsp.qClobbers`).** Instead of hand-writing
+`: .{ .q0 = true, .q1 = true }` on every `ee.*` block, the clobber set is built
+at comptime from a register list:
+
+```zig
+asm volatile (… : … : … : qClobbers(.{ 0, 1, 2 }, true)); // q0,q1,q2 + memory
+```
+
+`qClobbers` sets the `q*` fields of `std.builtin.assembly.Clobbers` by comptime
+field name (`"q" ++ …`, **not** `std.fmt` — pulling its formatting machinery into
+a freestanding image references the unlinkable panic path). Verified in QEMU:
+the demo executes real `ee.*` instructions and computes Σ x² = 816.
+
+`esp32s3/main.zig` is the PIE example (mix → energy → blink). The **FFT
+spectral-analysis demo lives in `esp32/main.zig`** (`fft` is portable scalar
+code; the LX6 has no PIE) and prints the magnitude spectrum over UART. They are
+split across chips because an `ee.*` instruction is an optimization barrier that
+un-elides Debug safety-check panics in surrounding code — so a PIE function and
+the higher-level UART/FFT code can't share a build here.
+
 - **Inline required:** kernels are `inline` because the prebuilt xtensa backend
   can't emit cross-module (far) calls (same reason `mmio` is inline).
 - Q15 math uses `[*]` indexing + wrapping arithmetic so Debug builds emit no
@@ -141,16 +152,17 @@ zig build smoke
 zig build smoke -Dsmoke-seconds=10
 
 # Show the example's UART output (captured from QEMU via `-serial file:`):
-zig build demo            # all QEMU-capable chips
-zig build demo-esp32s3    # just the FFT spectrum example
+zig build demo          # all QEMU-capable chips
+zig build demo-esp32    # just the FFT spectrum example
 ```
 
 The firmware writes to UART0 (`regs.UART0.FIFO`); `demo` routes that to a file
-and prints it. `esp32`/`esp32s2` print a hello banner, and **`esp32s3` renders
-the FFT magnitude spectrum of a two-tone signal** as ASCII bars:
+and prints it. **`esp32` renders the FFT magnitude spectrum of a two-tone
+signal** as ASCII bars (`esp32s3` is the PIE/SIMD example and drives the LED
+rather than printing):
 
 ```
-ESP32-S3 FFT magnitude spectrum (tones @ bins 4 and 12):
+ESP32 FFT magnitude spectrum (tones @ bins 4 and 12):
 bin  4 |##############################################
 bin 12 |#######################
 ```

@@ -45,19 +45,20 @@ pub inline fn puts(fifo: u32, s: []const u8) void {
     for (s) |c| writeReg(fifo, c);
 }
 
-/// Print `v` in decimal.
+/// Print `v` in decimal. Division-free (repeated subtraction): a `/`/`%` here
+/// would emit a divide check whose panic path is un-elided next to inline asm
+/// (the xtensa backend treats `ee.*` as an optimization barrier) and won't link.
 pub inline fn printU32(fifo: u32, v: u32) void {
-    if (v == 0) return writeReg(fifo, '0');
-    var buf: [10]u8 = undefined;
-    const p: [*]u8 = &buf; // many-ptr: no bounds-check panic path
-    var n = v;
-    var i: usize = buf.len;
-    while (n != 0) {
-        i -%= 1;
-        p[i] = '0' +% @as(u8, @truncate(n % 10));
-        n /= 10;
+    var rem = v;
+    var started = false;
+    inline for (.{ 1_000_000_000, 100_000_000, 10_000_000, 1_000_000, 100_000, 10_000, 1_000, 100, 10, 1 }) |pow| {
+        var d: u8 = 0;
+        while (rem >= pow) : (rem -%= pow) d +%= 1;
+        if (started or d != 0 or pow == 1) {
+            writeReg(fifo, '0' +% d);
+            started = true;
+        }
     }
-    while (i < buf.len) : (i +%= 1) writeReg(fifo, p[i]);
 }
 
 /// Print a horizontal bar of `n` '#' characters (no newline).
