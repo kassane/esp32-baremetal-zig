@@ -15,20 +15,16 @@ pub fn panic(_: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
 
 // GPIO2 = onboard blue LED on ESP32 DevKitC-V4 (bank 0). W1TS/W1TC = atomic
 // write-1-to-set / write-1-to-clear, so no read-modify-write is needed.
-const led_mask: u32 = @as(u32, 1) << 2;
+const led_pin: u5 = 2;
+const led_mask: u32 = @as(u32, 1) << led_pin;
+const blink_half_period: u32 = 1_200_000;
 
 // ── Application entry ─────────────────────────────────────────────────────────
 
 export fn main() callconv(.c) noreturn {
     init.disableWatchdogs(regs); // or the chip resets within seconds on real HW
     mmio.writeReg(gpio.ENABLE_W1TS, led_mask); // GPIO2 as output
-
-    while (true) {
-        mmio.writeReg(gpio.OUT_W1TS, led_mask); // LED ON
-        mmio.delay(1_200_000);
-        mmio.writeReg(gpio.OUT_W1TC, led_mask); // LED OFF
-        mmio.delay(1_200_000);
-    }
+    mmio.blink(gpio.OUT_W1TS, gpio.OUT_W1TC, led_mask, blink_half_period);
 }
 
 // ── Reset vector ────────────────────────────────────────────────────────────

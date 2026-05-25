@@ -89,31 +89,29 @@ with `comptime @hasDecl`), so one routine is correct for every target.
 
 `src/dsp.zig` (imported as `dsp`) is a small int16 DSP library:
 
-- `addSatS16` — saturating vector add (`ee.vadds.s16`)
-- `dotProductS16` — dot product / correlation / energy (`ee.vmulas.s16.accx` MAC)
+- `addSatS16` — saturating vector add
+- `dotProductS16` — dot product / correlation / energy
 - `firS16` — FIR filter (Q15 convolution)
-- `fft` — in-place radix-2 Q15 complex FFT (a port of esp-dsp's fixed-point FFT;
-  twiddle table built at comptime, scalar/portable, no FPU or compiler-rt)
+- `fft` — in-place radix-2 Q15 complex FFT (port of esp-dsp's fixed-point FFT;
+  comptime twiddle table, no FPU or compiler-rt)
 
-The vector kernels use the LX7 Processor Instruction Extensions (128-bit `q0`–`q7`
-registers, a 40-bit `ACCX`) with a scalar fallback. `esp32s3/main.zig` is a
-spectral-analysis example: it generates a Q15 cosine at bin 5, runs `fft`, finds
-the dominant bin, and blinks at a rate proportional to it (verified in QEMU:
-peak bin = 5). Notes:
+The vector kernels (`addSatS16`, `dotProductS16`) use Zig's native `@Vector` —
+one portable, clobber-free implementation that builds and runs on every chip
+(`a +| b`, `@reduce(.Add, va *% vb)`). `esp32s3/main.zig` is a spectral-analysis
+example: it generates a Q15 cosine at bin 5, runs `fft`, finds the dominant bin,
+and blinks at a rate proportional to it (verified in QEMU: peak bin = 5). Notes:
 
-- **Portable via comptime:** the SIMD branch is chosen with
-  `comptime dsp.has_simd` (`std.Target.xtensa.featureSetHas(…, .esp32s3ops)`), so
-  the inactive branch is never analysed and `ee.*` never reaches the LX6
-  assembler — the same module builds for esp32, esp32s2 and esp32s3.
-- **Inline required:** the kernels are `inline` because the prebuilt xtensa
-  backend does not emit cross-module (far) calls (same reason `mmio` is inline).
-- Inline-asm clobbers use the Zig 0.16 struct form (`: .{ .q0 = true }`) — needs
-  a `zig-espressif-bootstrap` build new enough to expose the `q*` clobbers.
-- 128-bit loads (`ee.vld.128.ip`) need 16-byte-aligned operands. Prefer separate
-  load/op instructions over the fused `ee.*.ld/st.incp` forms, which have had
-  buggy LLVM encodings.
-- The PIE has more ops (multiply, min/max, `ee.cmul.s16`, `ee.fft.r2bf.s16`, …);
-  this is a representative subset, verified in QEMU (e.g. energy = 816).
+- **`@Vector` vs PIE asm (researched):** the prebuilt LLVM-xtensa backend
+  *scalarizes* `@Vector` — it does not auto-vectorize to the ESP32-S3 PIE
+  (`ee.*`) instructions (confirmed via QEMU `-d in_asm`: zero `ee.*` emitted).
+  So `@Vector` is portable and idiomatic but not hardware-vectorized; driving the
+  PIE unit still requires inline asm with `q*` register clobbers
+  (`: .{ .q0 = true }`, Zig 0.16 form). Results are identical and verified
+  (dot = 120, saturating add lane 0 = 9).
+- **Inline required:** kernels are `inline` because the prebuilt xtensa backend
+  can't emit cross-module (far) calls (same reason `mmio` is inline).
+- Q15 math uses `[*]` indexing + wrapping arithmetic so Debug builds emit no
+  bounds-check / overflow / divide panic path (which don't link here).
 
 > Atomics (`@atomicRmw`/`@cmpxchg`) compile and lower correctly to the Xtensa
 > `s32c1i` CAS, but the Espressif QEMU esp32s3 machine does not faithfully model

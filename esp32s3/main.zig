@@ -14,19 +14,22 @@ pub fn panic(_: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
     mmio.halt();
 }
 
-// GPIO48 (onboard RGB LED) is in the second bank (pins 32-53), bit 48-32 = 16,
-// so it uses the OUT1/ENABLE1 registers. W1TS/W1TC = atomic write-1-to-set/clear.
-const led_mask: u32 = @as(u32, 1) << (48 - 32);
+// GPIO48 (onboard RGB LED) is in the second bank (pins 32-53), so it uses the
+// OUT1/ENABLE1 registers. W1TS/W1TC = atomic write-1-to-set / write-1-to-clear.
+const led_pin_in_bank: u5 = 48 - 32; // bit position within the GPIO32-53 bank
+const led_mask: u32 = @as(u32, 1) << led_pin_in_bank;
 
 // FFT spectral-analysis demo: a Q15 cosine at bin 5, generated at comptime.
 const fft_n = 64;
 const tone_bin = 5;
+const tone_amplitude: f64 = 8000.0; // < q15 max, headroom for the 1/N FFT scaling
+const blink_per_bin: u32 = 240_000; // busy-loops of blink half-period per peak bin
 const tone: [fft_n]dsp.Cplx = blk: {
     @setEvalBranchQuota(10000);
     var s: [fft_n]dsp.Cplx = undefined;
     for (0..fft_n) |n| {
         const ang = 2.0 * std.math.pi * @as(f64, tone_bin) * @as(f64, @floatFromInt(n)) / @as(f64, fft_n);
-        s[n] = .{ .re = @intFromFloat(@round(@cos(ang) * 8000.0)), .im = 0 };
+        s[n] = .{ .re = @intFromFloat(@round(@cos(ang) * tone_amplitude)), .im = 0 };
     }
     break :blk s;
 };
@@ -63,14 +66,9 @@ export fn app_main() callconv(.c) noreturn {
     var n: usize = 0;
     while (n < fft_n) : (n +%= 1) sp[n] = tp[n]; // element-wise copy (no memcpy)
     dsp.fft(fft_n, &spectrum);
-    const half_period: u32 = @as(u32, @truncate(peakBin(&spectrum))) *% 240_000;
+    const half_period: u32 = @as(u32, @truncate(peakBin(&spectrum))) *% blink_per_bin;
 
-    while (true) {
-        mmio.writeReg(gpio.OUT1_W1TS, led_mask); // LED ON
-        mmio.delay(half_period);
-        mmio.writeReg(gpio.OUT1_W1TC, led_mask); // LED OFF
-        mmio.delay(half_period);
-    }
+    mmio.blink(gpio.OUT1_W1TS, gpio.OUT1_W1TC, led_mask, half_period);
 }
 
 // ── Startup ───────────────────────────────────────────────────────────────────

@@ -19,6 +19,17 @@ pub inline fn delay(count: u32) void {
     }
 }
 
+/// Blink forever: pulse `mask` on via `set_reg`, hold, off via `clr_reg`, hold.
+/// `set_reg`/`clr_reg` are W1TS/W1TC register addresses (atomic set/clear).
+pub inline fn blink(set_reg: u32, clr_reg: u32, mask: u32, half_period: u32) noreturn {
+    while (true) {
+        writeReg(set_reg, mask);
+        delay(half_period);
+        writeReg(clr_reg, mask);
+        delay(half_period);
+    }
+}
+
 /// Spin forever; the bare-metal panic landing pad.
 pub inline fn halt() noreturn {
     while (true) {

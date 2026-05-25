@@ -80,9 +80,10 @@ pub fn build(b: *std.Build) void {
         b.getInstallStep().dependOn(chip_step);
 
         // ── QEMU firmware (all code in IRAM, no flash-cache MMU needed) ───────
-        if (chip.qemu_machine) |machine| {
+        if (chip.qemu) |q| {
+            const machine = q.machine;
             const qemu_exe = addFirmware(b, mmio, dsp, regs, init_mod, chip, target, optimize, chip.name ++ "_qemu");
-            qemu_exe.setLinkerScript(ld.add(chip.name ++ "-qemu.ld", qemuLinker(b, chip)));
+            qemu_exe.setLinkerScript(ld.add(chip.name ++ "-qemu.ld", qemuLinker(b, chip.entry, q)));
 
             const qemu_chip_step = b.step("qemu-" ++ chip.name, "Build " ++ chip.name ++ " QEMU firmware");
             qemu_chip_step.dependOn(&b.addInstallArtifact(qemu_exe, .{}).step);
@@ -181,16 +182,16 @@ fn flashLinker(b: *std.Build, comptime chip: Chip) []const u8 {
         \\
     , .{
         chip.entry,
-        chip.iram_org, chip.iram_len,
-        chip.dram_org, chip.dram_len,
-        chip.irom_org, chip.irom_len,
-        chip.drom_org, chip.drom_len,
+        chip.iram.org, chip.iram.len,
+        chip.dram.org, chip.dram.len,
+        chip.irom.org, chip.irom.len,
+        chip.drom.org, chip.drom.len,
     });
 }
 
 /// QEMU layout: ALL code in IRAM so `qemu -kernel <elf>` runs without the ROM
 /// bootloader initialising the flash cache. IRAM is oversized for Debug builds.
-fn qemuLinker(b: *std.Build, comptime chip: Chip) []const u8 {
+fn qemuLinker(b: *std.Build, comptime entry: []const u8, comptime q: Qemu) []const u8 {
     return b.fmt(
         \\ENTRY({s})
         \\MEMORY {{
@@ -222,9 +223,9 @@ fn qemuLinker(b: *std.Build, comptime chip: Chip) []const u8 {
         \\}}
         \\
     , .{
-        chip.entry,
-        chip.qemu_iram_org, chip.qemu_iram_len,
-        chip.qemu_dram_org, chip.qemu_dram_len,
+        entry,
+        q.iram.org, q.iram.len,
+        q.dram.org, q.dram.len,
     });
 }
 
@@ -232,25 +233,23 @@ fn qemuLinker(b: *std.Build, comptime chip: Chip) []const u8 {
 // Requires the zig-espressif-bootstrap fork; upstream zig lacks esp32 CPU models.
 // Addresses verified against ESP-IDF components/esp_system/ld/<chip>/memory.ld.in.
 
+/// A memory region as the linker wants it: ORIGIN + LENGTH.
+const Region = struct { org: u64, len: u64 };
+
+/// QEMU support for a chip: machine name + the IRAM-only layout it boots with.
+const Qemu = struct { machine: []const u8, iram: Region, dram: Region };
+
 const Chip = struct {
     name: []const u8,
     cpu: *const std.Target.Cpu.Model,
     entry: []const u8,
     // Hardware/flash regions.
-    iram_org: u64,
-    iram_len: u64,
-    dram_org: u64,
-    dram_len: u64,
-    irom_org: u64,
-    irom_len: u64,
-    drom_org: u64,
-    drom_len: u64,
-    // QEMU IRAM-only regions; qemu_machine == null means no QEMU support.
-    qemu_machine: ?[]const u8 = null,
-    qemu_iram_org: u64 = 0,
-    qemu_iram_len: u64 = 0,
-    qemu_dram_org: u64 = 0,
-    qemu_dram_len: u64 = 0,
+    iram: Region,
+    dram: Region,
+    irom: Region,
+    drom: Region,
+    // Present only on chips with an Espressif QEMU machine.
+    qemu: ?Qemu = null,
 };
 
 const chips = [_]Chip{
@@ -258,13 +257,15 @@ const chips = [_]Chip{
         .name = "esp32",
         .cpu = &std.Target.xtensa.cpu.esp32,
         .entry = "Reset",
-        .iram_org = 0x40080000, .iram_len = 0x20000,
-        .dram_org = 0x3FFB0000, .dram_len = 0x2C200,
-        .irom_org = 0x400D0020, .irom_len = 0x330000 - 0x20,
-        .drom_org = 0x3F400020, .drom_len = 0x400000 - 0x20,
-        .qemu_machine = "esp32",
-        .qemu_iram_org = 0x40080000, .qemu_iram_len = 0x100000,
-        .qemu_dram_org = 0x3FFB0000, .qemu_dram_len = 0x2C200,
+        .iram = .{ .org = 0x40080000, .len = 0x20000 },
+        .dram = .{ .org = 0x3FFB0000, .len = 0x2C200 },
+        .irom = .{ .org = 0x400D0020, .len = 0x330000 - 0x20 },
+        .drom = .{ .org = 0x3F400020, .len = 0x400000 - 0x20 },
+        .qemu = .{
+            .machine = "esp32",
+            .iram = .{ .org = 0x40080000, .len = 0x100000 },
+            .dram = .{ .org = 0x3FFB0000, .len = 0x2C200 },
+        },
     },
     .{
         // ESP32-S2 has no QEMU machine in the Espressif build, so it is
@@ -272,21 +273,23 @@ const chips = [_]Chip{
         .name = "esp32s2",
         .cpu = &std.Target.xtensa.cpu.esp32s2,
         .entry = "call_start_cpu0",
-        .iram_org = 0x40024000, .iram_len = 0x2A000,
-        .dram_org = 0x3FFB4000, .dram_len = 0x2A000,
-        .irom_org = 0x40080020, .irom_len = 0x780000 - 0x20,
-        .drom_org = 0x3F000020, .drom_len = 0x3F0000 - 0x20,
+        .iram = .{ .org = 0x40024000, .len = 0x2A000 },
+        .dram = .{ .org = 0x3FFB4000, .len = 0x2A000 },
+        .irom = .{ .org = 0x40080020, .len = 0x780000 - 0x20 },
+        .drom = .{ .org = 0x3F000020, .len = 0x3F0000 - 0x20 },
     },
     .{
         .name = "esp32s3",
         .cpu = &std.Target.xtensa.cpu.esp32s3,
         .entry = "call_start_cpu0",
-        .iram_org = 0x40370000, .iram_len = 0x10000,
-        .dram_org = 0x3FC88000, .dram_len = 0x78000,
-        .irom_org = 0x42000020, .irom_len = 0x400000 - 0x20,
-        .drom_org = 0x3C000020, .drom_len = 0x400000 - 0x20,
-        .qemu_machine = "esp32s3",
-        .qemu_iram_org = 0x40370000, .qemu_iram_len = 0x100000,
-        .qemu_dram_org = 0x3FC88000, .qemu_dram_len = 0x4B000,
+        .iram = .{ .org = 0x40370000, .len = 0x10000 },
+        .dram = .{ .org = 0x3FC88000, .len = 0x78000 },
+        .irom = .{ .org = 0x42000020, .len = 0x400000 - 0x20 },
+        .drom = .{ .org = 0x3C000020, .len = 0x400000 - 0x20 },
+        .qemu = .{
+            .machine = "esp32s3",
+            .iram = .{ .org = 0x40370000, .len = 0x100000 },
+            .dram = .{ .org = 0x3FC88000, .len = 0x4B000 },
+        },
     },
 };
