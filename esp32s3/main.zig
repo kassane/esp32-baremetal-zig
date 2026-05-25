@@ -5,24 +5,16 @@
 const std = @import("std");
 const mmio = @import("mmio");
 const dsp = @import("dsp");
+const gpio = @import("regs").GPIO; // generated from svd/esp32s3.svd
 
 /// Baremetal panic: halt forever (no std runtime to unwind into).
 pub fn panic(_: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
     mmio.halt();
 }
 
-// ── Peripheral register addresses (ESP32-S3) ─────────────────────────────────
-//
-// GPIO pins 0-31  → GPIO_OUT_REG    / GPIO_ENABLE_REG
-// GPIO pins 32-53 → GPIO_OUT1_REG   / GPIO_ENABLE1_REG
-//
-// GPIO48 is in the second bank: bit (48 - 32) = 16.
-
-const GPIO_BASE: u32 = 0x6000_4000;
-/// GPIO output register – GPIO 32-53
-const GPIO_OUT1_REG: u32 = GPIO_BASE + 0x0008;
-/// GPIO output enable – GPIO 32-53
-const GPIO_ENABLE1_REG: u32 = GPIO_BASE + 0x0024;
+// GPIO48 (onboard RGB LED) is in the second bank (pins 32-53), bit 48-32 = 16,
+// so it uses the OUT1/ENABLE1 registers. W1TS/W1TC = atomic write-1-to-set/clear.
+const led_mask: u32 = @as(u32, 1) << (48 - 32);
 
 // Two 8-lane int16 signals (16-byte aligned = one 128-bit PIE vector).
 var sig_a: [8]i16 align(16) = .{ 1, 2, 3, 4, 5, 6, 7, 8 };
@@ -32,12 +24,7 @@ var mixed: [8]i16 align(16) = undefined;
 // ── Application entry ─────────────────────────────────────────────────────────
 
 export fn app_main() callconv(.c) noreturn {
-    // GPIO48 = onboard RGB LED on ESP32-S3-DevKitC-1
-    // Pin >= 32 → second bank; bit position = pin - 32
-    const led_mask: u32 = @as(u32, 1) << (48 - 32);
-
-    // Enable GPIO48 as output (second bank)
-    mmio.setBits(GPIO_ENABLE1_REG, led_mask);
+    mmio.writeReg(gpio.ENABLE1_W1TS, led_mask); // GPIO48 as output
 
     // A two-stage DSP pipeline on the PIE unit: saturating-mix the signals
     // (mixed = [2,4,…,16]) then take the energy Σ mixed² = 816. The blink
@@ -47,9 +34,9 @@ export fn app_main() callconv(.c) noreturn {
     const half_period: u32 = ((energy & 0x3F) +% 8) *% 24_000;
 
     while (true) {
-        mmio.setBits(GPIO_OUT1_REG, led_mask); // LED ON
+        mmio.writeReg(gpio.OUT1_W1TS, led_mask); // LED ON
         mmio.delay(half_period);
-        mmio.clearBits(GPIO_OUT1_REG, led_mask); // LED OFF
+        mmio.writeReg(gpio.OUT1_W1TC, led_mask); // LED OFF
         mmio.delay(half_period);
     }
 }

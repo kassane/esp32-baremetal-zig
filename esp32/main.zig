@@ -4,33 +4,26 @@
 
 const std = @import("std");
 const mmio = @import("mmio");
+const gpio = @import("regs").GPIO; // generated from svd/esp32.svd
 
 /// Baremetal panic: halt forever (no std runtime to unwind into).
 pub fn panic(_: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
     mmio.halt();
 }
 
-// ── Peripheral register addresses (ESP32) ────────────────────────────────────
-
-const GPIO_BASE: u32 = 0x3FF4_4000;
-/// GPIO output register – controls GPIO 0-31
-const GPIO_OUT_REG: u32 = GPIO_BASE + 0x0004;
-/// GPIO output enable register – GPIO 0-31
-const GPIO_ENABLE_REG: u32 = GPIO_BASE + 0x0020;
+// GPIO2 = onboard blue LED on ESP32 DevKitC-V4 (bank 0). W1TS/W1TC = atomic
+// write-1-to-set / write-1-to-clear, so no read-modify-write is needed.
+const led_mask: u32 = @as(u32, 1) << 2;
 
 // ── Application entry ─────────────────────────────────────────────────────────
 
 export fn main() callconv(.c) noreturn {
-    // GPIO2 = onboard blue LED on ESP32 DevKitC-V4 (active-high)
-    const led_mask: u32 = @as(u32, 1) << 2;
-
-    // Enable GPIO2 as output
-    mmio.setBits(GPIO_ENABLE_REG, led_mask);
+    mmio.writeReg(gpio.ENABLE_W1TS, led_mask); // GPIO2 as output
 
     while (true) {
-        mmio.setBits(GPIO_OUT_REG, led_mask); // LED ON
+        mmio.writeReg(gpio.OUT_W1TS, led_mask); // LED ON
         mmio.delay(1_200_000);
-        mmio.clearBits(GPIO_OUT_REG, led_mask); // LED OFF
+        mmio.writeReg(gpio.OUT_W1TC, led_mask); // LED OFF
         mmio.delay(1_200_000);
     }
 }

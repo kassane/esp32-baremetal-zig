@@ -11,14 +11,6 @@ pub inline fn readReg(addr: u32) u32 {
     return ptr.*;
 }
 
-pub inline fn setBits(addr: u32, mask: u32) void {
-    writeReg(addr, readReg(addr) | mask);
-}
-
-pub inline fn clearBits(addr: u32, mask: u32) void {
-    writeReg(addr, readReg(addr) & ~mask);
-}
-
 /// Busy-wait `count` iterations. Wrapping `+%` so Debug emits no overflow check.
 pub inline fn delay(count: u32) void {
     var i: u32 = 0;

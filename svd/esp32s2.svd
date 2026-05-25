@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GPIO peripheral extracted from esp-rs/esp-pacs esp32s2.base.svd; fields stripped. -->
+<device><name>ESP32S2</name>
+<peripherals>
+<peripheral>
+      <name>GPIO</name>
+      <description>General Purpose Input/Output</description>
+      <groupName>GPIO</groupName>
+      <baseAddress>0x3F404000</baseAddress>
+      <registers>
+        <register>
+          <name>BT_SELECT</name>
+          <description>GPIO bit select register</description>
+          <addressOffset>0x0</addressOffset>
+        </register>
+        <register>
+          <name>OUT</name>
+          <description>GPIO0 ~ 31 output register</description>
+          <addressOffset>0x4</addressOffset>
+        </register>
+        <register>
+          <name>OUT_W1TS</name>
+          <description>GPIO0 ~ 31 output bit set register</description>
+          <addressOffset>0x8</addressOffset>
+        </register>
+        <register>
+          <name>OUT_W1TC</name>
+          <description>GPIO0 ~ 31 output bit clear register</description>
+          <addressOffset>0xC</addressOffset>
+        </register>
+        <register>
+          <name>OUT1</name>
+          <description>GPIO32 ~ 53 output register</description>
+          <addressOffset>0x10</addressOffset>
+        </register>
+        <register>
+          <name>OUT1_W1TS</name>
+          <description>GPIO32 ~ 53 output bit set register</description>
+          <addressOffset>0x14</addressOffset>
+        </register>
+        <register>
+          <name>OUT1_W1TC</name>
+          <description>GPIO32 ~ 53 output bit clear register</description>
+          <addressOffset>0x18</addressOffset>
+        </register>
+        <register>
+          <name>SDIO_SELECT</name>
+          <description>GPIO SDIO selection register</description>
+          <addressOffset>0x1C</addressOffset>
+        </register>
+        <register>
+          <name>ENABLE</name>
+          <description>GPIO0 ~ 31 output enable register</description>
+          <addressOffset>0x20</addressOffset>
+        </register>
+        <register>
+          <name>ENABLE_W1TS</name>
+          <description>GPIO0 ~ 31 output enable bit set register</description>
+          <addressOffset>0x24</addressOffset>
+        </register>
+        <register>
+          <name>ENABLE_W1TC</name>
+          <description>GPIO0 ~ 31 output enable bit clear register</description>
+          <addressOffset>0x28</addressOffset>
+        </register>
+        <register>
+          <name>ENABLE1</name>
+          <description>GPIO32 ~ 53 output enable register</description>
+          <addressOffset>0x2C</addressOffset>
+        </register>
+        <register>
+          <name>ENABLE1_W1TS</name>
+          <description>GPIO32 ~ 53 output enable bit set register</description>
+          <addressOffset>0x30</addressOffset>
+        </register>
+        <register>
+          <name>ENABLE1_W1TC</name>
+          <description>GPIO32 ~ 53 output enable bit clear register</description>
+          <addressOffset>0x34</addressOffset>
+        </register>
+        <register>
+          <name>STRAP</name>
+          <description>Bootstrap pin value register</description>
+          <addressOffset>0x38</addressOffset>
+        </register>
+        <register>
+          <name>IN</name>
+          <description>GPIO0 ~ 31 input register</description>
+          <addressOffset>0x3C</addressOffset>
+        </register>
+        <register>
+          <name>IN1</name>
+          <description>GPIO32 ~ 53 input register</description>
+          <addressOffset>0x40</addressOffset>
+        </register>
+        <register>
+          <name>STATUS</name>
+          <description>GPIO0 ~ 31 interrupt status register</description>
+          <addressOffset>0x44</addressOffset>
+        </register>
+        <register>
+          <name>STATUS_W1TS</name>
+          <description>GPIO0 ~ 31 interrupt status bit set register</description>
+          <addressOffset>0x48</addressOffset>
+        </register>
+        <register>
+          <name>STATUS_W1TC</name>
+          <description>GPIO0 ~ 31 interrupt status bit clear register</description>
+          <addressOffset>0x4C</addressOffset>
+        </register>
+        <register>
+          <name>STATUS1</name>
+          <description>GPIO32 ~ 53 interrupt status register</description>
+          <addressOffset>0x50</addressOffset>
+        </register>
+        <register>
+          <name>STATUS1_W1TS</name>
+          <description>GPIO32 ~ 53 interrupt status bit set register</description>
+          <addressOffset>0x54</addressOffset>
+        </register>
+        <register>
+          <name>STATUS1_W1TC</name>
+          <description>GPIO32 ~ 53 interrupt status bit clear register</description>
+          <addressOffset>0x58</addressOffset>
+        </register>
+        <register>
+          <name>PCPU_INT</name>
+          <description>GPIO0 ~ 31 PRO_CPU interrupt status register</description>
+          <addressOffset>0x5C</addressOffset>
+        </register>
+        <register>
+          <name>PCPU_NMI_INT</name>
+          <description>GPIO0 ~ 31 PRO_CPU non-maskable interrupt status register</description>
+          <addressOffset>0x60</addressOffset>
+        </register>
+        <register>
+          <name>CPUSDIO_INT</name>
+          <description>GPIO0 ~ 31 CPU SDIO interrupt status register</description>
+          <addressOffset>0x64</addressOffset>
+        </register>
+        <register>
+          <name>PCPU_INT1</name>
+          <description>GPIO32 ~ 53 PRO_CPU interrupt status register</description>
+          <addressOffset>0x68</addressOffset>
+        </register>
+        <register>
+          <name>PCPU_NMI_INT1</name>
+          <description>GPIO32 ~ 53 PRO_CPU non-maskable interrupt status register</description>
+          <addressOffset>0x6C</addressOffset>
+        </register>
+        <register>
+          <name>CPUSDIO_INT1</name>
+          <description>GPIO32 ~ 53 CPU SDIO interrupt status register</description>
+          <addressOffset>0x70</addressOffset>
+        </register>
+        <register>
+          <dim>54</dim>
+          <dimIncrement>0x4</dimIncrement>
+          <name>PIN%s</name>
+          <description>Configuration for GPIO pin %s</description>
+          <addressOffset>0x74</addressOffset>
+        </register>
+        <register>
+          <name>STATUS_NEXT</name>
+          <description>GPIO0 ~ 31 interrupt source register</description>
+          <addressOffset>0x14C</addressOffset>
+        </register>
+        <register>
+          <name>STATUS_NEXT1</name>
+          <description>GPIO32 ~ 53 interrupt source register</description>
+          <addressOffset>0x150</addressOffset>
+        </register>
+        <register>
+          <dim>256</dim>
+          <dimIncrement>0x4</dimIncrement>
+          <name>FUNC%s_IN_SEL_CFG</name>
+          <description>Peripheral function %s input selection register</description>
+          <addressOffset>0x154</addressOffset>
+        </register>
+        <register>
+          <dim>54</dim>
+          <dimIncrement>0x4</dimIncrement>
+          <name>FUNC%s_OUT_SEL_CFG</name>
+          <description>Peripheral output selection for GPIO %s</description>
+          <addressOffset>0x554</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>CLOCK_GATE</name>
+          <description>GPIO clock gating register</description>
+          <addressOffset>0x62C</addressOffset>
+          <resetValue>0x00000001</resetValue>
+        </register>
+        <register>
+          <name>REG_DATE</name>
+          <description>Version control register</description>
+          <addressOffset>0x6FC</addressOffset>
+          <resetValue>0x01905061</resetValue>
+        </register>
+      </registers>
+    </peripheral>
+</peripherals></device>

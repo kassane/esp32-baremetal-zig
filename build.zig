@@ -31,8 +31,19 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
+    // Host tool that generates a Zig register module from a chip's SVD.
+    const svd2zig = b.addExecutable(.{
+        .name = "svd2zig",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tools/svd2zig.zig"),
+            .target = b.graph.host,
+            .optimize = .ReleaseFast,
+        }),
+    });
+
     const qemu_step = b.step("qemu", "Build all QEMU firmware images (IRAM-only)");
     const smoke_step = b.step("smoke", "Boot every QEMU-capable chip and assert no CPU faults");
+    const regs_step = b.step("regs", "Generate register modules from svd/*.svd into zig-out/gen/");
     var prev_smoke: ?*std.Build.Step = null;
 
     inline for (chips) |chip| {
@@ -43,8 +54,15 @@ pub fn build(b: *std.Build) void {
             .abi = .none,
         });
 
+        // Auto-generate the chip's register module from its (esp-pacs) SVD.
+        const gen = b.addRunArtifact(svd2zig);
+        gen.addFileArg(b.path("svd/" ++ chip.name ++ ".svd"));
+        const regs_src = gen.addOutputFileArg(chip.name ++ "_regs.zig");
+        const regs = b.createModule(.{ .root_source_file = regs_src });
+        regs_step.dependOn(&b.addInstallFileWithDir(regs_src, .prefix, "gen/" ++ chip.name ++ "_regs.zig").step);
+
         // ── Hardware/flash firmware (.elf + raw .bin) ────────────────────────
-        const hw_exe = addFirmware(b, mmio, dsp, chip, target, optimize, chip.name ++ "_baremetal_zig");
+        const hw_exe = addFirmware(b, mmio, dsp, regs, chip, target, optimize, chip.name ++ "_baremetal_zig");
         hw_exe.setLinkerScript(ld.add(chip.name ++ ".ld", flashLinker(b, chip)));
 
         const bin = b.addObjCopy(hw_exe.getEmittedBin(), .{
@@ -59,7 +77,7 @@ pub fn build(b: *std.Build) void {
 
         // ── QEMU firmware (all code in IRAM, no flash-cache MMU needed) ───────
         if (chip.qemu_machine) |machine| {
-            const qemu_exe = addFirmware(b, mmio, dsp, chip, target, optimize, chip.name ++ "_qemu");
+            const qemu_exe = addFirmware(b, mmio, dsp, regs, chip, target, optimize, chip.name ++ "_qemu");
             qemu_exe.setLinkerScript(ld.add(chip.name ++ "-qemu.ld", qemuLinker(b, chip)));
 
             const qemu_chip_step = b.step("qemu-" ++ chip.name, "Build " ++ chip.name ++ " QEMU firmware");
@@ -90,6 +108,7 @@ fn addFirmware(
     b: *std.Build,
     mmio: *std.Build.Module,
     dsp: *std.Build.Module,
+    regs: *std.Build.Module,
     comptime chip: Chip,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
@@ -102,6 +121,7 @@ fn addFirmware(
     });
     mod.addImport("mmio", mmio);
     mod.addImport("dsp", dsp);
+    mod.addImport("regs", regs);
     mod.strip = true;
     // No UBSan runtime on bare metal; Debug safety still traps via our panic.
     mod.sanitize_c = .off;
