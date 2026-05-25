@@ -38,13 +38,9 @@ export fn app_main() callconv(.c) noreturn {
 
 // ── Startup ───────────────────────────────────────────────────────────────────
 
-/// ROM bootloader jumps here (symbol expected by the IDF boot flow).
-///
-/// Hardware: ROM has already set PS.WOE=1 and configured the register file.
-/// Re-initialising is idempotent and safe.
-///
-/// PS.WOE = bit 18 = 0x40000 (too large for movi; built with movi+slli).
-/// Stack pointer: top of internal DRAM = 0x3FFDE000 (= 0x40000000 − 0x22000).
+/// Entry point (symbol expected by the IDF boot flow). Enables windowed
+/// registers and sets SP (top of internal DRAM) before the first C-ABI call;
+/// the ROM already does this on hardware, where redoing it is harmless.
 export fn call_start_cpu0() callconv(.naked) noreturn {
     asm volatile (
         \\ .align 4

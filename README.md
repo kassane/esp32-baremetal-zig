@@ -59,29 +59,32 @@ Shared register/timing helpers live in `src/mmio.zig` (imported as `mmio`).
 
 ### ESP32-S3 SIMD (PIE)
 
-`src/dsp.zig` (imported as `dsp`) holds portable DSP kernels. `dotProductS16`
-computes a signed-16-bit dot product using the LX7's Processor Instruction
-Extensions (Espressif's 128-bit vector unit: eight `q0`–`q7` registers, a 40-bit
-multiply-accumulate `ACCX`) and falls back to a scalar loop on chips without
-them. `esp32s3/main.zig` calls it on two 8-lane `int16` vectors (Σ i² = 204) and
-drives the blink period from the result. Notes:
+`src/dsp.zig` (imported as `dsp`) holds portable int16 kernels for the LX7's
+Processor Instruction Extensions (Espressif's 128-bit vector unit: eight
+`q0`–`q7` registers, a 40-bit multiply-accumulate `ACCX`), each with a scalar
+fallback: `addSatS16` (saturating vector add — `ee.vadds.s16`) and
+`dotProductS16` (FIR/correlation/energy — `ee.vmulas.s16.accx`). `esp32s3/main.zig`
+runs both as a tiny pipeline — saturating-mix two signals, then take the energy
+Σ x² — and derives the blink period from the result. Notes:
 
 - **Portable via comptime:** the SIMD branch is chosen with
   `comptime dsp.has_simd` (`std.Target.xtensa.featureSetHas(…, .esp32s3ops)`), so
   the inactive branch is never analysed and `ee.*` never reaches the LX6
   assembler — the same module builds for esp32, esp32s2 and esp32s3.
 - **Inline required:** the kernels are `inline` because the prebuilt xtensa
-  backend does not emit cross-module (far) calls; inlining keeps everything in
-  the caller (this is also why `mmio`'s helpers are `inline`).
-- Inline-asm clobbers use the Zig 0.16 struct form, e.g.
-  `: .{ .q0 = true, .q1 = true }` — needs a `zig-espressif-bootstrap` build new
-  enough to expose the `q*` clobbers.
+  backend does not emit cross-module (far) calls (same reason `mmio` is inline).
+- Inline-asm clobbers use the Zig 0.16 struct form (`: .{ .q0 = true }`) — needs
+  a `zig-espressif-bootstrap` build new enough to expose the `q*` clobbers.
 - 128-bit loads (`ee.vld.128.ip`) need 16-byte-aligned operands. Prefer separate
-  load/MAC instructions over the fused `ee.*.ld/st.incp` forms, which have had
+  load/op instructions over the fused `ee.*.ld/st.incp` forms, which have had
   buggy LLVM encodings.
-- Verified in QEMU: `ee.zero.accx` / `ee.vmulas.s16.accx` / `rur.accx_0` execute
-  and the result reads back correctly (e.g. 204, and 11440 for a 32-element
-  vector).
+- The PIE has more ops (multiply, min/max, `ee.cmul.s16`, `ee.fft.r2bf.s16`, …);
+  this is a representative subset, verified in QEMU (e.g. energy = 816).
+
+> Atomics (`@atomicRmw`/`@cmpxchg`) compile and lower correctly to the Xtensa
+> `s32c1i` CAS, but the Espressif QEMU esp32s3 machine does not faithfully model
+> the store-conditional, so an atomic spins forever under emulation (works on
+> real silicon). They are therefore not used in the QEMU-tested firmware.
 
 ---
 
@@ -193,5 +196,7 @@ esptool.py --chip esp32s2 elf2image --output firmware.bin zig-out/bin/esp32s2_ba
 - [kubo39/esp32-baremetal-ldc](https://github.com/kubo39/esp32-baremetal-ldc) – inspiration
 - [georgik/swift-xtensa](https://github.com/georgik/swift-xtensa) – flashing workflow reference (espflash, --flash-mode dio)
 - [esp-rs/espflash](https://github.com/esp-rs/espflash) – Rust-based flash tool (ELF-aware, `--skip-padding`)
-- [esp-rs/esp-hal](https://github.com/esp-rs/esp-hal)
-</content>
+- [esp-rs/esp-hal](https://github.com/esp-rs/esp-hal) – HAL design reference
+- [esp-rs/esp-pacs](https://github.com/esp-rs/esp-pacs) – SVD-generated register access; a future
+  improvement would be generating typed register structs from SVD instead of the
+  hardcoded MMIO addresses used here

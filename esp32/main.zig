@@ -37,18 +37,9 @@ export fn main() callconv(.c) noreturn {
 
 // ── Reset vector ────────────────────────────────────────────────────────────
 
-/// Reset vector – first code executed on both real hardware and QEMU.
-///
-/// Hardware: ROM bootloader has already set PS.WOE=1 and configured the
-/// register file before jumping here.  Re-initialising is idempotent.
-///
-/// QEMU (-kernel): jumps here with PS.WOE=0, making every subsequent
-/// windowed 'entry' instruction illegal.  We must explicitly set WOE and
-/// initialise the register window before any Zig C-ABI function runs.
-///
-/// PS.WOE = bit 18 = 0x40000.  Too large for 'movi' (12-bit signed ±2047),
-/// so we build it with 'movi a0, 1 / slli a0, a0, 18'.
-/// Stack pointer: top of DRAM = 0x3FFDC200 (= 0x40000000 − 0x23E00).
+/// Entry point. QEMU `-kernel` enters with PS.WOE=0, so windowed registers must
+/// be enabled and SP set (top of DRAM) before the first C-ABI call. The ROM
+/// already does this on hardware, where redoing it is harmless.
 export fn Reset() callconv(.naked) noreturn {
     asm volatile (
         \\ .align 4

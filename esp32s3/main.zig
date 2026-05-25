@@ -24,14 +24,10 @@ const GPIO_OUT1_REG: u32 = GPIO_BASE + 0x0008;
 /// GPIO output enable – GPIO 32-53
 const GPIO_ENABLE1_REG: u32 = GPIO_BASE + 0x0024;
 
-// ── ESP32-S3 SIMD (PIE) demo input ────────────────────────────────────────────
-//
-// Two 8-lane int16 vectors (16-byte aligned = one 128-bit PIE vector). Their
-// dot product Σ i² over 1..8 = 204 is computed by `dsp.dotProductS16`, which
-// uses the LX7 Processor Instruction Extensions here and a scalar fallback on
-// chips without them.
-var vec_a: [8]i16 align(16) = .{ 1, 2, 3, 4, 5, 6, 7, 8 };
-var vec_b: [8]i16 align(16) = .{ 1, 2, 3, 4, 5, 6, 7, 8 };
+// Two 8-lane int16 signals (16-byte aligned = one 128-bit PIE vector).
+var sig_a: [8]i16 align(16) = .{ 1, 2, 3, 4, 5, 6, 7, 8 };
+var sig_b: [8]i16 align(16) = .{ 1, 2, 3, 4, 5, 6, 7, 8 };
+var mixed: [8]i16 align(16) = undefined;
 
 // ── Application entry ─────────────────────────────────────────────────────────
 
@@ -43,10 +39,12 @@ export fn app_main() callconv(.c) noreturn {
     // Enable GPIO48 as output (second bank)
     mmio.setBits(GPIO_ENABLE1_REG, led_mask);
 
-    // Drive the blink half-period from a real SIMD dot product (= 204), so the
-    // vector result stays live: (204 & 0x3F = 12) + 8 = 20, ×60_000 = 1.2M.
-    const dot = dsp.dotProductS16(&vec_a, &vec_b, vec_a.len);
-    const half_period: u32 = ((dot & 0x3F) +% 8) *% 60_000;
+    // A two-stage DSP pipeline on the PIE unit: saturating-mix the signals
+    // (mixed = [2,4,…,16]) then take the energy Σ mixed² = 816. The blink
+    // half-period is derived from it, keeping the SIMD results live.
+    dsp.addSatS16(&mixed, &sig_a, &sig_b, sig_a.len);
+    const energy = dsp.dotProductS16(&mixed, &mixed, mixed.len);
+    const half_period: u32 = ((energy & 0x3F) +% 8) *% 24_000;
 
     while (true) {
         mmio.setBits(GPIO_OUT1_REG, led_mask); // LED ON
@@ -58,17 +56,9 @@ export fn app_main() callconv(.c) noreturn {
 
 // ── Startup ───────────────────────────────────────────────────────────────────
 
-/// ROM bootloader jumps here (symbol expected by the IDF boot flow).
-///
-/// Hardware: ROM has already set PS.WOE=1 and configured the register file.
-/// Re-initialising is idempotent and safe.
-///
-/// QEMU (-kernel): jumps here with PS.WOE=0, making every windowed 'entry'
-/// instruction illegal.  We must set WOE and init the register window before
-/// any Zig C-ABI function (which begins with 'entry a1,N') runs.
-///
-/// PS.WOE = bit 18 = 0x40000 (too large for movi; built with movi+slli).
-/// Stack pointer: top of DRAM = 0x3FCD3000 (0x3FC88000 + 300 K for QEMU).
+/// Entry point (symbol expected by the IDF boot flow). QEMU `-kernel` enters
+/// with PS.WOE=0, so windowed registers must be enabled and SP set (top of
+/// DRAM) before the first C-ABI call; the ROM already does this on hardware.
 export fn call_start_cpu0() callconv(.naked) noreturn {
     asm volatile (
         \\ .align 4
