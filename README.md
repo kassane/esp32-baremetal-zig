@@ -57,6 +57,24 @@ Per chip this installs an `<chip>_baremetal_zig` ELF plus a raw
 
 Shared register/timing helpers live in `src/mmio.zig` (imported as `mmio`).
 
+### ESP32-S3 SIMD (PIE)
+
+`esp32s3/main.zig` includes a small example of the LX7's Processor Instruction
+Extensions (Espressif's 128-bit vector unit: eight `q0`–`q7` registers,
+integer/DSP ops). It saturating-adds two 16-lane `int8` vectors with
+`ee.vadds.s8` and uses the result to drive the blink period. Notes:
+
+- Enabled by the `esp32s3ops` CPU feature — the same source will not assemble
+  for the LX6 `esp32` (the assembler rejects `ee.*` there).
+- Inline-asm clobbers use the Zig 0.16 struct form, e.g.
+  `: .{ .q0 = true, .q1 = true, .q2 = true }`. This requires a
+  `zig-espressif-bootstrap` build new enough to expose the `q*` clobbers.
+- 128-bit loads/stores (`ee.vld.128.ip` / `ee.vst.128.ip`) need 16-byte-aligned
+  operands. Prefer separate load/op/store instructions over the fused
+  `ee.*.ld/st.incp` forms, which have had buggy LLVM encodings.
+- Verified in QEMU: the `ee.*` instructions execute and the stored result reads
+  back as all `17` (1+16, 2+15, …).
+
 ---
 
 ## QEMU testing
