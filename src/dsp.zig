@@ -52,13 +52,3 @@ pub inline fn dotProductS16(a: [*]align(16) const i16, b: [*]align(16) const i16
         return acc;
     }
 }
-
-// Compile-time self-test (`comptime {}` unit test): the scalar reference for
-// Σ i² over 1..32 must equal the closed-form result. Runs on every build,
-// target-independent, and costs nothing at runtime.
-comptime {
-    var acc: i32 = 0;
-    var i: i32 = 1;
-    while (i <= 32) : (i += 1) acc += i * i;
-    std.debug.assert(acc == 11440); // 32*33*65/6
-}

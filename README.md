@@ -69,8 +69,7 @@ drives the blink period from the result. Notes:
 - **Portable via comptime:** the SIMD branch is chosen with
   `comptime dsp.has_simd` (`std.Target.xtensa.featureSetHas(…, .esp32s3ops)`), so
   the inactive branch is never analysed and `ee.*` never reaches the LX6
-  assembler — the same module builds for esp32, esp32s2 and esp32s3. A
-  `comptime {}` block self-tests the reference value at compile time.
+  assembler — the same module builds for esp32, esp32s2 and esp32s3.
 - **Inline required:** the kernels are `inline` because the prebuilt xtensa
   backend does not emit cross-module (far) calls; inlining keeps everything in
   the caller (this is also why `mmio`'s helpers are `inline`).
