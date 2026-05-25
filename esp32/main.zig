@@ -3,17 +3,11 @@
 // Entry via Reset vector; no std runtime, no OS.
 
 const std = @import("std");
+const mmio = @import("mmio");
 
-/// Baremetal panic: just halt. Replaces the default panic that calls abort().
+/// Baremetal panic: halt forever (no std runtime to unwind into).
 pub fn panic(_: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
-    abort();
-}
-
-/// Required by compiler_rt safety checks (overflow-detected builtins in Debug mode).
-export fn abort() callconv(.c) noreturn {
-    while (true) {
-        asm volatile ("nop");
-    }
+    mmio.halt();
 }
 
 // ── Peripheral register addresses (ESP32) ────────────────────────────────────
@@ -24,48 +18,24 @@ const GPIO_OUT_REG: u32 = GPIO_BASE + 0x0004;
 /// GPIO output enable register – GPIO 0-31
 const GPIO_ENABLE_REG: u32 = GPIO_BASE + 0x0020;
 
-// ── Register helpers ──────────────────────────────────────────────────────────
+// ── Application entry ─────────────────────────────────────────────────────────
 
-fn write_reg32(addr: u32, value: u32) void {
-    const ptr: *volatile u32 = @ptrFromInt(addr);
-    ptr.* = value;
-}
-
-fn read_reg32(addr: u32) u32 {
-    const ptr: *volatile u32 = @ptrFromInt(addr);
-    return ptr.*;
-}
-
-/// Naive busy-wait delay (not calibrated to wall-clock time).
-fn simple_delay(count: u32) void {
-    var i: u32 = 0;
-    while (i < count) : (i += 1) {
-        asm volatile ("nop");
-    }
-}
-
-// ── Application logic ─────────────────────────────────────────────────────────
-
-fn blink() noreturn {
+export fn main() callconv(.c) noreturn {
     // GPIO2 = onboard blue LED on ESP32 DevKitC-V4 (active-high)
-    const led_pin: u5 = 2;
-    const led_mask: u32 = @as(u32, 1) << led_pin;
+    const led_mask: u32 = @as(u32, 1) << 2;
 
     // Enable GPIO2 as output
-    write_reg32(GPIO_ENABLE_REG, read_reg32(GPIO_ENABLE_REG) | led_mask);
+    mmio.setBits(GPIO_ENABLE_REG, led_mask);
 
     while (true) {
-        // LED ON
-        write_reg32(GPIO_OUT_REG, read_reg32(GPIO_OUT_REG) | led_mask);
-        simple_delay(1_200_000);
-
-        // LED OFF
-        write_reg32(GPIO_OUT_REG, read_reg32(GPIO_OUT_REG) & ~led_mask);
-        simple_delay(1_200_000);
+        mmio.setBits(GPIO_OUT_REG, led_mask); // LED ON
+        mmio.delay(1_200_000);
+        mmio.clearBits(GPIO_OUT_REG, led_mask); // LED OFF
+        mmio.delay(1_200_000);
     }
 }
 
-// ── Entry points ──────────────────────────────────────────────────────────────
+// ── Reset vector ────────────────────────────────────────────────────────────
 
 /// Reset vector – first code executed on both real hardware and QEMU.
 ///
@@ -105,8 +75,4 @@ export fn Reset() callconv(.naked) noreturn {
         \\0:
         \\ j       0b
     );
-}
-
-export fn main() callconv(.c) noreturn {
-    blink();
 }

@@ -1,5 +1,5 @@
-// Minimal bare-metal Zig for ESP32-S3 (Xtensa LX7)
-// Blinks GPIO48 (onboard RGB LED on ESP32-S3-DevKitC-1).
+// Minimal bare-metal Zig for ESP32-S2 (Xtensa LX7, single core)
+// Blinks GPIO18 (RGB LED data pin on common ESP32-S2 DevKits, e.g. Saola-1).
 // No std lib, no OS, no IDF.
 
 const std = @import("std");
@@ -10,33 +10,28 @@ pub fn panic(_: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
     mmio.halt();
 }
 
-// ── Peripheral register addresses (ESP32-S3) ─────────────────────────────────
+// ── Peripheral register addresses (ESP32-S2) ─────────────────────────────────
 //
-// GPIO pins 0-31  → GPIO_OUT_REG    / GPIO_ENABLE_REG
-// GPIO pins 32-53 → GPIO_OUT1_REG   / GPIO_ENABLE1_REG
-//
-// GPIO48 is in the second bank: bit (48 - 32) = 16.
+// GPIO18 is in the first bank (pins 0-31), so it uses the bank-0 registers.
 
-const GPIO_BASE: u32 = 0x6000_4000;
-/// GPIO output register – GPIO 32-53
-const GPIO_OUT1_REG: u32 = GPIO_BASE + 0x0008;
-/// GPIO output enable – GPIO 32-53
-const GPIO_ENABLE1_REG: u32 = GPIO_BASE + 0x0024;
+const GPIO_BASE: u32 = 0x3F40_4000;
+/// GPIO output register – GPIO 0-31
+const GPIO_OUT_REG: u32 = GPIO_BASE + 0x0004;
+/// GPIO output enable – GPIO 0-31
+const GPIO_ENABLE_REG: u32 = GPIO_BASE + 0x0020;
 
 // ── Application entry ─────────────────────────────────────────────────────────
 
 export fn app_main() callconv(.c) noreturn {
-    // GPIO48 = onboard RGB LED on ESP32-S3-DevKitC-1
-    // Pin >= 32 → second bank; bit position = pin - 32
-    const led_mask: u32 = @as(u32, 1) << (48 - 32);
+    const led_mask: u32 = @as(u32, 1) << 18;
 
-    // Enable GPIO48 as output (second bank)
-    mmio.setBits(GPIO_ENABLE1_REG, led_mask);
+    // Enable GPIO18 as output
+    mmio.setBits(GPIO_ENABLE_REG, led_mask);
 
     while (true) {
-        mmio.setBits(GPIO_OUT1_REG, led_mask); // LED ON
+        mmio.setBits(GPIO_OUT_REG, led_mask); // LED ON
         mmio.delay(1_200_000);
-        mmio.clearBits(GPIO_OUT1_REG, led_mask); // LED OFF
+        mmio.clearBits(GPIO_OUT_REG, led_mask); // LED OFF
         mmio.delay(1_200_000);
     }
 }
@@ -48,12 +43,8 @@ export fn app_main() callconv(.c) noreturn {
 /// Hardware: ROM has already set PS.WOE=1 and configured the register file.
 /// Re-initialising is idempotent and safe.
 ///
-/// QEMU (-kernel): jumps here with PS.WOE=0, making every windowed 'entry'
-/// instruction illegal.  We must set WOE and init the register window before
-/// any Zig C-ABI function (which begins with 'entry a1,N') runs.
-///
 /// PS.WOE = bit 18 = 0x40000 (too large for movi; built with movi+slli).
-/// Stack pointer: top of DRAM = 0x3FCD3000 (0x3FC88000 + 300 K for QEMU).
+/// Stack pointer: top of internal DRAM = 0x3FFDE000 (= 0x40000000 − 0x22000).
 export fn call_start_cpu0() callconv(.naked) noreturn {
     asm volatile (
         \\ .align 4
@@ -69,12 +60,12 @@ export fn call_start_cpu0() callconv(.naked) noreturn {
         \\ movi    a0, 1
         \\ wsr.windowstart a0
         \\ rsync
-        \\ // ── Stack pointer: 0x3FCD3000 = 0x40000000 − 0x32D000 ─────────────
+        \\ // ── Stack pointer: 0x3FFDE000 = 0x40000000 − 0x22000 ─────────────
         \\ movi    a1, 1
         \\ slli    a1, a1, 30        // a1 = 0x40000000
-        \\ movi    a0, 0x32D         // 813
-        \\ slli    a0, a0, 12        // a0 = 0x32D000
-        \\ sub     a1, a1, a0        // a1 = 0x3FCD3000
+        \\ movi    a0, 0x220         // 544
+        \\ slli    a0, a0, 8         // a0 = 0x0022000
+        \\ sub     a1, a1, a0        // a1 = 0x3FFDE000
         \\ // ── Windowed call: CALLINC=2 matches 'entry a1,N' in callee ──────
         \\ call8   app_main
         \\0:
