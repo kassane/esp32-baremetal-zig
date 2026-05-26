@@ -1,11 +1,11 @@
 // Copyright (c) 2026 Matheus C. França
 // SPDX-License-Identifier: Apache-2.0
 
-// Bare-metal Zig for ESP32-S2 (Xtensa LX7, single core) — DSP demo. FFTs a
+// Bare-metal Zig for ESP32-S2 (Xtensa LX7, single core) — DSP + PWM demo. FFTs a
 // two-tone signal and prints the magnitude spectrum over UART0 (dsp.fft is
-// portable scalar code; the S2 has no PIE unit), reports a TIMG uptime, and
-// blinks GPIO18 at a cycle-accurate rate set by the peak bin. Build-only: the
-// Espressif QEMU fork has no esp32s2 machine.
+// portable scalar code; the S2 has no PIE unit), reports a TIMG uptime, and sets
+// GPIO18's LED brightness via LEDC PWM from the peak bin. Build-only: the
+// Espressif QEMU fork has no esp32s2 machine (and does not model LEDC).
 
 const std = @import("std");
 const mmio = @import("mmio");
@@ -27,16 +27,14 @@ fn logFn(comptime level: std.log.Level, comptime _: @TypeOf(.enum_literal), comp
     mmio.log(regs.UART0.FIFO, level, fmt, args);
 }
 
-// GPIO18 (RGB LED data pin on common S2 DevKits) is in bank 0.
+// GPIO18 (RGB LED data pin on common S2 DevKits) — driven by LEDC PWM here.
 const led_pin: u5 = 18;
-const led_mask: u32 = @as(u32, 1) << led_pin;
-const cpu_hz = 240_000_000; // Xtensa default; sets the cycle-accurate Delay scale
-const blink_ms_per_bin: u32 = 50; // blink half-period = peak bin × this
+const duty_res_bits = 13; // 8192 PWM steps
 const bar_shift: u5 = 6; // bin magnitude → bar width
 const bar_max = 60;
 
-const Led = hal.Output(gpio.ENABLE_W1TS, gpio.OUT, gpio.OUT_W1TS, gpio.OUT_W1TC, led_mask);
 const Uptime = hal.Timer(regs.TIMG0.T_0_CONFIG, regs.TIMG0.T_0_UPDATE, regs.TIMG0.T_0_LO);
+const Backlight = hal.Pwm(regs.LEDC.TIMER_0_CONF, regs.LEDC.CH_0_CONF0, regs.LEDC.CH_0_CONF1, regs.LEDC.CH_0_HPOINT, regs.LEDC.CH_0_DUTY);
 
 // Two-tone test signal (bins 4 and 12), generated at comptime.
 const fft_n = 64;
@@ -91,7 +89,6 @@ inline fn printSpectrum(fifo: u32, spectrum: *const [fft_n]dsp.Cplx) void {
 
 export fn app_main() callconv(.c) noreturn {
     init.disableWatchdogs(regs); // or the chip resets within seconds on real HW
-    Led.init(); // GPIO18 as output
     Uptime.start(2); // TIMG0 timer 0 as a monotonic tick source
 
     var spectrum: [fft_n]dsp.Cplx = undefined;
@@ -102,18 +99,16 @@ export fn app_main() callconv(.c) noreturn {
     dsp.fft(fft_n, &spectrum);
     printSpectrum(regs.UART0.FIFO, &spectrum);
 
+    // Set the LED's PWM brightness from the peak bin (scaled into the 13-bit
+    // duty range). On real hardware, route LEDC channel 0 to GPIO18 via the GPIO
+    // matrix; QEMU doesn't model LEDC, so this just configures the registers.
     const peak: u32 = @truncate(peakBin(&spectrum));
-    const half_ms = peak *% blink_ms_per_bin;
-    mmio.log(regs.UART0.FIFO, .info, "peak bin {d}, half-period {d} ms, uptime {d} ticks", .{ peak, half_ms, Uptime.ticks() });
+    const duty = peak *% 256; // peak (1..31) → 256..7936, within 2^13
+    Backlight.startTimer(duty_res_bits, 256); // 13-bit resolution, APB ÷ 256
+    Backlight.setDuty(0, duty); // channel 0, bound to timer 0
+    mmio.log(regs.UART0.FIFO, .info, "peak bin {d}, uptime {d} ticks, GPIO{d} PWM duty {d}/8192", .{ peak, Uptime.ticks(), led_pin, duty });
 
-    // Blink at a cycle-accurate rate set by the peak bin.
-    const delay = hal.Delay(cpu_hz);
-    while (true) {
-        Led.setHigh();
-        delay.millis(half_ms);
-        Led.setLow();
-        delay.millis(half_ms);
-    }
+    while (true) {} // LEDC drives the LED autonomously
 }
 
 // ── Startup ───────────────────────────────────────────────────────────────────
