@@ -47,5 +47,13 @@ jobs:
       - name: Boot-test firmware in QEMU (ESP32 + ESP32-S3)
         run: zig build smoke --summary all
 
-      - name: Show example UART output (banners + FFT spectrum)
-        run: zig build demo
+      # Each example is a standalone package (depends on the repo root locally);
+      # run them on their own and print each one's output.
+      - name: ESP32 example — FFT spectrum + std.log over UART
+        run: cd esp32 && zig build demo
+
+      - name: ESP32-S3 example — PIE/SIMD blink (boots, no UART by design)
+        run: cd esp32s3 && zig build demo
+
+      - name: ESP32-S2 example — build-only (no Espressif QEMU machine)
+        run: cd esp32s2 && zig build --summary all

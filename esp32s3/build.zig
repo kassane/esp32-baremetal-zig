@@ -53,6 +53,18 @@ pub fn build(b: *std.Build) void {
     run_smoke.addFileArg(qemu_exe.getEmittedBin());
     run_smoke.addArg(b.fmt("{d}", .{smoke_seconds}));
     b.step("smoke", "Boot the ESP32-S3 example in QEMU and assert no CPU faults").dependOn(&run_smoke.step);
+
+    // `zig build demo` — same boot, but capture the UART output and print it.
+    // (The PIE example drives the LED and prints no UART, so this just shows it
+    // boots and runs cleanly.)
+    const run_demo = b.addRunArtifact(smoke_tool);
+    run_demo.addArg(qemu_bin);
+    run_demo.addArg(machine);
+    run_demo.addFileArg(qemu_exe.getEmittedBin());
+    run_demo.addArg(b.fmt("{d}", .{smoke_seconds}));
+    _ = run_demo.addOutputFileArg("esp32s3-uart.txt");
+    run_demo.stdio = .inherit;
+    b.step("demo", "Run the ESP32-S3 example in QEMU and print its UART output").dependOn(&run_demo.step);
 }
 
 fn firmware(
