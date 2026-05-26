@@ -143,10 +143,8 @@ pub fn build(b: *std.Build) void {
             demo_chip.dependOn(&run_demo.step);
             demo_step.dependOn(&run_demo.step);
         }
-
     }
 }
-
 
 fn addFirmware(
     b: *std.Build,
@@ -228,10 +226,14 @@ fn flashLinker(b: *std.Build, comptime chip: Chip) []const u8 {
         \\
     , .{
         chip.entry,
-        chip.iram.org, chip.iram.len,
-        chip.dram.org, chip.dram.len,
-        chip.irom.org, chip.irom.len,
-        chip.drom.org, chip.drom.len,
+        chip.iram.org,
+        chip.iram.len,
+        chip.dram.org,
+        chip.dram.len,
+        chip.irom.org,
+        chip.irom.len,
+        chip.drom.org,
+        chip.drom.len,
     });
 }
 
@@ -270,8 +272,10 @@ fn qemuLinker(b: *std.Build, comptime entry: []const u8, comptime q: Qemu) []con
         \\
     , .{
         entry,
-        q.iram.org, q.iram.len,
-        q.dram.org, q.dram.len,
+        q.iram.org,
+        q.iram.len,
+        q.dram.org,
+        q.dram.len,
     });
 }
 
