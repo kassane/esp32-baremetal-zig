@@ -37,10 +37,14 @@ The flash and QEMU linker scripts are generated in `build.zig` — there are no
 
 - [Toolchain requirement](#toolchain-requirement)
 - [How to build](#how-to-build)
-- [Use it as a dependency](#use-it-as-a-dependency-zig-fetch)
+- [Use it as a dependency (`zig fetch`)](#use-it-as-a-dependency-zig-fetch)
 - [Documentation](#documentation)
 - [QEMU testing](#qemu-testing)
+  - [Memory layout](#memory-layout-qemu-iram-only)
+  - [Stack addresses](#stack-addresses-used-in-startup-prologue)
 - [Flashing to hardware](#flashing-to-hardware)
+  - [espflash](#espflash-alternative-1)
+  - [esptool.py](#esptoolpy-alternative-2)
 - [References](#references)
 - [License](#license)
 
