@@ -38,7 +38,8 @@ const Button = hal.Input(gpio.IN, @as(u32, 1) << 0); // GPIO0 (boot button), ban
 const Console = hal.Uart(regs.UART0.FIFO); // UART transmitter
 const Entropy = hal.Rng(regs.RNG.DATA); // hardware RNG
 const Hasher = hal.Sha256(regs.SHA.TEXT_0, regs.SHA.SHA256_START, regs.SHA.SHA256_LOAD, regs.SHA.SHA256_BUSY);
-const Cipher = hal.Aes128(regs.AES.KEY_0, regs.AES.TEXT_0, regs.AES.MODE, regs.AES.START, regs.AES.IDLE);
+const Cipher128 = hal.Aes(128, regs.AES.KEY_0, regs.AES.TEXT_0, regs.AES.MODE, regs.AES.START, regs.AES.IDLE);
+const Cipher256 = hal.Aes(256, regs.AES.KEY_0, regs.AES.TEXT_0, regs.AES.MODE, regs.AES.START, regs.AES.IDLE);
 
 /// SHA-256 of `m` (8 big-endian words) computed by `std.crypto` at comptime —
 /// the reference the hardware accelerator is checked against. The software path
@@ -52,12 +53,14 @@ fn sha256ref(comptime m: []const u8) [8]u32 {
     return w;
 }
 
-/// AES-128-ECB(key, pt) ciphertext as 4 little-endian words, via `std.crypto` at
-/// comptime — the reference for the hardware AES accelerator.
-fn aes128ref(comptime key: [16]u8, comptime pt: [16]u8) [4]u32 {
+/// AES-ECB(key, pt) ciphertext as 4 little-endian words, via `std.crypto` at
+/// comptime — the reference for the hardware AES accelerator. `Cipher` is the
+/// matching `std.crypto.core.aes` type (`Aes128`/`Aes256`), so one helper covers
+/// every key length.
+fn aesRef(comptime Cipher: type, comptime key: [Cipher.key_bits / 8]u8, comptime pt: [16]u8) [4]u32 {
     @setEvalBranchQuota(100_000);
     var ct: [16]u8 = undefined;
-    std.crypto.core.aes.Aes128.initEnc(key).encrypt(&ct, &pt);
+    Cipher.initEnc(key).encrypt(&ct, &pt);
     var w: [4]u32 = undefined;
     for (&w, 0..) |*word, i| word.* = std.mem.readInt(u32, ct[i * 4 ..][0..4], .little);
     return w;
@@ -80,14 +83,23 @@ export fn main() callconv(.c) noreturn {
     // directly (its non-inline helpers need far calls this backend can't emit).
     mmio.log(regs.UART0.FIFO, .info, "SHA-256(\"abc\") HW vs std.crypto: {s}", .{if (sha_ok) "OK" else "MISMATCH"});
 
-    // Hardware AES-128-ECB of an all-zero key+block, checked against std.crypto.
-    const ct = Cipher.encryptBlock(.{ 0, 0, 0, 0 }, .{ 0, 0, 0, 0 });
-    const ct_ref = comptime aes128ref([_]u8{0} ** 16, [_]u8{0} ** 16);
-    var aes_ok = true;
+    // Hardware AES-128 and AES-256 ECB of an all-zero key+block, each checked
+    // against std.crypto's comptime reference (one driver, comptime key length).
+    const ct128 = Cipher128.encryptBlock(.{ 0, 0, 0, 0 }, .{ 0, 0, 0, 0 });
+    const ref128 = comptime aesRef(std.crypto.core.aes.Aes128, [_]u8{0} ** 16, [_]u8{0} ** 16);
+    var aes128_ok = true;
     inline for (0..4) |w| {
-        if (ct[w] != ct_ref[w]) aes_ok = false;
+        if (ct128[w] != ref128[w]) aes128_ok = false;
     }
-    mmio.log(regs.UART0.FIFO, .info, "AES-128-ECB HW vs std.crypto: {s}", .{if (aes_ok) "OK" else "MISMATCH"});
+    mmio.log(regs.UART0.FIFO, .info, "AES-128-ECB HW vs std.crypto: {s}", .{if (aes128_ok) "OK" else "MISMATCH"});
+
+    const ct256 = Cipher256.encryptBlock(.{ 0, 0, 0, 0, 0, 0, 0, 0 }, .{ 0, 0, 0, 0 });
+    const ref256 = comptime aesRef(std.crypto.core.aes.Aes256, [_]u8{0} ** 32, [_]u8{0} ** 16);
+    var aes256_ok = true;
+    inline for (0..4) |w| {
+        if (ct256[w] != ref256[w]) aes256_ok = false;
+    }
+    mmio.log(regs.UART0.FIFO, .info, "AES-256-ECB HW vs std.crypto: {s}", .{if (aes256_ok) "OK" else "MISMATCH"});
     mmio.log(regs.UART0.FIFO, .info, "rng sample {d}, GPIO0 {s}", .{ Entropy.read(), if (Button.isHigh()) "high" else "low" });
 
     mmio.blink(gpio.OUT_W1TS, gpio.OUT_W1TC, led_mask, blink_half);
