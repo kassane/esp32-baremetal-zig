@@ -96,7 +96,8 @@ Single-feature programs live alongside them, each its own package you build with
 - **Build-only**: `pwm` (LEDC) on ESP32-S2; `i2c` (I2C master), `spi` (SPI master),
   `rmt` (IR remote transmit), `rsa` (RSA modular exponentiation), `twai`
   (CAN 2.0 transmit), `mcpwm` (motor-control PWM), `i2s` (I2S master TX),
-  `dac` (analog output) and `adc` (analog input) on ESP32
+  `dac` (analog output) and `adc` (analog input) on ESP32; `usb_serial`
+  (USB CDC-ACM console) on ESP32-S3
 
 Shared register/timing helpers live in `src/mmio.zig` (imported as `mmio`).
 
@@ -270,6 +271,10 @@ A small register driver layer over `mmio` (imported as `hal`):
   `SAR_MEAS_START2` = ADC2): `read(channel)` triggers a conversion and returns the
   raw value (see `examples/adc/`). **Build-only**: QEMU has no analog input, and a
   real reading also needs attenuation / SAR clock / RTC power configured.
+- `hal.UsbSerial(ep1, ep1_conf)` — USB Serial/JTAG CDC-ACM console TX (the default
+  USB console on ESP32-S3/-C3); `write` fills the IN FIFO (gated on
+  `SERIAL_IN_EP_DATA_FREE`) and flushes via `WR_DONE` (see `examples/usb_serial/`).
+  **Build-only**: needs a USB host, which QEMU doesn't provide.
 
 Every driver is **comptime-parameterized on its register addresses** (the I2C
 driver on the peripheral namespace), so the MMIO accesses stay provably
