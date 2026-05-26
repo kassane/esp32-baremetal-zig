@@ -1181,3 +1181,32 @@ pub fn Hmac(comptime P: type) type {
         }
     };
 }
+
+/// Pulse Counter (PCNT) unit (ESP32) — counts edges on an input signal (rotary
+/// encoders, frequency/event counting). Configures channel 0 to increment the
+/// 16-bit signed counter on each positive edge. Pass the unit's `UNIT_n_CONF0_0`
+/// and `U_CNT_n` registers, the shared `CTRL_0` register and the unit number
+/// (0..7) — its reset/pause bits in CTRL are at `2·unit` / `2·unit+1`. **Build-only:**
+/// QEMU models no PCNT, and the input still needs routing to a pad via the GPIO
+/// matrix. CONF0's count-mode field and CTRL's per-unit bits come from the chip
+/// register map (the vendored SVD omits them); expressed through reg.zig.
+pub fn Pcnt(comptime conf0_reg: u32, comptime ctrl_reg: u32, comptime cnt_reg: u32, comptime unit: u3) type {
+    return struct {
+        const pos_mode = reg.Field(18, 2); // CONF0.CH0_POS_MODE — action on a +edge
+        const increment = 1; //   1 = count up
+        const cnt_rst = reg.bit(@as(u5, unit) * 2); // CTRL: reset this unit's counter
+        const cnt_pause = reg.bit(@as(u5, unit) * 2 + 1); // CTRL: pause this unit
+        const value = reg.Field(0, 16); // U_CNT_n — 16-bit signed count
+
+        /// Configure channel 0 to count up on each positive edge, then reset + run.
+        pub inline fn init() void {
+            mmio.writeReg(conf0_reg, pos_mode.set(increment));
+            mmio.writeReg(ctrl_reg, (mmio.readReg(ctrl_reg) | cnt_rst) & ~cnt_pause); // hold at 0, unpaused
+            mmio.writeReg(ctrl_reg, mmio.readReg(ctrl_reg) & ~cnt_rst); // release reset → counting
+        }
+        /// Current counter value (16-bit, signed).
+        pub inline fn count() i16 {
+            return @bitCast(@as(u16, @truncate(value.get(mmio.readReg(cnt_reg)))));
+        }
+    };
+}
