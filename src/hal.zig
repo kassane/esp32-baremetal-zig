@@ -788,3 +788,36 @@ pub fn ResetReason(comptime reset_state_reg: u32) type {
         }
     };
 }
+
+/// Trigger an immediate full software reset via `regs.RTC_CNTL.OPTIONS0`
+/// (sets `SW_SYS_RST`). Does not return — the chip restarts; `mmio.halt` is the
+/// fallback spin (a panic-free `noreturn`, since a compiler `unreachable` here
+/// would emit an unlinkable panic path).
+pub inline fn softwareReset(comptime options0_reg: u32) noreturn {
+    mmio.writeReg(options0_reg, mmio.readReg(options0_reg) | reg.bit(31));
+    mmio.halt();
+}
+
+/// Poll-based GPIO edge detection — complements `Input` (level) by latching
+/// rising/falling edges in the GPIO event-status register so a poll loop can catch
+/// transitions it might otherwise miss (e.g. button presses) without interrupts.
+/// Pass the pin's `PIN_n` config register, its bit `mask`, and the bank's `STATUS`
+/// + `STATUS_W1TC` registers.
+pub fn GpioEdge(comptime pin_reg: u32, comptime mask: u32, comptime status_reg: u32, comptime clr_reg: u32) type {
+    return struct {
+        const int_type = reg.Field(7, 3); // PIN_n.INT_TYPE
+
+        pub const Edge = enum(u3) { disabled = 0, rising = 1, falling = 2, any = 3 };
+
+        /// Select which edge(s) latch an event for this pin.
+        pub inline fn configure(comptime edge: Edge) void {
+            mmio.writeReg(pin_reg, int_type.set(@intFromEnum(edge)));
+        }
+        /// True if an edge has been latched since the last call; clears the latch.
+        pub inline fn takeEdge() bool {
+            const hit = mmio.readReg(status_reg) & mask != 0;
+            if (hit) mmio.writeReg(clr_reg, mask);
+            return hit;
+        }
+    };
+}

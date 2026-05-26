@@ -1,0 +1,9 @@
+.{
+    .name = .sw_reset_example,
+    .version = "0.1.0",
+    .fingerprint = 0x1e49f8201ece6192,
+    .dependencies = .{
+        .esp32_hal = .{ .path = "../.." },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "main.zig" },
+}
