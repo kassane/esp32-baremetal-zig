@@ -4,7 +4,7 @@
 const std = @import("std");
 
 // Standalone package for the 'tsens' example (ESP32-S3) — on-chip temperature
-// sensor read. **Build-only:** QEMU has no thermal model. Consumes the workspace
+// sensor read. Build-only: QEMU has no thermal model. Consumes the workspace
 // root (`esp32_hal`) as a local path dependency.
 pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});

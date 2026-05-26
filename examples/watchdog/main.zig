@@ -3,7 +3,7 @@
 
 // Bare-metal Zig for ESP32 — TIMG0 watchdog (build-only). Arms a reset-on-timeout
 // watchdog and feeds it in the main loop; if the loop ever stalls, the chip
-// resets. **Build-only:** a live watchdog resets the chip, which the QEMU boot
+// resets. Build-only: a live watchdog resets the chip, which the QEMU boot
 // test would flag as a fault, so this is build-checked rather than run under QEMU.
 
 const mmio = @import("mmio");

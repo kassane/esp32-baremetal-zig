@@ -4,7 +4,7 @@
 const std = @import("std");
 
 // Standalone package for the 'hmac' example (ESP32-S3) — HMAC-SHA256 accelerator.
-// **Build-only:** the key comes from eFuse, which QEMU leaves blank. Consumes the
+// Build-only: the key comes from eFuse, which QEMU leaves blank. Consumes the
 // workspace root (`esp32_hal`).
 pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});

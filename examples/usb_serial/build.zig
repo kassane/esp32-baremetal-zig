@@ -4,7 +4,7 @@
 const std = @import("std");
 
 // Standalone package for the 'usb_serial' example (ESP32-S3) — USB Serial/JTAG
-// CDC-ACM console TX. **Build-only:** the Espressif QEMU provides no USB host, so
+// CDC-ACM console TX. Build-only: the Espressif QEMU provides no USB host, so
 // there's no emulator target. Consumes the workspace root (`esp32_hal`).
 pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});

@@ -4,7 +4,7 @@
 // Bare-metal Zig for ESP32 — WS2812 / NeoPixel addressable RGB (build-only).
 // Cycles a "smart LED" through red → green → blue → white on RMT channel 0,
 // encoding each colour's 24 bits as RMT symbols (hal.Ws2812, built on hal.Rmt).
-// **Build-only:** no Espressif QEMU machine models RMT; on a board, route channel
+// Build-only: no Espressif QEMU machine models RMT; on a board, route channel
 // 0 to the LED's data pad via the GPIO matrix (e.g. the ESP32-S3 DevKit's onboard
 // RGB is GPIO48). The single-wire WS2812 line code is the kind of pure-register
 // "radio-adjacent" protocol a from-scratch HAL can drive without vendor blobs.

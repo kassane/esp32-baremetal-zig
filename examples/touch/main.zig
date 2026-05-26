@@ -4,7 +4,7 @@
 // Bare-metal Zig for ESP32 — capacitive touch sensor (build-only). Software-forces
 // a measurement of touch pad T0 (GPIO4) via hal.Touch and stashes the raw count in
 // an RTC scratch register; a lower count means the pad is being touched.
-// **Build-only:** QEMU has no touch model, and a real reading also needs the RTC
+// Build-only: QEMU has no touch model, and a real reading also needs the RTC
 // touch FSM timing tuned for the board.
 
 const mmio = @import("mmio");

@@ -4,7 +4,7 @@
 const std = @import("std");
 
 // Standalone package for the 'rmt' example (ESP32) — IR remote (NEC-style)
-// transmit over the RMT peripheral. **Build-only:** the Espressif QEMU machines
+// transmit over the RMT peripheral. Build-only: the Espressif QEMU machines
 // don't model RMT, so this compiles and links (and runs on real hardware, once
 // the channel is routed to an IR LED pad with a 38 kHz carrier) but has no
 // emulator target. Consumes the workspace root (`esp32_hal`) as a path dependency.

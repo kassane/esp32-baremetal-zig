@@ -4,7 +4,7 @@
 const std = @import("std");
 
 // Standalone package for the 'twai' example (ESP32) — CAN 2.0 frame transmit over
-// the TWAI controller. **Build-only:** routing TX/RX to pads plus an external CAN
+// the TWAI controller. Build-only: routing TX/RX to pads plus an external CAN
 // transceiver is board-specific, so there is no emulator target. Consumes the
 // workspace root (`esp32_hal`) as a local path dependency.
 pub fn build(b: *std.Build) void {

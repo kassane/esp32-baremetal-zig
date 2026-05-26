@@ -4,7 +4,7 @@
 const std = @import("std");
 
 // Standalone package for the 'i2s' example (ESP32) — I2S master TX (single-data
-// mode, no DMA). **Build-only:** QEMU models no I2S, and BCK/WS/DATA need routing
+// mode, no DMA). Build-only: QEMU models no I2S, and BCK/WS/DATA need routing
 // to pads via the GPIO matrix. Consumes the workspace root (`esp32_hal`).
 pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});

@@ -4,7 +4,7 @@
 const std = @import("std");
 
 // Standalone package for the 'dac' example (ESP32) — 8-bit analog output on DAC1
-// (GPIO25). **Build-only:** QEMU has no observable analog output. Consumes the
+// (GPIO25). Build-only: QEMU has no observable analog output. Consumes the
 // workspace root (`esp32_hal`) as a local path dependency.
 pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});

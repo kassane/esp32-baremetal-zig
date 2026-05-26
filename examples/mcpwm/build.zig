@@ -4,7 +4,7 @@
 const std = @import("std");
 
 // Standalone package for the 'mcpwm' example (ESP32) — motor-control PWM. Sweeps
-// the duty of an edge-aligned PWM (timer 0 → operator 0, generator A). **Build-only:**
+// the duty of an edge-aligned PWM (timer 0 → operator 0, generator A). Build-only:
 // QEMU models no MCPWM, and the output needs routing to a pad via the GPIO matrix.
 // Consumes the workspace root (`esp32_hal`) as a local path dependency.
 pub fn build(b: *std.Build) void {

@@ -4,7 +4,7 @@
 const std = @import("std");
 
 // Standalone package for the 'iomux' example (ESP32) — pad pull/drive config.
-// **Build-only:** the pull-resistor effect isn't observable in QEMU. Consumes the
+// Build-only: the pull-resistor effect isn't observable in QEMU. Consumes the
 // workspace root (`esp32_hal`) as a local path dependency.
 pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});

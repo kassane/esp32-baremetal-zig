@@ -4,7 +4,7 @@
 // Bare-metal Zig for ESP32 — Pulse Counter (build-only). Configures PCNT unit 0 to
 // increment on each positive edge of its input (a rotary encoder, or
 // frequency/event counting) and stashes the live count in an RTC scratch register.
-// **Build-only:** the Espressif QEMU models no PCNT, and the input still needs
+// Build-only: the Espressif QEMU models no PCNT, and the input still needs
 // routing to a pad through the GPIO matrix on real hardware.
 
 const mmio = @import("mmio");

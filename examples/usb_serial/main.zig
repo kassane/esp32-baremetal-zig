@@ -3,7 +3,7 @@
 
 // Bare-metal Zig for ESP32-S3 — USB Serial/JTAG console (build-only). Writes a
 // banner over the built-in USB CDC-ACM port (the default console on S3 DevKits).
-// **Build-only:** the Espressif QEMU provides no USB host; on hardware, open the
+// Build-only: the Espressif QEMU provides no USB host; on hardware, open the
 // board's USB serial port to see the output.
 
 const mmio = @import("mmio");

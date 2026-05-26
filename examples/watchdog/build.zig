@@ -4,7 +4,7 @@
 const std = @import("std");
 
 // Standalone package for the 'watchdog' example (ESP32) — arm the TIMG0 watchdog
-// and feed it. **Build-only:** a live watchdog resets the chip, which the QEMU
+// and feed it. Build-only: a live watchdog resets the chip, which the QEMU
 // boot test would flag, so this is build-checked only. Consumes the workspace
 // root (`esp32_hal`).
 pub fn build(b: *std.Build) void {

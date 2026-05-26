@@ -3,7 +3,7 @@
 
 // Bare-metal Zig for ESP32 — I2C master write + read (build-only). Configures I2C0
 // as a standard-mode master, writes a two-byte command to a device at address 0x3C
-// (a common SSD1306 OLED) and reads a status byte back. **Build-only:** the
+// (a common SSD1306 OLED) and reads a status byte back. Build-only: the
 // Espressif QEMU does not model an I2C controller, so this links and runs on real
 // hardware but has no emulator output; on a real board you must also route SCL/SDA
 // to pads through the GPIO matrix first.

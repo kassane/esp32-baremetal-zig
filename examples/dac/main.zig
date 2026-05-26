@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Bare-metal Zig for ESP32 — DAC voltage ramp (build-only). Drives DAC1 (GPIO25)
-// through a rising 8-bit sawtooth, the classic analog-output test. **Build-only:**
+// through a rising 8-bit sawtooth, the classic analog-output test. Build-only:
 // QEMU has no observable analog output; on hardware, scope GPIO25.
 
 const mmio = @import("mmio");

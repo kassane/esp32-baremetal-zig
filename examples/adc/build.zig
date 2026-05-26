@@ -4,7 +4,7 @@
 const std = @import("std");
 
 // Standalone package for the 'adc' example (ESP32) — SAR ADC1 software one-shot.
-// **Build-only:** QEMU has no observable analog input. Consumes the workspace
+// Build-only: QEMU has no observable analog input. Consumes the workspace
 // root (`esp32_hal`) as a local path dependency.
 pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});

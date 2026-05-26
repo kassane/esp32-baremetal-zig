@@ -3,7 +3,7 @@
 
 // Bare-metal Zig for ESP32 — I2S master TX (build-only). Brings up I2S0 as a
 // 16-bit master (Philips framing) and shifts out a constant sample in single-data
-// mode (no DMA). **Build-only:** QEMU models no I2S; on hardware route BCK/WS/DATA
+// mode (no DMA). Build-only: QEMU models no I2S; on hardware route BCK/WS/DATA
 // to pads via the GPIO matrix. A DMA-fed streaming path is a larger future piece.
 
 const mmio = @import("mmio");

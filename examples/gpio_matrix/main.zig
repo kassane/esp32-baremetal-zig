@@ -4,7 +4,7 @@
 // Bare-metal Zig for ESP32 — GPIO matrix routing (build-only). Routes the I2C0
 // SCL/SDA signals onto pads GPIO22/GPIO21 (the common ESP32 I2C pins) via
 // hal.GpioMatrix — the "route the signals to pads via the GPIO matrix" step the bus
-// drivers (i2c, spi, …) refer to. **Build-only:** the routing has no QEMU-observable
+// drivers (i2c, spi, …) refer to. Build-only: the routing has no QEMU-observable
 // effect.
 
 const mmio = @import("mmio");

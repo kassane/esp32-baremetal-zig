@@ -4,7 +4,7 @@
 const std = @import("std");
 
 // Standalone package for the 'spi' example (ESP32) — SPI master write over SPI2.
-// **Build-only:** the Espressif QEMU machines don't model an SPI controller, so
+// Build-only: the Espressif QEMU machines don't model an SPI controller, so
 // this compiles and links (and runs on real hardware, once CS/CLK/MOSI are routed
 // to pads via the GPIO matrix) but has no emulator target. Consumes the workspace
 // root (`esp32_hal`) as a local path dependency.

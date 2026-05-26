@@ -4,7 +4,7 @@
 // Bare-metal Zig for ESP32 — deep sleep with a timer wakeup (build-only). Logs the
 // reset cause, then deep-sleeps for ~2 s via hal.DeepSleep (which reads the RTC
 // timer to set the wakeup alarm). The chip resets on wake, so each boot logs its
-// cause and sleeps again. **Build-only:** a live deep sleep powers the chip down,
+// cause and sleeps again. Build-only: a live deep sleep powers the chip down,
 // which the QEMU boot test would flag (a production sleep also configures the RTC
 // power domains).
 

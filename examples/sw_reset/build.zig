@@ -4,7 +4,7 @@
 const std = @import("std");
 
 // Standalone package for the 'sw_reset' example (ESP32) — read the reset reason
-// and trigger a software reset once to demonstrate both. **Build-only:** a live
+// and trigger a software reset once to demonstrate both. Build-only: a live
 // software reset restarts the chip, which the QEMU boot test would flag. Consumes
 // the workspace root (`esp32_hal`).
 pub fn build(b: *std.Build) void {

@@ -8,7 +8,7 @@
 // reuses the same `hal`/`mmio`/`startup` modules as the Xtensa examples — the
 // register drivers are arch-agnostic — driving an RTC GPIO through the ULP's
 // register view (generated from svd/esp32s2-ulp.svd) and handing the main core a
-// heartbeat counter via the shared RTC-memory word at 0x400. **Build-only:** QEMU
+// heartbeat counter via the shared RTC-memory word at 0x400. Build-only: QEMU
 // does not run the ULP.
 
 const mmio = @import("mmio");

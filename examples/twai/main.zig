@@ -3,7 +3,7 @@
 
 // Bare-metal Zig for ESP32 — TWAI (CAN 2.0) frame transmit (build-only). Brings up
 // the SJA1000-compatible controller and periodically sends a standard-ID data
-// frame. **Build-only:** a real bus needs TX/RX routed to pads and an external CAN
+// frame. Build-only: a real bus needs TX/RX routed to pads and an external CAN
 // transceiver (e.g. SN65HVD230), so there is no emulator output. The bit-timing
 // values below are placeholders — compute them for your bit rate and clock.
 

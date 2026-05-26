@@ -3,7 +3,7 @@
 
 const std = @import("std");
 
-// Standalone package for the 'i2c' example (ESP32). **Build-only:** the Espressif
+// Standalone package for the 'i2c' example (ESP32). Build-only: the Espressif
 // QEMU machines don't model an I2C controller, so this compiles and links (and
 // runs on real hardware) but has no emulator boot/smoke target. Consumes the
 // workspace root (`esp32_hal`) as a local path dependency.

@@ -5,7 +5,7 @@
 // lives in an eFuse block and never leaves the chip, so this configures the
 // accelerator (hal.Hmac) for "to user" mode against key block 0 and, on real
 // silicon with that key programmed, feeds a message block and checks the MAC
-// against `std.crypto`'s comptime HMAC-SHA256 reference. **Build-only:** QEMU's
+// against `std.crypto`'s comptime HMAC-SHA256 reference. Build-only: QEMU's
 // eFuse is blank, so `configure` reports a key-purpose error and the demo stops
 // there; the comparison path runs only on hardware with a programmed key.
 
