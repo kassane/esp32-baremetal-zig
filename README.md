@@ -170,6 +170,8 @@ Implementation notes live under [`docs/`](docs/):
   (`svd2zig`), boot/startup, and the freestanding panic + `std.log` shim.
 - **[docs/dsp.md](docs/dsp.md)** — the fixed-point DSP kernels and the ESP32-S3
   PIE/SIMD vector path.
+- **[docs/porting.md](docs/porting.md)** — porting status against the upstream
+  peripheral surface: what's implemented, what's out of scope, what's deferred.
 
 ---
 
