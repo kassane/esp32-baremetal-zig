@@ -1,0 +1,9 @@
+.{
+    .name = .reset_reason_example,
+    .version = "0.1.0",
+    .fingerprint = 0x2d1d215665d5e943,
+    .dependencies = .{
+        .esp32_hal = .{ .path = "../.." },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "main.zig" },
+}

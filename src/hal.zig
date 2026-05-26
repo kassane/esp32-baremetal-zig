@@ -716,3 +716,75 @@ pub fn TempSensor(comptime ctrl_reg: u32) type {
         }
     };
 }
+
+/// IO_MUX pad configuration — pull resistor, input-enable and drive strength for a
+/// single pad (pass its IO_MUX register, e.g. `regs.IO_MUX.GPIO0`). Complements the
+/// `Output`/`Input` drivers, which toggle/read a pad; this sets its electrical
+/// properties. Field bits from the SVD, via reg.zig.
+pub fn IoMux(comptime pad_reg: u32) type {
+    return struct {
+        const fun_wpd = reg.bit(7); // pull-down enable
+        const fun_wpu = reg.bit(8); // pull-up enable
+        const fun_ie = reg.bit(9); // input enable
+        const fun_drv = reg.Field(10, 2); // drive strength 0..3 (~5..40 mA)
+
+        pub const Pull = enum { none, up, down };
+
+        /// Configure the pad: `pull` resistor, whether the input buffer is enabled,
+        /// and `drive` strength (0..3). `if` (not `switch`) on the enum keeps the
+        /// store panic-path-free on this backend.
+        pub inline fn config(pull: Pull, input_enable: bool, drive: u2) void {
+            var v: u32 = fun_drv.set(drive);
+            if (input_enable) v |= fun_ie;
+            if (pull == .up) v |= fun_wpu;
+            if (pull == .down) v |= fun_wpd;
+            mmio.writeReg(pad_reg, v);
+        }
+    };
+}
+
+/// Timer-Group watchdog (TIMGn WDT) — the inverse of `init.disableWatchdogs`: arm
+/// a reset-on-timeout watchdog and `feed` it. Pass the timer-group namespace
+/// (`regs.TIMG0`). Stage 0 is configured to reset the whole system if the counter
+/// (TIMG clock ÷ prescaler) reaches the timeout before a `feed`. Writes are guarded
+/// by the hardware write-protect key. Field bits from the SVD, via reg.zig.
+pub fn Watchdog(comptime P: type) type {
+    return struct {
+        const wkey: u32 = 0x50D8_3AA1; // WDTWPROTECT unlock value (TRM constant)
+        const wdt_en = reg.bit(31); // WDTCONFIG0.WDT_EN
+        const stg0 = reg.Field(29, 2); // stage-0 action
+        const prescale = reg.Field(16, 16); // WDTCONFIG1.WDT_CLK_PRESCALE
+        const reset_system = 3; // stage action: reset the whole system
+
+        /// Arm the watchdog: TIMG clock ÷ `presc`, stage-0 system reset after
+        /// `timeout` ticks. Call `feed()` regularly to avoid the reset.
+        pub inline fn start(comptime presc: u16, timeout: u32) void {
+            mmio.writeReg(P.WDTWPROTECT, wkey); // unlock
+            mmio.writeReg(P.WDTCONFIG1, prescale.set(presc));
+            mmio.writeReg(P.WDTCONFIG_0, timeout); // stage-0 hold time (ticks)
+            mmio.writeReg(P.WDTCONFIG0, wdt_en | stg0.set(reset_system));
+            mmio.writeReg(P.WDTWPROTECT, 0); // re-lock
+        }
+        /// Reset the timeout counter ("feed the dog").
+        pub inline fn feed() void {
+            mmio.writeReg(P.WDTWPROTECT, wkey);
+            mmio.writeReg(P.WDTFEED, 1);
+            mmio.writeReg(P.WDTWPROTECT, 0);
+        }
+    };
+}
+
+/// Reset reason — reads the PRO-CPU reset cause from `regs.RTC_CNTL.RESET_STATE`
+/// (1 = power-on, 12 = software, the watchdog/brownout/deep-sleep codes, … per the
+/// TRM). Every production firmware branches on this at boot. Single read, field via
+/// reg.zig.
+pub fn ResetReason(comptime reset_state_reg: u32) type {
+    return struct {
+        const procpu = reg.Field(0, 6); // RESET_CAUSE_PROCPU
+
+        /// The PRO-CPU reset cause code.
+        pub inline fn cause() u8 {
+            return @truncate(procpu.get(mmio.readReg(reset_state_reg)));
+        }
+    };
+}

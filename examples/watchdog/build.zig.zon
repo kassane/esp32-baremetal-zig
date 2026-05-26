@@ -1,0 +1,9 @@
+.{
+    .name = .watchdog_example,
+    .version = "0.1.0",
+    .fingerprint = 0xdc20fdab82c033c7,
+    .dependencies = .{
+        .esp32_hal = .{ .path = "../.." },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "main.zig" },
+}
