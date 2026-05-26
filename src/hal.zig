@@ -1241,3 +1241,23 @@ pub fn StackMonitor(comptime P: type) type {
         }
     };
 }
+
+/// SPI-flash read through the chip's ROM (`esp_rom_spiflash_read`) — the same entry
+/// the storage stacks use, so no SPI-flash controller driver is needed. Pass the
+/// ROM function's address for your chip (ESP32: `0x4006_2ED8`). `read(src, words)`
+/// copies `words.len` 32-bit words from flash byte-offset `src` into `words` and
+/// returns true on success. Read-only by design (erase/write can brick a running
+/// image). **Build-only:** the ROM address is fixed per chip/ROM revision, and the
+/// QEMU `-kernel` flow has no flash image to read.
+pub fn FlashRom(comptime read_addr: u32) type {
+    return struct {
+        // ROM ABI: int esp_rom_spiflash_read(u32 src, u32 *dest, i32 len_bytes) → 0 = OK.
+        const readFn: *const fn (u32, [*]u32, i32) callconv(.c) i32 = @ptrFromInt(read_addr);
+
+        /// Read `words.len` 32-bit words from flash offset `src`; true on success.
+        pub inline fn read(src: u32, words: []u32) bool {
+            const len: i32 = @bitCast(@as(u32, @truncate(words.len *% 4)));
+            return readFn(src, words.ptr, len) == 0;
+        }
+    };
+}
