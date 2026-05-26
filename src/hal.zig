@@ -536,3 +536,40 @@ pub fn Twai(comptime P: type) type {
         }
     };
 }
+
+/// MCPWM (Motor-Control PWM) — edge-aligned PWM on timer 0 → operator 0,
+/// generator A, the building block for motor/servo drive. Takes the peripheral
+/// namespace (`regs.MCPWM0`). The generator raises the output at the period start
+/// (timer == 0, UTEZ) and lowers it when the up-counter reaches comparator A
+/// (UTEA), so duty = `cmp / period`. **Build-only:** QEMU models no MCPWM, and the
+/// output still needs routing to a pad via the GPIO matrix.
+pub fn Mcpwm(comptime P: type) type {
+    return struct {
+        const clk_prescale = reg.Field(0, 8); // CLK_CFG
+        const t_prescale = reg.Field(0, 8); // TIMER_x_CFG0
+        const t_period = reg.Field(8, 16);
+        const t_start = reg.Field(0, 3); // TIMER_x_CFG1: 2 = run continuously
+        const t_mod = reg.Field(3, 2); // 1 = up-count
+        const op0_timersel = reg.Field(0, 2); // OPERATOR_TIMERSEL
+        const cmp_a = reg.Field(0, 16); // CH_x_GEN_TSTMP_A (compare value)
+        const gen_utez = reg.Field(0, 2); // GEN action at timer == 0
+        const gen_utea = reg.Field(4, 2); // GEN action at up-count == compare A
+        const action_low = 1;
+        const action_high = 2;
+
+        /// Edge-aligned PWM at f = clk / ((clk_pre+1)·(timer_pre+1)·period); duty is
+        /// set later via `setDuty(0..period)`. Drives operator 0 / generator A.
+        pub inline fn init(comptime clk_pre: u8, comptime timer_pre: u8, comptime period: u16) void {
+            mmio.writeReg(P.CLK_CFG, clk_prescale.set(clk_pre));
+            mmio.writeReg(P.TIMER_0_CFG0, t_prescale.set(timer_pre) | t_period.set(period));
+            mmio.writeReg(P.OPERATOR_TIMERSEL, op0_timersel.set(0)); // operator 0 ← timer 0
+            mmio.writeReg(P.CH_0_GEN_0, gen_utez.set(action_high) | gen_utea.set(action_low));
+            mmio.writeReg(P.TIMER_0_CFG1, t_mod.set(1) | t_start.set(2)); // up-count, free-run
+        }
+
+        /// Set generator A's duty compare value (`0 .. period`).
+        pub inline fn setDuty(duty: u16) void {
+            mmio.writeReg(P.CH_0_GEN_TSTMP_A, cmp_a.set(duty));
+        }
+    };
+}
