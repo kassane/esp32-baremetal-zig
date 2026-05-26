@@ -25,7 +25,7 @@ pub fn Field(comptime lsb: Shift, comptime width: u6) type {
     if (width == 0 or @as(u32, lsb) + width > 32) @compileError("field out of range");
     return struct {
         pub const shift = lsb;
-        pub const mask: u32 = if (width == 32) ~@as(u32, 0) else ((@as(u32, 1) << @intCast(width)) - 1) << lsb;
+        pub const mask: u32 = if (width == 32) std.math.maxInt(u32) else ((@as(u32, 1) << @intCast(width)) - 1) << lsb;
 
         /// `value` placed at the field's position, masked so it can't bleed into
         /// neighbouring fields. OR these together to compose a register word.
