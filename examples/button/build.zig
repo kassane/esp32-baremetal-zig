@@ -11,7 +11,7 @@ pub fn build(b: *std.Build) void {
     const core = b.dependency("esp32_hal", .{});
     const target = b.resolveTargetQuery(.{
         .cpu_arch = .xtensa,
-        .os_tag = .esp32, // Espressif fork: xtensa-esp32-none selects the CPU
+        .os_tag = .esp32,
         .abi = .none,
     });
     const mod = b.createModule(.{ .root_source_file = b.path("main.zig"), .target = target, .optimize = optimize });

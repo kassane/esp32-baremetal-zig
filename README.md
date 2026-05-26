@@ -118,7 +118,7 @@ const fw = b.addExecutable(.{ .name = "fw", .root_module = b.createModule(.{
     .root_source_file = b.path("main.zig"),
     .target = b.resolveTargetQuery(.{
         .cpu_arch = .xtensa,
-        .os_tag = .esp32, // Espressif fork: xtensa-esp32-none selects the CPU
+        .os_tag = .esp32,
         .abi = .none,
     }),
 }) });
