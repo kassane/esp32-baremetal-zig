@@ -200,9 +200,6 @@ Guides and implementation notes live under [`docs/`](docs/):
   PIE/SIMD vector path.
 - **[docs/heap.md](docs/heap.md)** — the bare-metal typed bump arena, and why the
   std allocator interface doesn't lower on this backend.
-- **[docs/wifi.md](docs/wifi.md)** — Wi-Fi/BT deep dive: why the radio is out of
-  scope (closed blobs + a scheduler), what it would take, and the groundwork that
-  is here.
 
 ---
 

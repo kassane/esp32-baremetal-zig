@@ -62,8 +62,7 @@ The Wi-Fi and Bluetooth radios are intentionally out of scope. Their RF, PHY and
 MAC layers are driven by closed-source vendor firmware blobs — the same reason
 the QEMU fork does not emulate them — so a from-scratch, blob-free register HAL
 cannot bring up the radio itself. Drawing that boundary explicitly is a design
-decision, not a missing feature — [docs/wifi.md](wifi.md) is the full deep dive
-(what it would take, and the groundwork that is here).
+decision, not a missing feature.
 
 What the HAL does provide is the register-level groundwork a connectivity stack
 builds on, plus the wireless protocols that *are* pure registers:
