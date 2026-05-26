@@ -626,3 +626,48 @@ pub fn I2s(comptime P: type) type {
         }
     };
 }
+
+/// DAC — 8-bit analog output on an RTC DAC pad (`regs.RTC_IO.PAD_DAC_0` = DAC1 on
+/// GPIO25, `PAD_DAC_1` = DAC2 on GPIO26). Writing forces the pad's DAC power-up
+/// control to this register and drives `level` (0..255 ≈ 0..Vref) — the same path
+/// ESP-IDF's `dac_output_voltage` takes. **Build-only:** QEMU has no observable
+/// analog output (the cosine-wave generator is left disabled, its reset default).
+pub fn Dac(comptime pad_dac_reg: u32) type {
+    return struct {
+        const dac_xpd_force = reg.bit(10); // power the DAC from this register
+        const mux_sel = reg.bit(17); // route the RTC pad to the DAC
+        const xpd_dac = reg.bit(18); // DAC powered on
+        const value = reg.Field(19, 8); // 8-bit output level
+
+        /// Drive `level` (0 = 0 V … 255 ≈ Vref) on the DAC pad.
+        pub inline fn write(level: u8) void {
+            mmio.writeReg(pad_dac_reg, dac_xpd_force | xpd_dac | mux_sel | value.set(level));
+        }
+    };
+}
+
+/// ADC (SAR) software one-shot read on `regs.SENS.SAR_MEAS_START1` (ADC1) or
+/// `SAR_MEAS_START2` (ADC2). Forces software pad-select + start, triggers a
+/// conversion of `channel` and returns the raw result. This is the trigger/read
+/// core — a real reading also needs attenuation (`SAR_ATTEN*`), the SAR clock
+/// (`SAR_READ_CTRL`) and RTC power configured. **Build-only:** QEMU has no analog
+/// input. Fields from the SVD, via reg.zig.
+pub fn Adc(comptime meas_reg: u32) type {
+    return struct {
+        const data = reg.Field(0, 16); // MEASn_DATA_SAR
+        const done = reg.bit(16); // MEASn_DONE_SAR
+        const start = reg.bit(17); // MEASn_START_SAR (write 1 to trigger)
+        const start_force = reg.bit(18); // software, not the RTC FSM
+        const en_pad = reg.Field(19, 12); // one bit per channel
+        const en_pad_force = reg.bit(31);
+
+        /// Software one-shot of `channel` (0..11): returns the raw SAR value.
+        pub inline fn read(comptime channel: u4) u16 {
+            const sel = en_pad_force | start_force | en_pad.set(@as(u32, 1) << channel);
+            mmio.writeReg(meas_reg, sel); // select the channel
+            mmio.writeReg(meas_reg, sel | start); // trigger the conversion
+            while (mmio.readReg(meas_reg) & done == 0) {} // wait for completion
+            return @truncate(data.get(mmio.readReg(meas_reg)));
+        }
+    };
+}
