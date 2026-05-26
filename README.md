@@ -95,7 +95,7 @@ Single-feature programs live alongside them, each its own package you build with
 - `efuse` also runs in QEMU (`cd examples/efuse && zig build demo`)
 - **Build-only**: `pwm` (LEDC) on ESP32-S2; `i2c` (I2C master), `spi` (SPI master),
   `rmt` (IR remote transmit), `rsa` (RSA modular exponentiation), `twai`
-  (CAN 2.0 transmit) and `mcpwm` (motor-control PWM) on ESP32
+  (CAN 2.0 transmit), `mcpwm` (motor-control PWM) and `i2s` (I2S master TX) on ESP32
 
 Shared register/timing helpers live in `src/mmio.zig` (imported as `mmio`).
 
@@ -219,8 +219,8 @@ A small register driver layer over `mmio` (imported as `hal`):
 - `hal.Timer(config, update, lo)` — a Timer Group general-purpose up-counter (a
   monotonic time base independent of `CCOUNT`); `start(divider)` enables it and
   `ticks()` latches + reads the low 32 bits. The esp32 demo prints its uptime.
-- `hal.Uart(fifo)` — a UART transmitter (`writeByte`/`write`) over the TX FIFO;
-  the QEMU-safe subset (real hardware would also gate on the TX-FIFO status).
+- `hal.Uart(fifo, status)` — full-duplex UART: TX (`writeByte`/`write`) over the
+  FIFO plus RX (`readByte` → `?u8`, `rxAvailable`) gated on `STATUS.RXFIFO_CNT`.
 - `hal.Rng(data)` — reads a 32-bit hardware-RNG sample; the esp32 demo prints one.
 - `hal.Sha256(...)` / `hal.Aes(key_bits, ...)` — single-block SHA-256 and
   AES-ECB (comptime-selected `key_bits` of 128/192/256) on the hardware
@@ -257,6 +257,9 @@ A small register driver layer over `mmio` (imported as `hal`):
 - `hal.Mcpwm(P)` — motor-control PWM: edge-aligned output on timer 0 / operator 0 /
   generator A (`regs.MCPWM0`), duty = `cmp/period` (see `examples/mcpwm/`).
   **Build-only**: QEMU models no MCPWM (route the operator output to a pad first).
+- `hal.I2s(P)` — I2S master TX in single-data mode (constant sample, no DMA;
+  Philips framing) on `regs.I2S0` (see `examples/i2s/`). **Build-only**: QEMU models
+  no I2S; the DMA-fed streaming path is a larger future piece.
 
 Every driver is **comptime-parameterized on its register addresses** (the I2C
 driver on the peripheral namespace), so the MMIO accesses stay provably

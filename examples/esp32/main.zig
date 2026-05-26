@@ -35,7 +35,7 @@ const blink_half: u32 = 480_000; // busy-loop iterations per blink half-period
 
 const Led = hal.Output(gpio.ENABLE_W1TS, gpio.OUT, gpio.OUT_W1TS, gpio.OUT_W1TC, led_mask);
 const Button = hal.Input(gpio.IN, @as(u32, 1) << 0); // GPIO0 (boot button), bank 0
-const Console = hal.Uart(regs.UART0.FIFO); // UART transmitter
+const Console = hal.Uart(regs.UART0.FIFO, regs.UART0.STATUS); // UART TX + RX
 const Entropy = hal.Rng(regs.RNG.DATA); // hardware RNG
 const Hasher = hal.Sha256(regs.SHA.TEXT_0, regs.SHA.SHA256_START, regs.SHA.SHA256_LOAD, regs.SHA.SHA256_BUSY);
 const Cipher128 = hal.Aes(128, regs.AES.KEY_0, regs.AES.TEXT_0, regs.AES.MODE, regs.AES.START, regs.AES.IDLE);
