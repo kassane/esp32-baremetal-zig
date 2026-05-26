@@ -90,8 +90,10 @@ pub fn Input(comptime in_reg: u32, comptime mask: u32) type {
 /// set/clear is a single store (no read-modify-write). The register addresses
 /// are comptime so the stores keep their fixed, aligned addresses and emit no
 /// alignment/null safety-check panic (which wouldn't link). `init` configures
-/// the pin as an output; pass the GPIO bank's ENABLE/OUT set+clear registers.
-pub fn Output(comptime enable_reg: u32, comptime set_reg: u32, comptime clr_reg: u32, comptime mask: u32) type {
+/// the pin as an output; pass the GPIO bank's ENABLE / OUT (plain) / OUT set /
+/// OUT clear registers. `out_reg` (the plain OUT latch) backs `isSetHigh`/
+/// `toggle` — note QEMU does not reflect output writes back through it.
+pub fn Output(comptime enable_reg: u32, comptime out_reg: u32, comptime set_reg: u32, comptime clr_reg: u32, comptime mask: u32) type {
     return struct {
         pub inline fn init() void {
             mmio.writeReg(enable_reg, mask);
@@ -104,6 +106,12 @@ pub fn Output(comptime enable_reg: u32, comptime set_reg: u32, comptime clr_reg:
         }
         pub inline fn setLevel(level: Level) void {
             mmio.writeReg(if (level == .high) set_reg else clr_reg, mask);
+        }
+        pub inline fn isSetHigh() bool {
+            return mmio.readReg(out_reg) & mask != 0;
+        }
+        pub inline fn toggle() void {
+            if (isSetHigh()) setLow() else setHigh();
         }
     };
 }

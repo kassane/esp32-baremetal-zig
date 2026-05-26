@@ -31,7 +31,7 @@ fn logFn(comptime level: std.log.Level, comptime _: @TypeOf(.enum_literal), comp
 const led_mask: u32 = @as(u32, 1) << (48 - 32);
 const cpu_hz = 240_000_000; // Xtensa default; sets the cycle-accurate Delay scale
 const cycles_per_energy: u32 = 50_000; // blink half-period = energy × this (cycles)
-const Led = hal.Output(gpio.ENABLE1_W1TS, gpio.OUT1_W1TS, gpio.OUT1_W1TC, led_mask);
+const Led = hal.Output(gpio.ENABLE1_W1TS, gpio.OUT1, gpio.OUT1_W1TS, gpio.OUT1_W1TC, led_mask);
 
 // Two 8-lane int16 signals (16-byte aligned = one 128-bit PIE vector).
 var sig_a: [8]i16 align(16) = .{ 1, 2, 3, 4, 5, 6, 7, 8 };

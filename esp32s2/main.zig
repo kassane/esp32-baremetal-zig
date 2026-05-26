@@ -27,7 +27,7 @@ const led_pin: u5 = 18;
 const led_mask: u32 = @as(u32, 1) << led_pin;
 const cpu_hz = 240_000_000; // Xtensa default; sets the cycle-accurate Delay scale
 const poll_ms: u32 = 20; // how often to sample the button
-const Led = hal.Output(gpio.ENABLE_W1TS, gpio.OUT_W1TS, gpio.OUT_W1TC, led_mask);
+const Led = hal.Output(gpio.ENABLE_W1TS, gpio.OUT, gpio.OUT_W1TS, gpio.OUT_W1TC, led_mask);
 const Button = hal.Input(gpio.IN, @as(u32, 1) << 0); // GPIO0 (boot button), bank 0
 
 // ── Application entry ─────────────────────────────────────────────────────────

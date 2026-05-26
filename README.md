@@ -185,8 +185,8 @@ path that doesn't link here. A tiny comptime formatter in `src/mmio.zig`
 
 A small register driver layer over `mmio` (imported as `hal`):
 
-- `hal.Output(enable, set, clr, mask)` — a push-pull pin over the atomic
-  W1TS/W1TC registers, with `init`/`setHigh`/`setLow`/`setLevel`. It's
+- `hal.Output(enable, out, set, clr, mask)` — a push-pull pin over the atomic
+  W1TS/W1TC registers (`init`/`setHigh`/`setLow`/`setLevel`/`toggle`/`isSetHigh`). It's
   **comptime-parameterized** on the register addresses so the stores keep fixed,
   aligned, non-null targets and emit no alignment/null panic (which wouldn't
   link). `hal.Level` is the `.low`/`.high` enum (with `not`).

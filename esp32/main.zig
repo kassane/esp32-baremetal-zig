@@ -82,7 +82,7 @@ inline fn printSpectrum(fifo: u32, spectrum: *const [fft_n]dsp.Cplx) void {
 
 // ── Application entry ─────────────────────────────────────────────────────────
 
-const Led = hal.Output(gpio.ENABLE_W1TS, gpio.OUT_W1TS, gpio.OUT_W1TC, led_mask);
+const Led = hal.Output(gpio.ENABLE_W1TS, gpio.OUT, gpio.OUT_W1TS, gpio.OUT_W1TC, led_mask);
 const Button = hal.Input(gpio.IN, @as(u32, 1) << 0); // GPIO0 (boot button), bank 0
 // TIMG0 timer 0 as a monotonic tick source.
 const Uptime = hal.Timer(regs.TIMG0.T_0_CONFIG, regs.TIMG0.T_0_UPDATE, regs.TIMG0.T_0_LO);
