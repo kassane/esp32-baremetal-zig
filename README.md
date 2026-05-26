@@ -93,7 +93,8 @@ Single-feature programs live alongside them, each its own package you build with
 
 - `blink` (GPIO + Delay), `button` (GPIO in→out), `efuse` (factory MAC) on ESP32
 - `efuse` also runs in QEMU (`cd examples/efuse && zig build demo`)
-- **Build-only** (no QEMU model): `pwm` (LEDC) on ESP32-S2, `i2c` (I2C master) on ESP32
+- **Build-only** (no QEMU model): `pwm` (LEDC) on ESP32-S2, `i2c` (I2C master) and
+  `rmt` (IR remote transmit) on ESP32
 
 Shared register/timing helpers live in `src/mmio.zig` (imported as `mmio`).
 
@@ -235,6 +236,10 @@ A small register driver layer over `mmio` (imported as `hal`):
   peripheral namespace (e.g. `regs.I2C0`) since it spans ~13 registers (see
   `examples/i2c/`). **Build-only**: QEMU models no I2C controller, so it links and
   runs on hardware but has no emulator activity (route SCL/SDA to pads first).
+- `hal.Rmt(conf0, conf1, data, apb_conf)` — RMT transmitter: streams 32-bit
+  symbols (two timed levels each) out a channel for IR remote protocols
+  (NEC/RC5) or WS2812 timing (see `examples/rmt/`). **Build-only**: QEMU models no
+  RMT (route the channel to an IR-LED pad, with a 38 kHz carrier, on hardware).
 
 Every driver is **comptime-parameterized on its register addresses** (the I2C
 driver on the peripheral namespace), so the MMIO accesses stay provably
@@ -247,9 +252,11 @@ one: the radios are driven by Espressif's closed-source RF/PHY/MAC blobs (the
 `esp-wifi` / controller libraries), which are also why QEMU doesn't emulate them.
 What this project *can* provide is the register-level groundwork those stacks sit
 on — the factory MAC every interface derives from (`hal.Efuse`), the RNG the TLS
-layers seed from (`hal.Rng`), and the wired buses peripherals hang off
-(`hal.I2c`, plus the LEDC PWM). Bringing up the radio itself would mean linking
-the vendor blobs, which is out of scope for a from-scratch register HAL.
+layers seed from (`hal.Rng`), the wired buses peripherals hang off (`hal.I2c`,
+plus the LEDC PWM), and the one wireless protocol that *is* pure registers:
+infrared remote control via the RMT peripheral (`hal.Rmt`). Bringing up the RF
+radio itself would mean linking the vendor blobs, which is out of scope for a
+from-scratch register HAL.
 
 ### DSP kernels (`src/dsp.zig`)
 

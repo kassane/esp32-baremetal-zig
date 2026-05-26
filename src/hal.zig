@@ -334,3 +334,55 @@ pub fn I2c(comptime P: type) type {
         }
     };
 }
+
+/// RMT (Remote Control) transmitter — the chips' register-only path to wireless
+/// IR signalling (the NEC/RC5 remote protocols, also WS2812 LED timing). Each
+/// channel streams 32-bit *symbols* (two timed logic levels) from its RAM block
+/// out a pad. This is the honest "radio" a from-scratch HAL can drive: the Wi-Fi
+/// /Bluetooth radios need Espressif's closed RF blobs, but IR is pure registers.
+///
+/// Pass one channel's CONF0/CONF1/DATA registers plus the shared APB_CONF (e.g.
+/// `regs.RMT.CH0CONF0`, `CH0CONF1`, `CH0DATA`, `RMT.APB_CONF`). **Build-only:** no
+/// Espressif QEMU machine models RMT, so this links and runs on hardware but has
+/// no emulator output (and the channel still needs routing to a pad + a 38 kHz
+/// carrier — `CARRIER_EN`/`CHnCARRIER_DUTY` — for a real IR LED). Field layout per
+/// the SVD; `[*]` indexing keeps the symbol push bounds-check-free.
+pub fn Rmt(comptime conf0: u32, comptime conf1: u32, comptime data: u32, comptime apb_conf: u32) type {
+    return struct {
+        // CH%sCONF0
+        const mem_size_1: u32 = 1 << 24; // MEM_SIZE = 1 (one 64-symbol RAM block)
+        const clk_en: u32 = 1 << 31;
+        const idle_thres: u32 = 0x8000 << 8; // IDLE_THRES: counter value marking end
+        // CH%sCONF1
+        const tx_start: u32 = 1 << 0;
+        const mem_wr_rst: u32 = 1 << 2;
+        const mem_rd_rst: u32 = 1 << 3;
+        const ref_always_on: u32 = 1 << 17; // keep the channel clock running
+        // APB_CONF
+        const fifo_mask: u32 = 1 << 0; // CHnDATA writes address the RAM directly
+
+        /// Build one RMT symbol: level `l0` held for `d0` source-clock ticks, then
+        /// level `l1` for `d1`. A symbol with `d0 == 0` is the end-of-stream mark.
+        pub inline fn symbol(l0: u1, d0: u15, l1: u1, d1: u15) u32 {
+            return @as(u32, d0) | (@as(u32, l0) << 15) | (@as(u32, d1) << 16) | (@as(u32, l1) << 31);
+        }
+
+        /// Configure the channel: source clock ÷ `div`, one RAM block, direct RAM
+        /// writes. Call once before `send`.
+        pub inline fn init(comptime div: u8) void {
+            mmio.writeReg(apb_conf, fifo_mask);
+            mmio.writeReg(conf0, @as(u32, div) | mem_size_1 | idle_thres | clk_en);
+        }
+
+        /// Transmit `items` (RMT symbols, see `symbol`) followed by an end marker.
+        pub inline fn send(items: []const u32) void {
+            mmio.writeReg(conf1, mem_rd_rst | mem_wr_rst); // rewind the RAM pointers
+            mmio.writeReg(conf1, 0);
+            const p = items.ptr;
+            var i: usize = 0;
+            while (i < items.len) : (i +%= 1) mmio.writeReg(data, p[i]);
+            mmio.writeReg(data, 0); // duration-0 entry stops the transfer
+            mmio.writeReg(conf1, ref_always_on | tx_start);
+        }
+    };
+}
