@@ -13,6 +13,7 @@ A small register driver layer over `mmio` (imported as `hal`):
 | `SysTimer(P)` | always-on 52-bit system timer | ESP32-S3 | QEMU-verified |
 | `RtcTime(P)` | always-on 48-bit RTC main timer (survives sleep) | ESP32 | QEMU-verified |
 | `Uart(fifo, status)` | full-duplex UART (TX + RX FIFO) | any | QEMU-verified |
+| `Console(fifo)` | bundles the panic handler, `std.log` backend + `std_options` (build-time `-Dlog-level`) | any | QEMU-verified |
 | `Rng(data)` | hardware RNG sample | any | QEMU |
 | `Efuse(lo, hi)` | 48-bit factory base-MAC from eFuse | any | QEMU (blank on emu) |
 | `Sha(...)` | single-block SHA-1 / SHA-256 | ESP32 | QEMU-verified vs `std.crypto` |

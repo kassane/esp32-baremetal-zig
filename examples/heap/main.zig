@@ -20,7 +20,7 @@ fn onPanic(msg: []const u8, ret_addr: ?usize) noreturn {
 }
 pub const panic = @import("panic").Handler(onPanic);
 
-pub const std_options: std.Options = .{ .logFn = logFn };
+pub const std_options: std.Options = .{ .logFn = logFn, .log_level = mmio.log_level };
 fn logFn(comptime level: std.log.Level, comptime _: @TypeOf(.enum_literal), comptime fmt: []const u8, args: anytype) void {
     mmio.log(regs.UART0.FIFO, level, fmt, args);
 }

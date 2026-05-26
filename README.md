@@ -89,6 +89,9 @@ zig build esp32s3
 
 # Release build
 zig build -Doptimize=ReleaseSmall
+
+# Build-time config knobs (see docs/getting-started.md#build-time-configuration)
+zig build esp32 -Dlog-level=debug -Dpanic-trace=false
 ```
 
 Per chip this installs an `<chip>_baremetal_zig` ELF plus a raw

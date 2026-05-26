@@ -39,7 +39,7 @@ pub fn build(b: *std.Build) void {
         \\    *(.text.vectors)
         \\    *(.text .text.*)
         \\  } > ram
-        \\  .rodata ALIGN(4) : { *(.rodata .rodata.*) } > ram
+        \\  .rodata ALIGN(8) : { *(.rodata .rodata.*) } > ram
         \\  .data ALIGN(4) : { *(.data .data.* .sdata .sdata.*) } > ram
         \\  .bss ALIGN(4) : { *(.bss .bss.* .sbss .sbss.* COMMON) } > ram
         \\  __stack_top = ORIGIN(ram) + LENGTH(ram);
