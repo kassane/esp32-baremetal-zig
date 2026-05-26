@@ -15,7 +15,7 @@ pub fn build(b: *std.Build) void {
 
     // Build-time configuration: a typed, defaulted, overridable knob set in the
     // spirit of a Kconfig — `zig build -Dlog-level=debug -Dpanic-trace=false`.
-    // Exposed to the HAL as `@import(\"config\")` and bound into the shared modules
+    // Exposed to the HAL as `@import("config")` and bound into the shared modules
     // below, so example packages inherit these defaults transitively through
     // `mmio`/`hal` (the canonical, configurable build is this workspace root).
     const log_level = b.option(std.log.Level, "log-level", "Minimum std.log level compiled in (err|warn|info|debug)") orelse .info;
@@ -27,41 +27,41 @@ pub fn build(b: *std.Build) void {
     options.addOption(bool, "panic_trace", b.option(bool, "panic-trace", "Print a UART stack backtrace from the panic handler") orelse true);
     const config_mod = options.createModule();
 
-    // Shared bare-metal helpers, imported by every chip as `@import(\"mmio\")`.
+    // Shared bare-metal helpers, imported by every chip as `@import("mmio")`.
     // `addModule` (not `createModule`) so the per-example packages can consume
-    // them via `b.dependency(\"esp32_hal\", …).module(\"mmio\")`.
+    // them via `b.dependency("esp32_hal", …).module("mmio")`.
     const mmio = b.addModule("mmio", .{ .root_source_file = b.path("src/mmio.zig") });
     mmio.addImport("config", config_mod); // gates the panic backtrace
 
     // Portable DSP kernels (SIMD on esp32s3, scalar fallback elsewhere),
-    // imported as `@import(\"dsp\")`.
+    // imported as `@import("dsp")`.
     const dsp = b.addModule("dsp", .{ .root_source_file = b.path("src/dsp.zig") });
 
-    // Startup helpers (watchdog disable, …), imported as `@import(\"init\")`.
+    // Startup helpers (watchdog disable, …), imported as `@import("init")`.
     const init_mod = b.addModule("init", .{ .root_source_file = b.path("src/init.zig") });
     init_mod.addImport("mmio", mmio);
 
-    // Custom panic namespace, imported as `@import(\"panic\")`. The root binds it
+    // Custom panic namespace, imported as `@import("panic")`. The root binds it
     // with its own `call` (forwarding to mmio.panic) — see src/panic.zig.
     const panic_mod = b.addModule("panic", .{ .root_source_file = b.path("src/panic.zig") });
 
-    // Comptime register-field helpers (bit/Field), imported as `@import(\"reg\")`.
+    // Comptime register-field helpers (bit/Field), imported as `@import("reg")`.
     const reg = b.addModule("reg", .{ .root_source_file = b.path("src/reg.zig") });
     init_mod.addImport("reg", reg); // shares the WDT write-protect key with init
 
     // Register HAL (Level/Output/Input/Delay/Timer/Uart/Rng), imported as
-    // `@import(\"hal\")`.
+    // `@import("hal")`.
     const hal = b.addModule("hal", .{ .root_source_file = b.path("src/hal.zig") });
     hal.addImport("mmio", mmio);
     hal.addImport("reg", reg);
     hal.addImport("panic", panic_mod); // for hal.Console's panic namespace
     hal.addImport("config", config_mod); // build-time log level for hal.Console
 
-    // Shared Xtensa reset-vector builder, imported as `@import(\"startup\")`.
+    // Shared Xtensa reset-vector builder, imported as `@import("startup")`.
     const startup = b.addModule("startup", .{ .root_source_file = b.path("src/startup.zig") });
 
     // Fixed-buffer heap allocator (std.mem.Allocator over a static buffer),
-    // imported as `@import(\"heap\")`. Exposed for example packages to consume.
+    // imported as `@import("heap")`. Exposed for example packages to consume.
     _ = b.addModule("heap", .{ .root_source_file = b.path("src/heap.zig") });
 
     // All generated linker scripts live in a single WriteFiles step — no *.ld
