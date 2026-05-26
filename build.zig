@@ -42,6 +42,10 @@ pub fn build(b: *std.Build) void {
     // Shared Xtensa reset-vector builder, imported as `@import(\"startup\")`.
     const startup = b.addModule("startup", .{ .root_source_file = b.path("src/startup.zig") });
 
+    // Fixed-buffer heap allocator (std.mem.Allocator over a static buffer),
+    // imported as `@import(\"heap\")`. Exposed for example packages to consume.
+    _ = b.addModule("heap", .{ .root_source_file = b.path("src/heap.zig") });
+
     // All generated linker scripts live in a single WriteFiles step — no *.ld
     // files on disk.
     const ld = b.addWriteFiles();
