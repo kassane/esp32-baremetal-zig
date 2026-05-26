@@ -24,7 +24,7 @@ A small register driver layer over `mmio` (imported as `hal`):
 | `I2s(P)` | I2S master TX, single-data mode | any | build-only |
 | `Rmt(...)` | RMT symbol stream (IR remote, WS2812 timing) | ESP32 | build-only |
 | `Ws2812(...)` | WS2812 / NeoPixel addressable RGB (built on `Rmt`) | ESP32 | build-only |
-| `Pwm(...)` | LEDC PWM timer + channel | any | build-only |
+| `Pwm(...)` | LEDC PWM timer + channel (`setDuty` / hardware `fade`) | any | build-only |
 | `Mcpwm(P)` | motor-control PWM (edge-aligned) | any | build-only |
 | `Pcnt(...)` | pulse counter (encoders / frequency) | ESP32 | build-only |
 | `Dac(pad)` | 8-bit RTC DAC analog output | ESP32 | build-only |

@@ -276,6 +276,12 @@ pub fn Pwm(comptime timer_conf: u32, comptime ch_conf0: u32, comptime ch_conf1: 
         const sig_out_en = reg.bit(2);
         const ch_latch = reg.bit(4); // PARA_UP: apply the new channel config
         const duty_val = reg.Field(4, 20); // CHx_DUTY: duty in 1/16 steps ([4] frac)
+        // CHx_CONF1 hardware-fade fields: step the duty by `scale` every `cycle` PWM
+        // periods, for `num` steps, in the `inc` direction.
+        const duty_scale = reg.Field(0, 10);
+        const duty_cycle = reg.Field(10, 10);
+        const duty_num = reg.Field(20, 10);
+        const duty_inc = reg.bit(30);
         const duty_start = reg.bit(31);
 
         /// Start the timer: `res_bits` of duty resolution, clocked at APB ÷ `div`.
@@ -287,6 +293,17 @@ pub fn Pwm(comptime timer_conf: u32, comptime ch_conf0: u32, comptime ch_conf1: 
             mmio.writeReg(ch_hpoint, 0);
             mmio.writeReg(ch_duty, duty_val.set(duty));
             mmio.writeReg(ch_conf1, duty_start);
+            mmio.writeReg(ch_conf0, timer_sel.set(timer) | sig_out_en | ch_latch);
+        }
+        /// Hardware fade from `start` duty: step by `scale` every `cycle` PWM
+        /// periods for `num` steps (rising if `increase`). The LEDC ramps the duty
+        /// itself — no CPU loop. Drive the channel from `timer`.
+        pub inline fn fade(comptime timer: u2, start: u32, scale: u10, cycle: u10, num: u10, increase: bool) void {
+            mmio.writeReg(ch_hpoint, 0);
+            mmio.writeReg(ch_duty, duty_val.set(start));
+            var conf1 = duty_start | duty_scale.set(scale) | duty_cycle.set(cycle) | duty_num.set(num);
+            if (increase) conf1 |= duty_inc;
+            mmio.writeReg(ch_conf1, conf1);
             mmio.writeReg(ch_conf0, timer_sel.set(timer) | sig_out_en | ch_latch);
         }
     };
