@@ -254,10 +254,10 @@ A small register driver layer over `mmio` (imported as `hal`):
 - `hal.Pwm(timer, conf0, conf1, hpoint, duty)` — LEDC PWM timer + channel
   (see `examples/pwm/`). **Build-only**: QEMU doesn't model LEDC, and routing
   the channel to a pad via the GPIO matrix is left to the application.
-- `hal.I2c(P)` — I2C master (single-shot blocking `write`); takes the generated
-  peripheral namespace (e.g. `regs.I2C0`) since it spans ~13 registers (see
-  `examples/i2c/`). **Build-only**: QEMU models no I2C controller, so it links and
-  runs on hardware but has no emulator activity (route SCL/SDA to pads first).
+- `hal.I2c(P)` — I2C master, single-shot blocking `write` and `read`; takes the
+  generated peripheral namespace (e.g. `regs.I2C0`) since it spans ~13 registers
+  (see `examples/i2c/`). **Build-only**: QEMU models no I2C controller, so it links
+  and runs on hardware but has no emulator activity (route SCL/SDA to pads first).
 - `hal.Rmt(conf0, conf1, data, apb_conf)` — RMT transmitter: streams 32-bit
   symbols (two timed levels each) out a channel for IR remote protocols
   (NEC/RC5) or WS2812 timing (see `examples/rmt/`). **Build-only**: QEMU models no
