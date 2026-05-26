@@ -1,4 +1,4 @@
-//! Small HAL layer over `mmio` — a Zig take on the esp-hal driver shapes
+//! Small HAL layer over `mmio` — small register drivers in the usual shape
 //! (`Level`/`Output`/`Input`, a cycle-accurate `Delay`, a TIMG `Timer`). All
 //! `inline`, panic-free (wrapping arithmetic, comptime division), so it links on
 //! this backend; drivers are comptime-parameterized on their register addresses
@@ -37,11 +37,11 @@ pub fn Delay(comptime hz: u32) type {
     };
 }
 
-/// A Timer Group general-purpose timer (TIMGn Tx) as a free-running up-counter —
-/// the time source esp-hal's `time` driver reads, independent of the CPU
-/// `CCOUNT`. Comptime register addresses (config/update/lo): `start` enables the
-/// counter with a 16-bit prescaler, `ticks` latches the live value and returns
-/// its low 32 bits (it counts at the timer-group clock ÷ `divider`).
+/// A Timer Group general-purpose timer (TIMGn Tx) as a free-running up-counter,
+/// independent of the CPU `CCOUNT`. Comptime register addresses (config/update/
+/// lo): `start` enables the counter with a 16-bit prescaler, `ticks` latches the
+/// live value and returns its low 32 bits (it counts at the timer-group clock ÷
+/// `divider`).
 pub fn Timer(comptime config_reg: u32, comptime update_reg: u32, comptime lo_reg: u32) type {
     return struct {
         // TIMGn_Tx_CONFIG bit fields (chip Technical Reference Manual).
@@ -104,6 +104,31 @@ pub fn Output(comptime enable_reg: u32, comptime set_reg: u32, comptime clr_reg:
         }
         pub inline fn setLevel(level: Level) void {
             mmio.writeReg(if (level == .high) set_reg else clr_reg, mask);
+        }
+    };
+}
+
+/// UART transmitter over a TX FIFO register (e.g. `regs.UART0.FIFO`) — the
+/// QEMU-safe subset of a UART driver (the emulated chardev drains instantly;
+/// real hardware would also gate on the TX-FIFO status). Comptime `fifo` address.
+pub fn Uart(comptime fifo: u32) type {
+    return struct {
+        pub inline fn writeByte(byte: u8) void {
+            mmio.writeReg(fifo, byte);
+        }
+        pub inline fn write(bytes: []const u8) void {
+            for (bytes) |b| writeByte(b);
+        }
+    };
+}
+
+/// Hardware RNG — reads a 32-bit sample from the RNG data register. Comptime
+/// `data` address. (For *true* randomness the SoC's RNG entropy sources must be
+/// running; otherwise samples are pseudo-random.)
+pub fn Rng(comptime data: u32) type {
+    return struct {
+        pub inline fn read() u32 {
+            return mmio.readReg(data);
         }
     };
 }

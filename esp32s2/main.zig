@@ -37,7 +37,7 @@ export fn app_main() callconv(.c) noreturn {
     mmio.log(regs.UART0.FIFO, .info, "ESP32-S2 up; mirroring GPIO0 -> GPIO{d}", .{led_pin});
     Led.init(); // GPIO18 as output
 
-    // Drive the LED from the button each poll (esp-hal input→output). The bool
+    // Drive the LED from the button each poll (GPIO input → output). The bool
     // `isHigh` form keeps the in-loop read panic-free under the cycle-delay
     // barrier; routing the Level enum through the loop re-adds checks that don't
     // link here.

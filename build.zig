@@ -27,7 +27,7 @@ pub fn build(b: *std.Build) void {
     // with its own `call` (forwarding to mmio.panic) — see src/panic.zig.
     const panic_mod = b.addModule("panic", .{ .root_source_file = b.path("src/panic.zig") });
 
-    // esp-hal-style HAL (Level/Output, cycle-accurate Delay), imported as
+    // Register HAL (Level/Output/Input/Delay/Timer/Uart/Rng), imported as
     // `@import(\"hal\")`.
     const hal = b.addModule("hal", .{ .root_source_file = b.path("src/hal.zig") });
     hal.addImport("mmio", mmio);

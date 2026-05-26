@@ -47,7 +47,7 @@ export fn app_main() callconv(.c) noreturn {
     dsp.addSatS16(&mixed, &sig_a, &sig_b, sig_a.len);
     const energy = dsp.dotProductS16(&mixed, &mixed, mixed.len);
 
-    // Blink at a cycle-accurate rate set by the energy (esp-hal-style Delay).
+    // Blink at a cycle-accurate rate set by the energy (cycle-counter Delay).
     const delay = hal.Delay(cpu_hz);
     const half = energy *% cycles_per_energy;
     while (true) {
