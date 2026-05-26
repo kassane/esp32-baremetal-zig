@@ -151,6 +151,22 @@ pub fn build(b: *std.Build) void {
             demo_step.dependOn(&run_demo.step);
         }
     }
+
+    // ── ULP coprocessor SVDs (RISC-V), register modules only ─────────────────
+    // The esp32s2/-s3 low-power-coprocessor SVDs (from esp-pacs `xtask patch`).
+    // This is an Xtensa firmware project, so the ULP cores are not build targets;
+    // generating their register modules — and asserting each is valid Zig with
+    // `zig ast-check` — just proves svd2zig handles the RISC-V esp32* SVDs too.
+    // `zig build regs` emits them into zig-out/gen/ alongside the chip modules.
+    inline for (.{ "esp32s2-ulp", "esp32s3-ulp" }) |ulp| {
+        const gen = b.addRunArtifact(svd2zig);
+        gen.addFileArg(b.path("svd/" ++ ulp ++ ".svd"));
+        const regs_src = gen.addOutputFileArg(ulp ++ "_regs.zig");
+        const check = b.addSystemCommand(&.{ b.graph.zig_exe, "ast-check" });
+        check.addFileArg(regs_src);
+        regs_step.dependOn(&check.step);
+        regs_step.dependOn(&b.addInstallFileWithDir(regs_src, .prefix, "gen/" ++ ulp ++ "_regs.zig").step);
+    }
 }
 
 fn addFirmware(
