@@ -33,6 +33,17 @@ vector unit.
 The flash and QEMU linker scripts are generated in `build.zig` — there are no
 `.ld` files to hand-edit.
 
+## Contents
+
+- [Toolchain requirement](#toolchain-requirement)
+- [How to build](#how-to-build)
+- [Use it as a dependency](#use-it-as-a-dependency-zig-fetch)
+- [Documentation](#documentation)
+- [QEMU testing](#qemu-testing)
+- [Flashing to hardware](#flashing-to-hardware)
+- [References](#references)
+- [License](#license)
+
 ---
 
 ## Toolchain requirement
@@ -310,6 +321,7 @@ esptool.py --chip esp32s2 elf2image --output firmware.bin zig-out/bin/esp32s2_ba
 - [esp-rs/esp-pacs](https://github.com/esp-rs/esp-pacs) — upstream of the vendored `svd/*.svd`; register access is generated from these by `tools/svd2zig.zig`
 - [espressif/esp-dsp](https://github.com/espressif/esp-dsp) — reference for the fixed-point FFT/DSP algorithms ported into `src/dsp.zig`
 - [esp-rs/espflash](https://github.com/esp-rs/espflash) — ELF-aware flashing tool used in the hardware-flashing instructions above
+- [esp-rs/esp-hal](https://github.com/esp-rs/esp-hal) — the Rust HAL whose register sequences (touch, RTC sleep/timer, ULP, bootloader app-descriptor) this project's drivers are cross-checked against
 
 ---
 
