@@ -146,3 +146,4 @@ jobs:
           cd ../tsens        && zig build --summary all
           cd ../iomux        && zig build --summary all
           cd ../watchdog     && zig build --summary all
+          cd ../reset_reason && zig build --summary all

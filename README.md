@@ -96,9 +96,9 @@ Single-feature programs live alongside them, each its own package you build with
 - **Build-only**: `pwm` (LEDC) on ESP32-S2; `i2c` (I2C master), `spi` (SPI master),
   `rmt` (IR remote transmit), `rsa` (RSA modular exponentiation), `twai`
   (CAN 2.0 transmit), `mcpwm` (motor-control PWM), `i2s` (I2S master TX),
-  `dac` (analog output), `adc` (analog input), `iomux` (pad pull/drive config) and
-  `watchdog` (TIMG WDT) on ESP32; `usb_serial` (USB CDC-ACM console) and `tsens`
-  (temperature sensor) on ESP32-S3
+  `dac` (analog output), `adc` (analog input), `iomux` (pad pull/drive config),
+  `watchdog` (TIMG WDT) and `reset_reason` (reset cause) on ESP32; `usb_serial`
+  (USB CDC-ACM console) and `tsens` (temperature sensor) on ESP32-S3
 
 Shared register/timing helpers live in `src/mmio.zig` (imported as `mmio`).
 
@@ -287,6 +287,9 @@ A small register driver layer over `mmio` (imported as `hal`):
   `start(prescale, timeout)` arms a stage-0 system reset and `feed()` postpones it,
   guarded by the hardware write-protect key (`regs.TIMG0`, see `examples/watchdog/`).
   **Build-only**: a live WDT resets the chip, which the QEMU boot test would flag.
+- `hal.ResetReason(reset_state_reg)` — reads the PRO-CPU reset cause from
+  `regs.RTC_CNTL.RESET_STATE` (power-on / software / watchdog / brownout / deep-sleep
+  codes), the boot-time branch every firmware needs (see `examples/reset_reason/`).
 
 Every driver is **comptime-parameterized on its register addresses** (the I2C
 driver on the peripheral namespace), so the MMIO accesses stay provably

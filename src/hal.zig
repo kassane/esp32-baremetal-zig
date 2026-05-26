@@ -773,3 +773,18 @@ pub fn Watchdog(comptime P: type) type {
         }
     };
 }
+
+/// Reset reason — reads the PRO-CPU reset cause from `regs.RTC_CNTL.RESET_STATE`
+/// (1 = power-on, 12 = software, the watchdog/brownout/deep-sleep codes, … per the
+/// TRM). Every production firmware branches on this at boot. Single read, field via
+/// reg.zig.
+pub fn ResetReason(comptime reset_state_reg: u32) type {
+    return struct {
+        const procpu = reg.Field(0, 6); // RESET_CAUSE_PROCPU
+
+        /// The PRO-CPU reset cause code.
+        pub inline fn cause() u8 {
+            return @truncate(procpu.get(mmio.readReg(reset_state_reg)));
+        }
+    };
+}
