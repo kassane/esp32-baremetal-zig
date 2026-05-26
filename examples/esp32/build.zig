@@ -4,7 +4,7 @@
 const std = @import("std");
 
 // Standalone package for the ESP32 example. It consumes the workspace root
-// (`esp32_baremetal_zig`) as a local path dependency for the shared modules
+// (`esp32_hal`) as a local path dependency for the shared modules
 // (mmio/dsp/init/panic), the SVD-generated registers, and the linker scripts —
 // so this directory builds on its own with `zig build` while the root still
 // builds every chip. Requires the zig-espressif-bootstrap fork (esp32 CPU model).
@@ -19,7 +19,7 @@ pub fn build(b: *std.Build) void {
         (b.findProgram(&.{"qemu-system-xtensa"}, &.{}) catch "qemu-system-xtensa");
     const smoke_seconds = b.option(u32, "smoke-seconds", "Seconds to run during `zig build smoke`") orelse 5;
 
-    const core = b.dependency("esp32_baremetal_zig", .{});
+    const core = b.dependency("esp32_hal", .{});
     const target = b.resolveTargetQuery(.{
         .cpu_arch = .xtensa,
         .cpu_model = .{ .explicit = &std.Target.xtensa.cpu.esp32 },
@@ -86,6 +86,7 @@ fn firmware(
     mod.addImport("init", core.module("init"));
     mod.addImport("panic", core.module("panic"));
     mod.addImport("hal", core.module("hal"));
+    mod.addImport("startup", core.module("startup"));
     mod.addImport("regs", core.module(regs_module));
     mod.strip = true;
     mod.sanitize_c = .off;

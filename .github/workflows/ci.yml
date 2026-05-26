@@ -107,17 +107,24 @@ jobs:
       # Each example is a standalone package (depends on the repo root locally);
       # run them on their own and print each one's output. `shell: bash` so the
       # `cd … && …` works the same on Windows (Git Bash) as on Unix.
-      - name: ESP32 example — FFT spectrum + std.log over UART
+      - name: ESP32 example — hardware crypto (SHA-256 + AES-128) over UART
         if: matrix.run_qemu
         shell: bash
-        run: cd esp32 && zig build demo
+        run: cd examples/esp32 && zig build demo
 
       - name: ESP32-S3 example — PIE/SIMD blink (boots, no UART by design)
         if: matrix.run_qemu
         shell: bash
-        run: cd esp32s3 && zig build demo
+        run: cd examples/esp32s3 && zig build demo
 
-      - name: ESP32-S2 example — build-only (no Espressif QEMU machine)
+      - name: ESP32-S2 example — FFT spectrum, build-only (no Espressif QEMU machine)
         if: matrix.run_qemu
         shell: bash
-        run: cd esp32s2 && zig build --summary all
+        run: cd examples/esp32s2 && zig build --summary all
+
+      - name: Additional examples — build-only (blink, button, pwm)
+        shell: bash
+        run: |
+          cd examples/blink  && zig build --summary all
+          cd ../button       && zig build --summary all
+          cd ../pwm          && zig build --summary all

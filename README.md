@@ -2,9 +2,9 @@
 
 **Pure Zig on bare Xtensa silicon** — no ESP-IDF, no RTOS, no libc. Just your
 code, the registers, and the metal. It boots on ESP32, ESP32-S2 and ESP32-S3,
-each example owning a different trick: the ESP32 verifies its **hardware SHA-256**
-against `std.crypto` live in QEMU, the ESP32-S2 runs a **fixed-point FFT**
-spectrum analyzer, and the ESP32-S3 does **SIMD** on its vector unit.
+each example owning a different trick: the ESP32 verifies its **hardware SHA-256
+and AES-128** against `std.crypto` live in QEMU, the ESP32-S2 runs a **fixed-point
+FFT** spectrum analyzer, and the ESP32-S3 does **SIMD** on its vector unit.
 
 What you get:
 
@@ -71,25 +71,26 @@ zig build -Doptimize=ReleaseSmall
 Per chip this installs an `<chip>_baremetal_zig` ELF plus a raw
 `<chip>_baremetal_zig.bin` (see the flashing note below about its size).
 
-Each `esp32*/` is also a standalone package: its `build.zig` consumes the repo
-root (`esp32_baremetal_zig`) as a local path dependency for the shared modules,
-generated registers and linker scripts, so you can build one example on its own:
+Every example under [`examples/`](examples/) is also a standalone package: its
+`build.zig` consumes the repo root (`esp32_hal`) as a local path dependency for
+the shared modules, generated registers and linker scripts, so you can build one
+example on its own:
 
 ```bash
-cd esp32 && zig build           # → zig-out/bin/esp32_baremetal_zig(.bin)
-cd esp32 && zig build run       # launch it in QEMU (esp32, esp32s3)
-cd esp32 && zig build smoke     # non-interactive boot test (esp32, esp32s3)
+cd examples/esp32 && zig build           # → zig-out/bin/esp32_baremetal_zig(.bin)
+cd examples/esp32 && zig build run       # launch it in QEMU (esp32, esp32s3)
+cd examples/esp32 && zig build smoke     # non-interactive boot test (esp32, esp32s3)
 ```
 
 | Source | Chip | CPU | LED | Demo |
 |---|---|---|---|---|
-| `esp32/main.zig`   | ESP32    | Xtensa LX6 | GPIO2  | hardware SHA-256 (vs `std.crypto`) + RNG |
-| `esp32s2/main.zig` | ESP32-S2 | Xtensa LX7 | GPIO18 | fixed-point FFT spectrum + TIMG timer |
+| `examples/esp32/main.zig`   | ESP32    | Xtensa LX6 | GPIO2  | hardware SHA-256 + AES-128 (vs `std.crypto`) + RNG |
+| `examples/esp32s2/main.zig` | ESP32-S2 | Xtensa LX7 | GPIO18 | fixed-point FFT spectrum + TIMG timer |
+| `examples/esp32s3/main.zig` | ESP32-S3 | Xtensa LX7 | GPIO48 | PIE/SIMD vector kernels |
 
-Single-feature programs live in [`examples/`](examples/) and build for a chip via
-`zig build example-<name>`: `blink` (GPIO + Delay) and `button` (GPIO in→out) on
-ESP32, `pwm` (LEDC) on ESP32-S2.
-| `esp32s3/main.zig` | ESP32-S3 | Xtensa LX7 | GPIO48 | PIE/SIMD vector kernels |
+Single-feature programs live alongside them, each its own package you build with
+`cd examples/<name> && zig build`: `blink` (GPIO + Delay) and `button` (GPIO
+in→out) on ESP32, `pwm` (LEDC) on ESP32-S2.
 
 Shared register/timing helpers live in `src/mmio.zig` (imported as `mmio`).
 
@@ -97,7 +98,7 @@ Shared register/timing helpers live in `src/mmio.zig` (imported as `mmio`).
 
 ## Use it as a dependency (`zig fetch`)
 
-The repo root is itself a Zig package (`esp32_baremetal_zig`) that publishes its
+The repo root is itself a Zig package (`esp32_hal`) that publishes its
 building blocks — so you can pull them into your own firmware instead of copying
 files around. Add it:
 
@@ -108,7 +109,7 @@ zig fetch --save git+https://github.com/kassane/esp32-baremetal-zig
 Then wire the modules into your `build.zig`:
 
 ```zig
-const esp = b.dependency("esp32_baremetal_zig", .{});
+const esp = b.dependency("esp32_hal", .{});
 
 const fw = b.addExecutable(.{ .name = "fw", .root_module = b.createModule(.{
     .root_source_file = b.path("main.zig"),
@@ -124,12 +125,13 @@ fw.root_module.addImport("hal", esp.module("hal"));          // Output / Input /
 fw.root_module.addImport("dsp", esp.module("dsp"));          // FFT / FIR / SIMD kernels
 fw.root_module.addImport("init", esp.module("init"));        // watchdog disable
 fw.root_module.addImport("panic", esp.module("panic"));      // freestanding panic
+fw.root_module.addImport("startup", esp.module("startup"));  // shared reset vector
 fw.root_module.addImport("regs", esp.module("esp32_regs"));  // or esp32s2_regs / esp32s3_regs
 fw.setLinkerScript(esp.namedLazyPath("esp32.ld"));           // flash; or "esp32-qemu.ld"
 fw.bundle_compiler_rt = false;
 ```
 
-The three `esp32*/` directories *are* this pattern in miniature — they consume the
+The packages under `examples/` *are* this pattern in miniature — they consume the
 root over a local `.path` dependency, so copy one as a working starting point.
 
 ---
@@ -197,7 +199,8 @@ A small register driver layer over `mmio` (imported as `hal`):
   link). `hal.Level` is the `.low`/`.high` enum (with `not`).
 - `hal.Input(in_reg, mask)` — a read-only pin reporting the level latched in the
   GPIO bank's IN register (`isHigh`/`isLow`/`level`). The esp32 example reports
-  GPIO0's level over UART; esp32s2 mirrors the GPIO0 button onto its LED.
+  GPIO0's level over UART; the `button` example mirrors the GPIO0 boot button
+  onto GPIO2's LED.
   (In hot read loops use the boolean `isHigh`, not the `Level` enum — a `switch`
   on it emits a corrupt-value safety check that doesn't link.)
 - `hal.Delay(cpu_hz)` — a cycle-accurate blocking delay (`cycles`/`micros`/
@@ -216,7 +219,7 @@ A small register driver layer over `mmio` (imported as `hal`):
   the hardware accelerators; the esp32 demo checks both against `std.crypto`'s
   comptime reference (verified live in QEMU).
 - `hal.Pwm(timer, conf0, conf1, hpoint, duty)` — LEDC PWM timer + channel
-  (see `examples/pwm.zig`). **Build-only**: QEMU doesn't model LEDC, and routing
+  (see `examples/pwm/`). **Build-only**: QEMU doesn't model LEDC, and routing
   the channel to a pad via the GPIO matrix is left to the application.
 
 Every driver is **comptime-parameterized on its register addresses**, so the
@@ -249,8 +252,8 @@ field name (`"q" ++ …`, **not** `std.fmt` — pulling its formatting machinery
 a freestanding image references the unlinkable panic path). Verified in QEMU:
 the demo executes real `ee.*` instructions and computes Σ x² = 816.
 
-`esp32s3/main.zig` is the PIE example (mix → energy → blink). The **FFT
-spectral-analysis demo lives in `esp32s2/main.zig`** (`fft` is portable scalar
+`examples/esp32s3/main.zig` is the PIE example (mix → energy → blink). The **FFT
+spectral-analysis demo lives in `examples/esp32s2/main.zig`** (`fft` is portable scalar
 code; the LX7 has no PIE) and prints the magnitude spectrum over UART. They are
 split across chips because an `ee.*` instruction is an optimization barrier that
 un-elides Debug safety-check panics in surrounding code — so a PIE function and
@@ -294,13 +297,15 @@ zig build demo-esp32    # just the ESP32 crypto example
 ```
 
 The firmware writes to UART0 (`regs.UART0.FIFO`); `demo` routes that to a file
-and prints it. **`esp32` is the crypto demo** — it runs SHA-256 on the hardware
-accelerator and checks the digest against `std.crypto`'s comptime reference
-(`esp32s3` is the PIE/SIMD example and drives the LED rather than printing):
+and prints it. **`esp32` is the crypto demo** — it runs SHA-256 and AES-128-ECB
+on the hardware accelerators and checks both against `std.crypto`'s comptime
+reference (`esp32s3` is the PIE/SIMD example and drives the LED rather than
+printing):
 
 ```
 ESP32 bare-metal Zig — hardware crypto demo
 [info] SHA-256("abc") HW vs std.crypto: OK
+[info] AES-128-ECB HW vs std.crypto: OK
 [info] rng sample 3160650498, GPIO0 low
 ```
 
@@ -393,3 +398,9 @@ esptool.py --chip esp32s2 elf2image --output firmware.bin zig-out/bin/esp32s2_ba
 - [esp-rs/espflash](https://github.com/esp-rs/espflash) – Rust-based flash tool (ELF-aware, `--skip-padding`)
 - [esp-rs/esp-pacs](https://github.com/esp-rs/esp-pacs) – source of the vendored `svd/*.svd` (register access generated by `tools/svd2zig.zig`)
 - [espressif/esp-dsp](https://github.com/espressif/esp-dsp) – the fixed-point FFT/DSP algorithms ported into `src/dsp.zig`
+
+---
+
+## License
+
+Licensed under the [Apache License, Version 2.0](LICENSE).

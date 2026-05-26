@@ -13,6 +13,7 @@ const mmio = @import("mmio");
 const hal = @import("hal");
 const init = @import("init");
 const regs = @import("regs"); // generated from svd/esp32.svd
+const startup = @import("startup");
 const gpio = regs.GPIO;
 
 // Custom panic namespace: UART message + backtrace, no std.fmt (see src/panic.zig).
@@ -98,25 +99,5 @@ export fn main() callconv(.c) noreturn {
 /// be enabled and SP set (top of DRAM) before the first C-ABI call. The ROM
 /// already does this on hardware, where redoing it is harmless.
 export fn Reset() callconv(.naked) noreturn {
-    asm volatile (
-        \\ .align 4
-        \\ movi    a0, 1
-        \\ slli    a0, a0, 18        // PS.WOE = bit 18
-        \\ wsr.ps  a0
-        \\ rsync
-        \\ movi    a0, 0
-        \\ wsr.windowbase a0
-        \\ rsync
-        \\ movi    a0, 1
-        \\ wsr.windowstart a0
-        \\ rsync
-        \\ movi    a1, 1
-        \\ slli    a1, a1, 30        // a1 = 0x40000000
-        \\ movi    a0, 0x23E
-        \\ slli    a0, a0, 8         // a0 = 0x23E00
-        \\ sub     a1, a1, a0        // SP = 0x3FFDC200 (top of DRAM)
-        \\ call8   main
-        \\0:
-        \\ j       0b
-    );
+    asm volatile (startup.vector());
 }

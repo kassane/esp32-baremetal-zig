@@ -13,6 +13,7 @@ const dsp = @import("dsp");
 const hal = @import("hal");
 const init = @import("init");
 const regs = @import("regs"); // generated from svd/esp32s2.svd
+const startup = @import("startup");
 const gpio = regs.GPIO;
 
 // Custom panic namespace: UART message + backtrace, no std.fmt (see src/panic.zig).
@@ -89,7 +90,7 @@ inline fn printSpectrum(fifo: u32, spectrum: *const [fft_n]dsp.Cplx) void {
 
 // ── Application entry ─────────────────────────────────────────────────────────
 
-export fn app_main() callconv(.c) noreturn {
+export fn main() callconv(.c) noreturn {
     init.disableWatchdogs(regs); // or the chip resets within seconds on real HW
     Led.init(); // GPIO18 as output
     Uptime.start(2); // TIMG0 timer 0 as a monotonic tick source
@@ -122,29 +123,5 @@ export fn app_main() callconv(.c) noreturn {
 /// registers and sets SP (top of internal DRAM) before the first C-ABI call;
 /// the ROM already does this on hardware, where redoing it is harmless.
 export fn call_start_cpu0() callconv(.naked) noreturn {
-    asm volatile (
-        \\ .align 4
-        \\ // ── PS.WOE = bit 18 (enables windowed 'entry' instructions) ──────
-        \\ movi    a0, 1
-        \\ slli    a0, a0, 18        // a0 = 0x00040000
-        \\ wsr.ps  a0
-        \\ rsync
-        \\ // ── Windowed register file: WINDOWBASE=0, WINDOWSTART=1 ──────────
-        \\ movi    a0, 0
-        \\ wsr.windowbase a0
-        \\ rsync
-        \\ movi    a0, 1
-        \\ wsr.windowstart a0
-        \\ rsync
-        \\ // ── Stack pointer: 0x3FFDE000 = 0x40000000 − 0x22000 ─────────────
-        \\ movi    a1, 1
-        \\ slli    a1, a1, 30        // a1 = 0x40000000
-        \\ movi    a0, 0x220         // 544
-        \\ slli    a0, a0, 8         // a0 = 0x0022000
-        \\ sub     a1, a1, a0        // a1 = 0x3FFDE000
-        \\ // ── Windowed call: CALLINC=2 matches 'entry a1,N' in callee ──────
-        \\ call8   app_main
-        \\0:
-        \\ j       0b
-    );
+    asm volatile (startup.vector());
 }

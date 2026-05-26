@@ -4,7 +4,7 @@
 const std = @import("std");
 
 // Standalone package for the ESP32-S2 example. Consumes the workspace root
-// (`esp32_baremetal_zig`) as a local path dependency for the shared modules
+// (`esp32_hal`) as a local path dependency for the shared modules
 // (mmio/dsp/init/panic), the SVD-generated registers, and the linker script.
 // Build-only: the Espressif QEMU fork has no esp32s2 machine, so there is no
 // run/smoke step. Requires the zig-espressif-bootstrap fork (esp32s2 CPU model).
@@ -14,7 +14,7 @@ const entry_sym = "call_start_cpu0";
 
 pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
-    const core = b.dependency("esp32_baremetal_zig", .{});
+    const core = b.dependency("esp32_hal", .{});
     const target = b.resolveTargetQuery(.{
         .cpu_arch = .xtensa,
         .cpu_model = .{ .explicit = &std.Target.xtensa.cpu.esp32s2 },
@@ -32,6 +32,7 @@ pub fn build(b: *std.Build) void {
     mod.addImport("init", core.module("init"));
     mod.addImport("panic", core.module("panic"));
     mod.addImport("hal", core.module("hal"));
+    mod.addImport("startup", core.module("startup"));
     mod.addImport("regs", core.module(regs_module));
     mod.strip = true;
     mod.sanitize_c = .off;
