@@ -1,9 +1,9 @@
 .{
-    .name = .esp32s3_example,
+    .name = .esp32_example,
     .version = "0.1.0",
-    .fingerprint = 0xec6563bb2ba7ab86,
+    .fingerprint = 0x4ddb5adc3fb24a1f,
     .dependencies = .{
-        .esp32_baremetal_zig = .{ .path = ".." },
+        .esp32_hal = .{ .path = "../.." },
     },
     .paths = .{
         "build.zig",

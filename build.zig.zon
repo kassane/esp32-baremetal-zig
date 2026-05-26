@@ -1,7 +1,7 @@
 .{
-    .name = .esp32_baremetal_zig,
+    .name = .esp32_hal,
     .version = "0.1.0",
-    .fingerprint = 0x5669003e36e6ddf2,
+    .fingerprint = 0x8a0dfa01fe414d79,
     .paths = .{
         "build.zig",
         "build.zig.zon",
@@ -9,8 +9,7 @@
         "tools",
         "svd",
         "examples",
-        "esp32",
-        "esp32s2",
-        "esp32s3",
+        "LICENSE",
+        "README.md",
     },
 }
