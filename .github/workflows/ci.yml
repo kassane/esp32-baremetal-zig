@@ -148,3 +148,4 @@ jobs:
           cd ../watchdog     && zig build --summary all
           cd ../reset_reason && zig build --summary all
           cd ../sw_reset     && zig build --summary all
+          cd ../gpio_edge    && zig build --summary all
