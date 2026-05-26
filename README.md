@@ -1,7 +1,28 @@
 # esp32-baremetal-zig
 
-Bare-metal Zig firmware for ESP32, ESP32-S2 and ESP32-S3.
-No IDF runtime, no OS, no libc – pure Zig on Xtensa hardware.
+**Pure Zig on bare Xtensa silicon** — no ESP-IDF, no RTOS, no libc. Just your
+code, the registers, and the metal. It boots on ESP32, ESP32-S2 and ESP32-S3,
+runs SIMD on the S3's vector unit, and ships an FFT spectrum analyzer you can
+watch scroll past in QEMU.
+
+What you get:
+
+- **Registers from SVD, never magic numbers.** `tools/svd2zig.zig` turns vendored
+  CMSIS-SVD into `@import("regs")` at build time — `regs.GPIO.OUT_W1TS`, not `0x...`.
+- **A pocket-sized esp-hal-style HAL** — `Output` / `Input` / `Level`, plus a
+  cycle-accurate `Delay` read straight off the Xtensa `CCOUNT` counter.
+- **Fixed-point DSP** — saturating add, dot product, FIR, and a radix-2 Q15 FFT
+  (ported from esp-dsp). The vector kernels compile to ESP32-S3 PIE inline asm and
+  fall back to scalar elsewhere, chosen at comptime.
+- **Survives real hardware.** Watchdogs disabled at boot; a custom panic handler
+  and `std.log` route over UART without ever touching `std.fmt` (it won't link
+  freestanding).
+- **Reusable as a Zig package** — `zig fetch` it and import the modules. See
+  [Use it as a dependency](#use-it-as-a-dependency-zig-fetch).
+- **Green on every push** across a Linux + macOS + Windows CI matrix, booted in QEMU.
+
+No build script to babysit and no linker scripts to hand-edit — the flash and
+QEMU `.ld` files are generated in `build.zig`.
 
 ---
 
@@ -66,6 +87,49 @@ cd esp32 && zig build smoke     # non-interactive boot test (esp32, esp32s3)
 | `esp32s3/main.zig` | ESP32-S3 | Xtensa LX7 | GPIO48 |
 
 Shared register/timing helpers live in `src/mmio.zig` (imported as `mmio`).
+
+---
+
+## Use it as a dependency (`zig fetch`)
+
+The repo root is itself a Zig package (`esp32_baremetal_zig`) that publishes its
+building blocks — so you can pull them into your own firmware instead of copying
+files around. Add it:
+
+```bash
+zig fetch --save git+https://github.com/kassane/esp32-baremetal-zig
+```
+
+Then wire the modules into your `build.zig`:
+
+```zig
+const esp = b.dependency("esp32_baremetal_zig", .{});
+
+const fw = b.addExecutable(.{ .name = "fw", .root_module = b.createModule(.{
+    .root_source_file = b.path("main.zig"),
+    .target = b.resolveTargetQuery(.{
+        .cpu_arch = .xtensa,
+        .cpu_model = .{ .explicit = &std.Target.xtensa.cpu.esp32 },
+        .os_tag = .freestanding,
+        .abi = .none,
+    }),
+}) });
+fw.root_module.addImport("mmio", esp.module("mmio"));        // MMIO + UART + memcpy
+fw.root_module.addImport("hal", esp.module("hal"));          // Output / Input / Delay
+fw.root_module.addImport("dsp", esp.module("dsp"));          // FFT / FIR / SIMD kernels
+fw.root_module.addImport("init", esp.module("init"));        // watchdog disable
+fw.root_module.addImport("panic", esp.module("panic"));      // freestanding panic
+fw.root_module.addImport("regs", esp.module("esp32_regs"));  // or esp32s2_regs / esp32s3_regs
+fw.setLinkerScript(esp.namedLazyPath("esp32.ld"));           // flash; or "esp32-qemu.ld"
+fw.bundle_compiler_rt = false;
+```
+
+The three `esp32*/` directories *are* this pattern in miniature — they consume the
+root over a local `.path` dependency, so copy one as a working starting point.
+
+---
+
+## Under the hood
 
 ### Register access (svd2zig)
 
