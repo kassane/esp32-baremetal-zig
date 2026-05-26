@@ -1,0 +1,9 @@
+.{
+    .name = .heap_example,
+    .version = "0.1.0",
+    .fingerprint = 0xc508eff3eec2bb8e,
+    .dependencies = .{
+        .esp32_hal = .{ .path = "../.." },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "main.zig" },
+}

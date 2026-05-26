@@ -135,6 +135,11 @@ jobs:
         shell: bash
         run: cd examples/rsa && zig build demo
 
+      - name: ESP32 example — typed bump-arena heap allocation over UART
+        if: matrix.run_qemu
+        shell: bash
+        run: cd examples/heap && zig build demo
+
       - name: ESP32 example — eFuse base-MAC reader over UART
         if: matrix.run_qemu
         shell: bash
