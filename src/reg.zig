@@ -13,6 +13,11 @@ const std = @import("std");
 /// Shift amount for a `u32` (`u5`), the type Zig requires for `<<`/`>>`.
 const Shift = std.math.Log2Int(u32);
 
+/// Write-protect unlock key for the Timer-Group `WDTWPROTECT` registers (a TRM
+/// constant). Shared by `init.disableWatchdogs` and `hal.Watchdog` so the magic
+/// value lives in one place.
+pub const wdt_wprotect_key: u32 = 0x50D8_3AA1;
+
 /// A single-bit flag at position `n` — e.g. `const ms_mode = reg.bit(4);`.
 pub inline fn bit(comptime n: Shift) u32 {
     return @as(u32, 1) << n;

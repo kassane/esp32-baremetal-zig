@@ -343,21 +343,25 @@ pub fn I2c(comptime P: type) type {
         const byte_count = reg.Field(0, 8);
         const trans_complete = reg.bit(7); // I2C_INT_RAW.TRANS_COMPLETE
 
+        // Standard-mode (~100 kHz at an 80 MHz APB) SCL timing, in APB clock ticks.
+        const scl_half_period = 400; // SCL low/high half-period
+        const scl_phase = 200; // start/stop setup + hold
+        const sda_window = 40; // SDA hold + sample
+
         /// Configure the controller as a master and set standard-mode (~100 kHz
         /// at an 80 MHz APB) SCL timing. Call once before `write`.
         pub inline fn init() void {
             // Pulse the FIFO resets, then run in FIFO (not non-FIFO) mode.
             mmio.writeReg(P.FIFO_CONF, tx_fifo_rst | rx_fifo_rst);
             mmio.writeReg(P.FIFO_CONF, 0);
-            // SCL ~100 kHz: half-period ≈ 400 APB ticks; sane setup/hold around it.
-            mmio.writeReg(P.SCL_LOW_PERIOD, 400);
-            mmio.writeReg(P.SCL_HIGH_PERIOD, 400);
-            mmio.writeReg(P.SDA_HOLD, 40);
-            mmio.writeReg(P.SDA_SAMPLE, 40);
-            mmio.writeReg(P.SCL_START_HOLD, 200);
-            mmio.writeReg(P.SCL_RSTART_SETUP, 200);
-            mmio.writeReg(P.SCL_STOP_HOLD, 200);
-            mmio.writeReg(P.SCL_STOP_SETUP, 200);
+            mmio.writeReg(P.SCL_LOW_PERIOD, scl_half_period);
+            mmio.writeReg(P.SCL_HIGH_PERIOD, scl_half_period);
+            mmio.writeReg(P.SDA_HOLD, sda_window);
+            mmio.writeReg(P.SDA_SAMPLE, sda_window);
+            mmio.writeReg(P.SCL_START_HOLD, scl_phase);
+            mmio.writeReg(P.SCL_RSTART_SETUP, scl_phase);
+            mmio.writeReg(P.SCL_STOP_HOLD, scl_phase);
+            mmio.writeReg(P.SCL_STOP_SETUP, scl_phase);
             mmio.writeReg(P.CTR, ctr_cfg);
         }
 
@@ -446,11 +450,14 @@ pub fn Rmt(comptime conf0: u32, comptime conf1: u32, comptime data: u32, comptim
             return dur0.set(d0) | lvl0.set(l0) | dur1.set(d1) | lvl1.set(l1);
         }
 
+        const one_ram_block = 1; // RAM blocks the channel owns
+        const idle_threshold = 0x8000; // idle ticks that mark end-of-transmission
+
         /// Configure the channel: source clock ÷ `div`, one RAM block, direct RAM
         /// writes. Call once before `send`.
         pub inline fn init(comptime div: u8) void {
             mmio.writeReg(apb_conf, fifo_mask);
-            mmio.writeReg(conf0, div_cnt.set(div) | mem_size.set(1) | idle_thres.set(0x8000) | clk_en);
+            mmio.writeReg(conf0, div_cnt.set(div) | mem_size.set(one_ram_block) | idle_thres.set(idle_threshold) | clk_en);
         }
 
         /// Transmit `items` (RMT symbols, see `symbol`) followed by an end marker.
@@ -825,7 +832,7 @@ pub fn IoMux(comptime pad_reg: u32) type {
 /// by the hardware write-protect key. Field bits from the SVD, via reg.zig.
 pub fn Watchdog(comptime P: type) type {
     return struct {
-        const wkey: u32 = 0x50D8_3AA1; // WDTWPROTECT unlock value (TRM constant)
+        const wkey = reg.wdt_wprotect_key; // WDTWPROTECT unlock value
         const wdt_en = reg.bit(31); // WDTCONFIG0.WDT_EN
         const stg0 = reg.Field(29, 2); // stage-0 action
         const prescale = reg.Field(16, 16); // WDTCONFIG1.WDT_CLK_PRESCALE
