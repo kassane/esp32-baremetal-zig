@@ -3,8 +3,8 @@
 **Pure Zig on bare Xtensa silicon** — no ESP-IDF, no RTOS, no libc. Just your
 code, the registers, and the metal. It boots on ESP32, ESP32-S2 and ESP32-S3,
 each example owning a different trick: the ESP32 verifies its **hardware SHA-256
-and AES-128** against `std.crypto` live in QEMU, the ESP32-S2 runs a **fixed-point
-FFT** spectrum analyzer, and the ESP32-S3 does **SIMD** on its vector unit.
+and AES-128/256** against `std.crypto` live in QEMU, the ESP32-S2 runs a
+**fixed-point FFT** spectrum analyzer, and the ESP32-S3 does **SIMD** on its vector unit.
 
 What you get:
 
@@ -84,7 +84,7 @@ cd examples/esp32 && zig build smoke     # non-interactive boot test (esp32, esp
 
 | Source | Chip | CPU | LED | Demo |
 |---|---|---|---|---|
-| `examples/esp32/main.zig`   | ESP32    | Xtensa LX6 | GPIO2  | hardware SHA-256 + AES-128 (vs `std.crypto`) + RNG |
+| `examples/esp32/main.zig`   | ESP32    | Xtensa LX6 | GPIO2  | hardware SHA-256 + AES-128/256 (vs `std.crypto`) + RNG |
 | `examples/esp32s2/main.zig` | ESP32-S2 | Xtensa LX7 | GPIO18 | fixed-point FFT spectrum + TIMG timer |
 | `examples/esp32s3/main.zig` | ESP32-S3 | Xtensa LX7 | GPIO48 | PIE/SIMD vector kernels |
 
@@ -221,9 +221,10 @@ A small register driver layer over `mmio` (imported as `hal`):
 - `hal.Uart(fifo)` — a UART transmitter (`writeByte`/`write`) over the TX FIFO;
   the QEMU-safe subset (real hardware would also gate on the TX-FIFO status).
 - `hal.Rng(data)` — reads a 32-bit hardware-RNG sample; the esp32 demo prints one.
-- `hal.Sha256(...)` / `hal.Aes128(...)` — single-block SHA-256 / AES-128-ECB on
-  the hardware accelerators; the esp32 demo checks both against `std.crypto`'s
-  comptime reference (verified live in QEMU).
+- `hal.Sha256(...)` / `hal.Aes(key_bits, ...)` — single-block SHA-256 and
+  AES-ECB (comptime-selected `key_bits` of 128/192/256) on the hardware
+  accelerators; the esp32 demo checks SHA-256, AES-128 *and* AES-256 against
+  `std.crypto`'s comptime reference (verified live in QEMU).
 - `hal.Efuse(lo, hi)` — reads the 48-bit factory base MAC from eFuse (the
   identity Wi-Fi/Bluetooth/Ethernet derive from), assembled big-endian. eFuse is
   one of the blocks the Espressif QEMU fork emulates, so the `examples/efuse`
@@ -243,7 +244,10 @@ A small register driver layer over `mmio` (imported as `hal`):
 
 Every driver is **comptime-parameterized on its register addresses** (the I2C
 driver on the peripheral namespace), so the MMIO accesses stay provably
-aligned/non-null and emit no panic path.
+aligned/non-null and emit no panic path. Bit fields are expressed through the
+comptime helpers in `src/reg.zig` (`reg.bit(n)`, `reg.Field(lsb, width)`), so the
+drivers name each field (`divider.set(div)`, not `value << 13`) instead of
+hand-shifting magic numbers — and it all folds to the same code at comptime.
 
 ### Connectivity (Wi-Fi / Bluetooth / radio)
 
@@ -330,8 +334,8 @@ zig build demo-esp32    # just the ESP32 crypto example
 ```
 
 The firmware writes to UART0 (`regs.UART0.FIFO`); `demo` routes that to a file
-and prints it. **`esp32` is the crypto demo** — it runs SHA-256 and AES-128-ECB
-on the hardware accelerators and checks both against `std.crypto`'s comptime
+and prints it. **`esp32` is the crypto demo** — it runs SHA-256 and AES-128/256-ECB
+on the hardware accelerators and checks each against `std.crypto`'s comptime
 reference (`esp32s3` is the PIE/SIMD example and drives the LED rather than
 printing):
 
@@ -339,6 +343,7 @@ printing):
 ESP32 bare-metal Zig — hardware crypto demo
 [info] SHA-256("abc") HW vs std.crypto: OK
 [info] AES-128-ECB HW vs std.crypto: OK
+[info] AES-256-ECB HW vs std.crypto: OK
 [info] rng sample 3160650498, GPIO0 low
 ```
 

@@ -8,6 +8,7 @@
 //! so the MMIO accesses stay provably aligned and non-null (no panic path).
 
 const mmio = @import("mmio");
+const reg = @import("reg");
 
 /// Read the Xtensa core cycle counter (`CCOUNT`). Advances at the CPU clock.
 pub inline fn cycleCount() u32 {
@@ -48,12 +49,12 @@ pub fn Delay(comptime hz: u32) type {
 pub fn Timer(comptime config_reg: u32, comptime update_reg: u32, comptime lo_reg: u32) type {
     return struct {
         // TIMGn_Tx_CONFIG bit fields (chip Technical Reference Manual).
-        const enable: u32 = 1 << 31;
-        const count_up: u32 = 1 << 30;
-        const divider_shift = 13; // 16-bit prescaler at bits 28:13
+        const enable = reg.bit(31);
+        const count_up = reg.bit(30);
+        const divider = reg.Field(13, 16); // 16-bit prescaler at [28:13]
 
-        pub inline fn start(comptime divider: u16) void {
-            mmio.writeReg(config_reg, enable | count_up | (@as(u32, divider) << divider_shift));
+        pub inline fn start(comptime div: u16) void {
+            mmio.writeReg(config_reg, enable | count_up | divider.set(div));
         }
         pub inline fn ticks() u32 {
             mmio.writeReg(update_reg, 1); // latch the live count into the LO/HI shadow
@@ -212,18 +213,24 @@ pub fn Sha256(comptime text_reg: u32, comptime start_reg: u32, comptime load_reg
     };
 }
 
-/// AES-128 ECB single-block encryption on the first-generation AES accelerator.
-/// Pass the `KEY_0` / `TEXT_0` register bases plus MODE/START/IDLE. Key and block
-/// are 4 *little-endian* words (`std.mem.readInt(.little)` of the byte arrays,
-/// matching the accelerator's reset-default endianness); the result comes back
-/// the same way — line it up with `std.crypto`'s comptime reference.
-pub fn Aes128(comptime key_reg: u32, comptime text_reg: u32, comptime mode_reg: u32, comptime start_reg: u32, comptime idle_reg: u32) type {
-    return struct {
-        const encrypt_aes128 = 0; // AES_MODE: 0 = encrypt, 128-bit key
+/// AES ECB single-block encryption on the first-generation AES accelerator,
+/// comptime-selected for a `key_bits` of 128, 192 or 256 (the accelerator's
+/// `AES_MODE` encrypt codes are 0/1/2, and the key is 4/6/8 words). Pass the
+/// `KEY_0` / `TEXT_0` register bases plus MODE/START/IDLE. Key and block are
+/// *little-endian* words (`std.mem.readInt(.little)` of the byte arrays, matching
+/// the accelerator's reset-default endianness); the ciphertext comes back the
+/// same way — line it up with `std.crypto`'s comptime reference.
+pub fn Aes(comptime key_bits: u32, comptime key_reg: u32, comptime text_reg: u32, comptime mode_reg: u32, comptime start_reg: u32, comptime idle_reg: u32) type {
+    const key_words = switch (key_bits) {
+        128, 192, 256 => key_bits / 32, // 4 / 6 / 8 key words
+        else => @compileError("AES key_bits must be 128, 192 or 256"),
+    };
+    const encrypt_mode = key_bits / 64 - 2; // 128→0, 192→1, 256→2
 
-        pub inline fn encryptBlock(key: [4]u32, block: [4]u32) [4]u32 {
-            inline for (0..4) |i| mmio.writeReg(key_reg + i * 4, key[i]);
-            mmio.writeReg(mode_reg, encrypt_aes128);
+    return struct {
+        pub inline fn encryptBlock(key: [key_words]u32, block: [4]u32) [4]u32 {
+            inline for (0..key_words) |i| mmio.writeReg(key_reg + i * 4, key[i]);
+            mmio.writeReg(mode_reg, encrypt_mode);
             inline for (0..4) |i| mmio.writeReg(text_reg + i * 4, block[i]);
             mmio.writeReg(start_reg, 1);
             while (mmio.readReg(idle_reg) == 0) {} // IDLE reads 1 when done
@@ -243,26 +250,27 @@ pub fn Aes128(comptime key_reg: u32, comptime text_reg: u32, comptime mode_reg: 
 pub fn Pwm(comptime timer_conf: u32, comptime ch_conf0: u32, comptime ch_conf1: u32, comptime ch_hpoint: u32, comptime ch_duty: u32) type {
     return struct {
         // LEDC_TIMERx_CONF fields
-        const duty_res_pos = 0; // [3:0]  PWM resolution in bits
-        const clk_div_pos = 4; // [21:4] integer.fraction (8 fractional bits) divider
-        const tick_sel_apb: u32 = 1 << 24; // source = APB_CLK
-        const timer_latch: u32 = 1 << 25; // PARA_UP: apply the new timer config
+        const duty_res = reg.Field(0, 4); // [3:0]  PWM resolution in bits
+        const clk_div = reg.Field(4, 18); // [21:4] integer.fraction divider
+        const tick_sel_apb = reg.bit(24); // source = APB_CLK
+        const timer_latch = reg.bit(25); // PARA_UP: apply the new timer config
         // LEDC_CHx_CONF0 / CONF1 / DUTY fields
-        const sig_out_en: u32 = 1 << 2;
-        const ch_latch: u32 = 1 << 4; // PARA_UP: apply the new channel config
-        const duty_start: u32 = 1 << 31;
-        const duty_frac_bits = 4; // CHx_DUTY holds the duty in 1/16 steps
+        const timer_sel = reg.Field(0, 2); // CONF0: which timer drives the channel
+        const sig_out_en = reg.bit(2);
+        const ch_latch = reg.bit(4); // PARA_UP: apply the new channel config
+        const duty_val = reg.Field(4, 20); // CHx_DUTY: duty in 1/16 steps ([4] frac)
+        const duty_start = reg.bit(31);
 
         /// Start the timer: `res_bits` of duty resolution, clocked at APB ÷ `div`.
         pub inline fn startTimer(comptime res_bits: u4, comptime div: u18) void {
-            mmio.writeReg(timer_conf, (@as(u32, res_bits) << duty_res_pos) | (@as(u32, div) << clk_div_pos) | tick_sel_apb | timer_latch);
+            mmio.writeReg(timer_conf, duty_res.set(res_bits) | clk_div.set(div) | tick_sel_apb | timer_latch);
         }
         /// Drive the channel from `timer` at `duty` (0 .. 2^res_bits).
         pub inline fn setDuty(comptime timer: u2, duty: u32) void {
             mmio.writeReg(ch_hpoint, 0);
-            mmio.writeReg(ch_duty, duty << duty_frac_bits);
+            mmio.writeReg(ch_duty, duty_val.set(duty));
             mmio.writeReg(ch_conf1, duty_start);
-            mmio.writeReg(ch_conf0, @as(u32, timer) | sig_out_en | ch_latch);
+            mmio.writeReg(ch_conf0, timer_sel.set(timer) | sig_out_en | ch_latch);
         }
     };
 }
@@ -279,22 +287,24 @@ pub fn Pwm(comptime timer_conf: u32, comptime ch_conf0: u32, comptime ch_conf1: 
 /// stays provably aligned/non-null and emits no panic path.
 pub fn I2c(comptime P: type) type {
     return struct {
-        // I2C_COMD opcodes (COMMAND field [13:11]).
-        const op_rstart: u32 = 0 << 11;
-        const op_write: u32 = 1 << 11;
-        const op_stop: u32 = 3 << 11;
-        // COMD flags
-        const ack_check_en: u32 = 1 << 8;
+        // I2C_COMD: COMMAND opcode field [13:11] + the ACK-check flag.
+        const opcode = reg.Field(11, 3);
+        const op_rstart = opcode.set(0);
+        const op_write = opcode.set(1);
+        const op_stop = opcode.set(3);
+        const ack_check_en = reg.bit(8);
         // I2C_CTR fields
-        const sda_force_out: u32 = 1 << 0;
-        const scl_force_out: u32 = 1 << 1;
-        const ms_mode: u32 = 1 << 4; // master
-        const trans_start: u32 = 1 << 5;
-        const clk_en: u32 = 1 << 8;
+        const sda_force_out = reg.bit(0);
+        const scl_force_out = reg.bit(1);
+        const ms_mode = reg.bit(4); // master
+        const trans_start = reg.bit(5);
+        const clk_en = reg.bit(8);
         const ctr_cfg: u32 = ms_mode | sda_force_out | scl_force_out | clk_en;
         // I2C_FIFO_CONF fields
-        const rx_fifo_rst: u32 = 1 << 12;
-        const tx_fifo_rst: u32 = 1 << 13;
+        const rx_fifo_rst = reg.bit(12);
+        const tx_fifo_rst = reg.bit(13);
+        // I2C_COMD byte_num field [7:0] (bytes the WRITE command transfers).
+        const byte_count = reg.Field(0, 8);
 
         /// Configure the controller as a master and set standard-mode (~100 kHz
         /// at an 80 MHz APB) SCL timing. Call once before `write`.
@@ -327,7 +337,7 @@ pub fn I2c(comptime P: type) type {
 
             const byte_num: u32 = @truncate(1 +% data.len); // addr + payload
             mmio.writeReg(P.COMD_0, op_rstart);
-            mmio.writeReg(P.COMD_1, op_write | ack_check_en | byte_num);
+            mmio.writeReg(P.COMD_1, op_write | ack_check_en | byte_count.set(byte_num));
             mmio.writeReg(P.COMD_2, op_stop);
 
             mmio.writeReg(P.CTR, ctr_cfg | trans_start);
@@ -349,29 +359,35 @@ pub fn I2c(comptime P: type) type {
 /// the SVD; `[*]` indexing keeps the symbol push bounds-check-free.
 pub fn Rmt(comptime conf0: u32, comptime conf1: u32, comptime data: u32, comptime apb_conf: u32) type {
     return struct {
-        // CH%sCONF0
-        const mem_size_1: u32 = 1 << 24; // MEM_SIZE = 1 (one 64-symbol RAM block)
-        const clk_en: u32 = 1 << 31;
-        const idle_thres: u32 = 0x8000 << 8; // IDLE_THRES: counter value marking end
-        // CH%sCONF1
-        const tx_start: u32 = 1 << 0;
-        const mem_wr_rst: u32 = 1 << 2;
-        const mem_rd_rst: u32 = 1 << 3;
-        const ref_always_on: u32 = 1 << 17; // keep the channel clock running
+        // CH%sCONF0 fields
+        const div_cnt = reg.Field(0, 8); // source-clock prescaler
+        const idle_thres = reg.Field(8, 16); // counter value marking end of TX
+        const mem_size = reg.Field(24, 4); // RAM blocks owned by the channel
+        const clk_en = reg.bit(31);
+        // CH%sCONF1 flags
+        const tx_start = reg.bit(0);
+        const mem_wr_rst = reg.bit(2);
+        const mem_rd_rst = reg.bit(3);
+        const ref_always_on = reg.bit(17); // keep the channel clock running
         // APB_CONF
-        const fifo_mask: u32 = 1 << 0; // CHnDATA writes address the RAM directly
+        const fifo_mask = reg.bit(0); // CHnDATA writes address the RAM directly
+        // RMT symbol (32-bit RAM entry): two timed levels.
+        const dur0 = reg.Field(0, 15);
+        const lvl0 = reg.Field(15, 1);
+        const dur1 = reg.Field(16, 15);
+        const lvl1 = reg.Field(31, 1);
 
         /// Build one RMT symbol: level `l0` held for `d0` source-clock ticks, then
         /// level `l1` for `d1`. A symbol with `d0 == 0` is the end-of-stream mark.
         pub inline fn symbol(l0: u1, d0: u15, l1: u1, d1: u15) u32 {
-            return @as(u32, d0) | (@as(u32, l0) << 15) | (@as(u32, d1) << 16) | (@as(u32, l1) << 31);
+            return dur0.set(d0) | lvl0.set(l0) | dur1.set(d1) | lvl1.set(l1);
         }
 
         /// Configure the channel: source clock ÷ `div`, one RAM block, direct RAM
         /// writes. Call once before `send`.
         pub inline fn init(comptime div: u8) void {
             mmio.writeReg(apb_conf, fifo_mask);
-            mmio.writeReg(conf0, @as(u32, div) | mem_size_1 | idle_thres | clk_en);
+            mmio.writeReg(conf0, div_cnt.set(div) | mem_size.set(1) | idle_thres.set(0x8000) | clk_en);
         }
 
         /// Transmit `items` (RMT symbols, see `symbol`) followed by an end marker.

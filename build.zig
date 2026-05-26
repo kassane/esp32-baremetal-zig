@@ -30,10 +30,14 @@ pub fn build(b: *std.Build) void {
     // with its own `call` (forwarding to mmio.panic) — see src/panic.zig.
     const panic_mod = b.addModule("panic", .{ .root_source_file = b.path("src/panic.zig") });
 
+    // Comptime register-field helpers (bit/Field), imported as `@import(\"reg\")`.
+    const reg = b.addModule("reg", .{ .root_source_file = b.path("src/reg.zig") });
+
     // Register HAL (Level/Output/Input/Delay/Timer/Uart/Rng), imported as
     // `@import(\"hal\")`.
     const hal = b.addModule("hal", .{ .root_source_file = b.path("src/hal.zig") });
     hal.addImport("mmio", mmio);
+    hal.addImport("reg", reg);
 
     // Shared Xtensa reset-vector builder, imported as `@import(\"startup\")`.
     const startup = b.addModule("startup", .{ .root_source_file = b.path("src/startup.zig") });
