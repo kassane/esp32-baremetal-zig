@@ -85,6 +85,25 @@ it is reset within seconds on real hardware. The RTC watchdog is only touched on
 chips whose `regs` expose the unlock register under the expected name (resolved
 with `comptime @hasDecl`), so one routine is correct for every target.
 
+### Panic handler & `std.log`
+
+Both avoid `std.fmt` — its formatter (`Io.Writer`) references the same panic
+path that doesn't link here. A tiny comptime formatter in `src/mmio.zig`
+(`format`/`printU32`/`printHex`) renders `{s}`/`{d}`/`{x}` to UART instead.
+
+- **`std.log` override.** Each root sets `pub const std_options = .{ .logFn = … }`
+  routing through `mmio.log` → UART0 (the `demo` prints an `[info]` line). Calling
+  `std.log.*` directly won't link — its non-inline helpers need cross-module far
+  calls this backend can't emit — so the firmware calls `mmio.log` (inline).
+- **Panic namespace.** `pub const panic = @import("panic").Handler(onPanic)`
+  replaces std's `FullPanic` (which would pull `std.fmt`); `onPanic` forwards to
+  `mmio.panic`, which prints `!! PANIC: <msg>` plus a best-effort Xtensa
+  windowed-ABI backtrace, then halts. Because the backend emits no non-inline
+  (far) calls, a compiler-*dispatched* panic can't be lowered (the firmware
+  elides all safety checks accordingly); faults are reported by calling
+  `mmio.panic` directly — verified in QEMU on a ReleaseSmall build. The backtrace
+  is shallow since every call is inlined.
+
 ### DSP kernels (`src/dsp.zig`)
 
 `src/dsp.zig` (imported as `dsp`) is a small int16 DSP library:

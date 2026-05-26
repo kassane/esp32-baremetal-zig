@@ -1,6 +1,8 @@
 //! Bare-metal MMIO + timing helpers. All `inline`: the prebuilt xtensa backend
 //! can't emit cross-module far calls, so these must fold into the caller.
 
+const std = @import("std");
+
 pub inline fn writeReg(addr: u32, value: u32) void {
     const ptr: *volatile u32 = @ptrFromInt(addr);
     ptr.* = value;
@@ -65,6 +67,123 @@ pub inline fn printU32(fifo: u32, v: u32) void {
 pub inline fn bar(fifo: u32, n: usize) void {
     var i: usize = 0;
     while (i < n) : (i +%= 1) writeReg(fifo, '#');
+}
+
+/// Print `v` as `0x` + 8 hex digits. The nibble is a `u4`, so indexing the
+/// 16-byte digit table is provably in-range and emits no bounds-check panic.
+pub inline fn printHex(fifo: u32, v: u32) void {
+    const digits = "0123456789abcdef";
+    puts(fifo, "0x");
+    var shift: u5 = 28;
+    while (true) {
+        writeReg(fifo, digits[@as(u4, @truncate(v >> shift))]);
+        if (shift == 0) break;
+        shift -%= 4;
+    }
+}
+
+// ── std.log + panic plumbing ────────────────────────────────────────────────
+// A tiny comptime formatter so `std.log` (overridden via `std_options.logFn`)
+// and the panic handler can render to UART without `std.fmt` — its formatting
+// machinery references the panic path, which doesn't link on this backend.
+
+inline fn argU32(v: anytype) u32 {
+    return switch (@typeInfo(@TypeOf(v))) {
+        .comptime_int => @as(u32, v),
+        .int => @truncate(v), // truncating cast is panic-free (no range check)
+        else => @compileError("log args support only integers (use {s} for strings)"),
+    };
+}
+
+/// Render `fmt` with `args` to UART. Supports `{s}` (string), `{d}`/`{}`
+/// (decimal int), `{x}` (hex int), and `{{`/`}}` escapes — enough for logging,
+/// parsed entirely at comptime so no `std.fmt` is pulled in.
+pub inline fn format(fifo: u32, comptime fmt: []const u8, args: anytype) void {
+    comptime var arg: usize = 0;
+    comptime var i: usize = 0;
+    inline while (i < fmt.len) {
+        if (fmt[i] == '{' and fmt[i + 1] == '{') {
+            writeReg(fifo, '{');
+            i += 2;
+        } else if (fmt[i] == '}' and fmt[i + 1] == '}') {
+            writeReg(fifo, '}');
+            i += 2;
+        } else if (fmt[i] == '{') {
+            comptime var j = i + 1;
+            inline while (fmt[j] != '}') j += 1;
+            const spec = fmt[i + 1 .. j];
+            if (comptime std.mem.eql(u8, spec, "s")) {
+                puts(fifo, args[arg]);
+            } else if (comptime std.mem.eql(u8, spec, "x")) {
+                printHex(fifo, argU32(args[arg]));
+            } else if (comptime spec.len == 0 or std.mem.eql(u8, spec, "d")) {
+                printU32(fifo, argU32(args[arg]));
+            } else {
+                @compileError("unsupported format specifier {" ++ spec ++ "}");
+            }
+            arg += 1;
+            i = j + 1;
+        } else {
+            writeReg(fifo, fmt[i]);
+            i += 1;
+        }
+    }
+}
+
+/// `std.options.logFn` backend: `[level] message` per line over UART. Wire it in
+/// the root module with `pub const std_options: std.Options = .{ .logFn = … }`.
+pub inline fn log(
+    fifo: u32,
+    comptime level: std.log.Level,
+    comptime fmt: []const u8,
+    args: anytype,
+) void {
+    puts(fifo, "[" ++ comptime level.asText() ++ "] ");
+    format(fifo, fmt, args);
+    puts(fifo, "\r\n");
+}
+
+/// Panic landing pad: print the message and a best-effort backtrace over UART,
+/// then halt. Driven by the `panic` namespace in `src/panic.zig`.
+pub inline fn panic(fifo: u32, msg: []const u8, first_addr: ?usize) noreturn {
+    puts(fifo, "\r\n!! PANIC: ");
+    puts(fifo, msg);
+    puts(fifo, "\r\nbacktrace:\r\n");
+    printFrame(fifo, first_addr orelse @returnAddress());
+    walkWindowedStack(fifo);
+    halt();
+}
+
+inline fn printFrame(fifo: u32, addr: usize) void {
+    puts(fifo, "  ");
+    printHex(fifo, @truncate(addr));
+    writeReg(fifo, '\n');
+}
+
+// Xtensa windowed-ABI unwind constants.
+const dram_base: u32 = 0x3F00_0000; // SP must point into DRAM (0x3F……–0x3FFF……)
+const code_base: u32 = 0x4000_0000; // all code lives at 0x40……/0x42……
+const save_bytes = 16; // caller's a0..a3 spilled just below SP
+const pc_low_bits: u32 = 0x3FFF_FFFF; // a0 keeps PC[29:0]; top 2 bits are the call size
+const max_frames = 16;
+
+/// Best-effort Xtensa windowed-ABI unwind: each frame spills the caller's a0
+/// (return address) and a1 (stack pointer) below SP; rebuild the PC's top bits
+/// from `code_base`. Stops when SP leaves DRAM or fails to ascend — resolve the
+/// printed PCs offline with addr2line. (Shallow here: everything is inlined.)
+inline fn walkWindowedStack(fifo: u32) void {
+    var sp = @frameAddress();
+    var depth: usize = 0;
+    while (depth < max_frames) : (depth +%= 1) {
+        if (sp < dram_base or sp >= code_base) break;
+        const save: [*]const u32 = @ptrFromInt(sp -% save_bytes);
+        const ret_pc = save[0];
+        const caller_sp = save[1];
+        if (ret_pc == 0) break;
+        printFrame(fifo, (ret_pc & pc_low_bits) | code_base);
+        if (caller_sp <= sp) break; // the stack grows down: each caller is higher
+        sp = caller_sp;
+    }
 }
 
 // Freestanding C memory builtins. The compiler emits calls to these for struct

@@ -8,9 +8,16 @@ const init = @import("init");
 const regs = @import("regs"); // generated from svd/esp32s2.svd
 const gpio = regs.GPIO;
 
-/// Baremetal panic: halt forever (no std runtime to unwind into).
-pub fn panic(_: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
-    mmio.halt();
+// Custom panic namespace: UART message + backtrace, no std.fmt (see src/panic.zig).
+fn onPanic(msg: []const u8, ret_addr: ?usize) noreturn {
+    mmio.panic(regs.UART0.FIFO, msg, ret_addr);
+}
+pub const panic = @import("panic").Handler(onPanic);
+
+// Route `std.log` through UART0 instead of std.fmt's (unlinkable) default.
+pub const std_options: std.Options = .{ .logFn = logFn };
+fn logFn(comptime level: std.log.Level, comptime _: @TypeOf(.enum_literal), comptime fmt: []const u8, args: anytype) void {
+    mmio.log(regs.UART0.FIFO, level, fmt, args);
 }
 
 // GPIO18 (RGB LED data pin on common S2 DevKits) is in bank 0. W1TS/W1TC =
@@ -23,7 +30,7 @@ const blink_half_period: u32 = 1_200_000;
 
 export fn app_main() callconv(.c) noreturn {
     init.disableWatchdogs(regs); // or the chip resets within seconds on real HW
-    mmio.puts(regs.UART0.FIFO, "\r\nESP32-S2 baremetal Zig: hello! blinking GPIO18.\r\n");
+    mmio.log(regs.UART0.FIFO, .info, "ESP32-S2 baremetal Zig up; blinking GPIO{d}", .{led_pin});
     mmio.writeReg(gpio.ENABLE_W1TS, led_mask); // GPIO18 as output
     mmio.blink(gpio.OUT_W1TS, gpio.OUT_W1TC, led_mask, blink_half_period);
 }

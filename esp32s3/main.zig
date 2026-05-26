@@ -14,8 +14,16 @@ const init = @import("init");
 const regs = @import("regs"); // generated from svd/esp32s3.svd
 const gpio = regs.GPIO;
 
-pub fn panic(_: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
-    mmio.halt();
+// Custom panic namespace: UART message + backtrace, no std.fmt (see src/panic.zig).
+fn onPanic(msg: []const u8, ret_addr: ?usize) noreturn {
+    mmio.panic(regs.UART0.FIFO, msg, ret_addr);
+}
+pub const panic = @import("panic").Handler(onPanic);
+
+// Route `std.log` through UART0 instead of std.fmt's (unlinkable) default.
+pub const std_options: std.Options = .{ .logFn = logFn };
+fn logFn(comptime level: std.log.Level, comptime _: @TypeOf(.enum_literal), comptime fmt: []const u8, args: anytype) void {
+    mmio.log(regs.UART0.FIFO, level, fmt, args);
 }
 
 // GPIO48 (onboard RGB LED) is in the second bank (pins 32-53) → OUT1/ENABLE1.

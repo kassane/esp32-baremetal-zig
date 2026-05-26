@@ -9,8 +9,16 @@ const init = @import("init");
 const regs = @import("regs"); // generated from svd/esp32.svd
 const gpio = regs.GPIO;
 
-pub fn panic(_: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
-    mmio.halt();
+// Custom panic namespace: UART message + backtrace, no std.fmt (see src/panic.zig).
+fn onPanic(msg: []const u8, ret_addr: ?usize) noreturn {
+    mmio.panic(regs.UART0.FIFO, msg, ret_addr);
+}
+pub const panic = @import("panic").Handler(onPanic);
+
+// Route `std.log` through UART0 instead of std.fmt's (unlinkable) default.
+pub const std_options: std.Options = .{ .logFn = logFn };
+fn logFn(comptime level: std.log.Level, comptime _: @TypeOf(.enum_literal), comptime fmt: []const u8, args: anytype) void {
+    mmio.log(regs.UART0.FIFO, level, fmt, args);
 }
 
 // GPIO2 = onboard blue LED on ESP32 DevKitC-V4 (bank 0); W1TS/W1TC are atomic.
@@ -82,9 +90,13 @@ export fn main() callconv(.c) noreturn {
     while (n < fft_n) : (n +%= 1) sp[n] = tp[n]; // element-wise copy (no memcpy)
     dsp.fft(fft_n, &spectrum);
     printSpectrum(regs.UART0.FIFO, &spectrum);
-    const half_period: u32 = @as(u32, @truncate(peakBin(&spectrum))) *% blink_per_bin;
 
-    mmio.blink(gpio.OUT_W1TS, gpio.OUT_W1TC, led_mask, half_period);
+    const peak: u32 = @truncate(peakBin(&spectrum));
+    // Same routine `std_options.logFn` installs; `std.log.*` can't be called
+    // directly (its non-inline helpers need far calls this backend can't emit).
+    mmio.log(regs.UART0.FIFO, .info, "peak bin {d}, blink half-period {d}", .{ peak, peak *% blink_per_bin });
+
+    mmio.blink(gpio.OUT_W1TS, gpio.OUT_W1TC, led_mask, peak *% blink_per_bin);
 }
 
 // ── Reset vector ────────────────────────────────────────────────────────────
