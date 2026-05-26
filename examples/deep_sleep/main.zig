@@ -18,7 +18,7 @@ const startup = @import("startup");
 const con = hal.Console(regs.UART0.FIFO);
 pub const panic = con.panic;
 
-pub const std_options: std.Options = .{ .logFn = con.logFn };
+pub const std_options = con.options;
 
 const Sleep = hal.DeepSleep(regs.RTC_CNTL);
 const ResetInfo = hal.ResetReason(regs.RTC_CNTL.RESET_STATE);

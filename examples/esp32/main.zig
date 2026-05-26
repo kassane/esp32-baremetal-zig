@@ -20,7 +20,7 @@ const gpio = regs.GPIO;
 // std.log backend, both routed to UART0 (see hal.Console / src/panic.zig).
 const con = hal.Console(regs.UART0.FIFO);
 pub const panic = con.panic;
-pub const std_options: std.Options = .{ .logFn = con.logFn };
+pub const std_options = con.options;
 
 // GPIO2 = onboard blue LED on ESP32 DevKitC-V4 (bank 0); W1TS/W1TC are atomic.
 const led_pin: u5 = 2;

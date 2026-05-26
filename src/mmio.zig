@@ -6,6 +6,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const config = @import("config"); // build-time knobs (see root build.zig)
 
 pub inline fn writeReg(addr: u32, value: u32) void {
     const ptr: *volatile u32 = @ptrFromInt(addr);
@@ -167,11 +168,17 @@ pub inline fn log(
 pub inline fn panic(fifo: u32, msg: []const u8, first_addr: ?usize) noreturn {
     puts(fifo, "\r\n!! PANIC: ");
     puts(fifo, msg);
-    puts(fifo, "\r\nbacktrace:\r\n");
-    printFrame(fifo, first_addr orelse @returnAddress());
-    // The frame walk below is Xtensa windowed-ABI specific; the RISC-V ULP just
-    // prints the first frame and halts.
-    if (builtin.cpu.arch == .xtensa) walkWindowedStack(fifo);
+    // The backtrace is opt-out via `-Dpanic-trace=false`, which drops the frame
+    // walk (and its hex formatting) for a smaller panic path.
+    if (config.panic_trace) {
+        puts(fifo, "\r\nbacktrace:\r\n");
+        printFrame(fifo, first_addr orelse @returnAddress());
+        // The frame walk is Xtensa windowed-ABI specific; the RISC-V ULP just
+        // prints the first frame and halts.
+        if (builtin.cpu.arch == .xtensa) walkWindowedStack(fifo);
+    } else {
+        puts(fifo, "\r\n");
+    }
     halt();
 }
 

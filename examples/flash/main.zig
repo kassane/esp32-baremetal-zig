@@ -16,7 +16,7 @@ const startup = @import("startup");
 const con = hal.Console(regs.UART0.FIFO);
 pub const panic = con.panic;
 
-pub const std_options: std.Options = .{ .logFn = con.logFn };
+pub const std_options = con.options;
 
 const Flash = hal.FlashRom(0x4006_2ED8); // ESP32 ROM esp_rom_spiflash_read
 

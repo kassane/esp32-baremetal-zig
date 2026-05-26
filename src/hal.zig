@@ -12,14 +12,15 @@ const builtin = @import("builtin");
 const mmio = @import("mmio");
 const reg = @import("reg");
 const panic_ns = @import("panic");
+const config = @import("config"); // build-time knobs (see root build.zig)
 
 /// A UART console bound to a `fifo` register — bundles the freestanding panic
 /// handler and the `std.log` backend an example wires into its root, so each one
-/// needn't hand-roll them:
+/// needn't hand-roll them. `options` carries the build-time `-Dlog-level`:
 /// ```
 /// const con = hal.Console(regs.UART0.FIFO);
 /// pub const panic = con.panic;
-/// pub const std_options: std.Options = .{ .logFn = con.logFn };
+/// pub const std_options = con.options;
 /// ```
 pub fn Console(comptime fifo: u32) type {
     return struct {
@@ -32,6 +33,9 @@ pub fn Console(comptime fifo: u32) type {
         pub fn logFn(comptime level: std.log.Level, comptime _: @TypeOf(.enum_literal), comptime fmt: []const u8, args: anytype) void {
             mmio.log(fifo, level, fmt, args);
         }
+        /// Drop-in `std_options`: routes `std.log` to UART and applies the
+        /// build-time `-Dlog-level` (default `info`).
+        pub const options: std.Options = .{ .logFn = logFn, .log_level = @enumFromInt(config.log_level) };
     };
 }
 

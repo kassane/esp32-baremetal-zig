@@ -18,7 +18,7 @@ const startup = @import("startup");
 const con = hal.Console(regs.UART0.FIFO);
 pub const panic = con.panic;
 
-pub const std_options: std.Options = .{ .logFn = con.logFn };
+pub const std_options = con.options;
 
 const scratch = regs.RTC_CNTL.STORE0; // a register to read-modify-write
 const iterations = 5;

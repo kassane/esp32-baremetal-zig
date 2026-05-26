@@ -19,7 +19,7 @@ const startup = @import("startup");
 const con = hal.Console(regs.UART0.FIFO);
 pub const panic = con.panic;
 
-pub const std_options: std.Options = .{ .logFn = con.logFn };
+pub const std_options = con.options;
 
 const Hmac = hal.Hmac(regs.HMAC);
 const key_block = 0; // eFuse key block programmed with the HMAC key

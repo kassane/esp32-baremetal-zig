@@ -18,7 +18,7 @@ const startup = @import("startup");
 const con = hal.Console(regs.UART0.FIFO);
 pub const panic = con.panic;
 
-pub const std_options: std.Options = .{ .logFn = con.logFn };
+pub const std_options = con.options;
 
 const led_pin: u5 = 18; // RGB LED data pin on common S2 DevKits
 const duty_res_bits = 13; // 8192 PWM steps

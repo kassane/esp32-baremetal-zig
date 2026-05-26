@@ -21,7 +21,7 @@ const con = hal.Console(regs.UART0.FIFO);
 pub const panic = con.panic;
 
 // Route `std.log` through UART0 instead of std.fmt's (unlinkable) default.
-pub const std_options: std.Options = .{ .logFn = con.logFn };
+pub const std_options = con.options;
 
 // GPIO18 (RGB LED data pin on common S2 DevKits) is in bank 0.
 const led_pin: u5 = 18;

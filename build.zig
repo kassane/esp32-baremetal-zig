@@ -13,10 +13,25 @@ pub fn build(b: *std.Build) void {
         (b.findProgram(&.{"qemu-system-xtensa"}, &.{}) catch "qemu-system-xtensa");
     const smoke_seconds = b.option(u32, "smoke-seconds", "Seconds to run each chip during `zig build smoke`") orelse 5;
 
+    // Build-time configuration: a typed, defaulted, overridable knob set in the
+    // spirit of a Kconfig — `zig build -Dlog-level=debug -Dpanic-trace=false`.
+    // Exposed to the HAL as `@import(\"config\")` and bound into the shared modules
+    // below, so example packages inherit these defaults transitively through
+    // `mmio`/`hal` (the canonical, configurable build is this workspace root).
+    const log_level = b.option(std.log.Level, "log-level", "Minimum std.log level compiled in (err|warn|info|debug)") orelse .info;
+    const options = b.addOptions();
+    // Store the level as its integer tag: `addOptions` would otherwise emit a
+    // *copy* of the enum, nominally distinct from `std.log.Level`, which can't be
+    // assigned to `std.Options.log_level`. The HAL reconstructs it via @enumFromInt.
+    options.addOption(u8, "log_level", @intFromEnum(log_level));
+    options.addOption(bool, "panic_trace", b.option(bool, "panic-trace", "Print a UART stack backtrace from the panic handler") orelse true);
+    const config_mod = options.createModule();
+
     // Shared bare-metal helpers, imported by every chip as `@import(\"mmio\")`.
     // `addModule` (not `createModule`) so the per-example packages can consume
     // them via `b.dependency(\"esp32_hal\", …).module(\"mmio\")`.
     const mmio = b.addModule("mmio", .{ .root_source_file = b.path("src/mmio.zig") });
+    mmio.addImport("config", config_mod); // gates the panic backtrace
 
     // Portable DSP kernels (SIMD on esp32s3, scalar fallback elsewhere),
     // imported as `@import(\"dsp\")`.
@@ -40,6 +55,7 @@ pub fn build(b: *std.Build) void {
     hal.addImport("mmio", mmio);
     hal.addImport("reg", reg);
     hal.addImport("panic", panic_mod); // for hal.Console's panic namespace
+    hal.addImport("config", config_mod); // build-time log level for hal.Console
 
     // Shared Xtensa reset-vector builder, imported as `@import(\"startup\")`.
     const startup = b.addModule("startup", .{ .root_source_file = b.path("src/startup.zig") });
