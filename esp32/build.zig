@@ -54,6 +54,16 @@ pub fn build(b: *std.Build) void {
     run_smoke.addFileArg(qemu_exe.getEmittedBin());
     run_smoke.addArg(b.fmt("{d}", .{smoke_seconds}));
     b.step("smoke", "Boot the ESP32 example in QEMU and assert no CPU faults").dependOn(&run_smoke.step);
+
+    // `zig build demo` — same boot, but capture the UART output and print it.
+    const run_demo = b.addRunArtifact(smoke_tool);
+    run_demo.addArg(qemu_bin);
+    run_demo.addArg(machine);
+    run_demo.addFileArg(qemu_exe.getEmittedBin());
+    run_demo.addArg(b.fmt("{d}", .{smoke_seconds}));
+    _ = run_demo.addOutputFileArg("esp32-uart.txt");
+    run_demo.stdio = .inherit;
+    b.step("demo", "Run the ESP32 example in QEMU and print its UART output").dependOn(&run_demo.step);
 }
 
 fn firmware(
@@ -72,6 +82,7 @@ fn firmware(
     mod.addImport("dsp", core.module("dsp"));
     mod.addImport("init", core.module("init"));
     mod.addImport("panic", core.module("panic"));
+    mod.addImport("hal", core.module("hal"));
     mod.addImport("regs", core.module(regs_module));
     mod.strip = true;
     mod.sanitize_c = .off;

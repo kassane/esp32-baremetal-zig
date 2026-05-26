@@ -27,6 +27,11 @@ pub fn build(b: *std.Build) void {
     // with its own `call` (forwarding to mmio.panic) — see src/panic.zig.
     const panic_mod = b.addModule("panic", .{ .root_source_file = b.path("src/panic.zig") });
 
+    // esp-hal-style HAL (Level/Output, cycle-accurate Delay), imported as
+    // `@import(\"hal\")`.
+    const hal = b.addModule("hal", .{ .root_source_file = b.path("src/hal.zig") });
+    hal.addImport("mmio", mmio);
+
     // All generated linker scripts live in a single WriteFiles step — no *.ld
     // files on disk.
     const ld = b.addWriteFiles();
@@ -74,7 +79,7 @@ pub fn build(b: *std.Build) void {
         regs_step.dependOn(&b.addInstallFileWithDir(regs_src, .prefix, "gen/" ++ chip.name ++ "_regs.zig").step);
 
         // ── Hardware/flash firmware (.elf + raw .bin) ────────────────────────
-        const hw_exe = addFirmware(b, mmio, dsp, regs, init_mod, panic_mod, chip, target, optimize, chip.name ++ "_baremetal_zig");
+        const hw_exe = addFirmware(b, mmio, dsp, regs, init_mod, panic_mod, hal, chip, target, optimize, chip.name ++ "_baremetal_zig");
         // Expose the generated linker scripts so example packages can reuse them.
         const flash_ld = ld.add(chip.name ++ ".ld", flashLinker(b, chip));
         hw_exe.setLinkerScript(flash_ld);
@@ -93,7 +98,7 @@ pub fn build(b: *std.Build) void {
         // ── QEMU firmware (all code in IRAM, no flash-cache MMU needed) ───────
         if (chip.qemu) |q| {
             const machine = q.machine;
-            const qemu_exe = addFirmware(b, mmio, dsp, regs, init_mod, panic_mod, chip, target, optimize, chip.name ++ "_qemu");
+            const qemu_exe = addFirmware(b, mmio, dsp, regs, init_mod, panic_mod, hal, chip, target, optimize, chip.name ++ "_qemu");
             const qemu_ld = ld.add(chip.name ++ "-qemu.ld", qemuLinker(b, chip.entry, q));
             qemu_exe.setLinkerScript(qemu_ld);
             b.addNamedLazyPath(chip.name ++ "-qemu.ld", qemu_ld);
@@ -142,6 +147,7 @@ fn addFirmware(
     regs: *std.Build.Module,
     init_mod: *std.Build.Module,
     panic_mod: *std.Build.Module,
+    hal: *std.Build.Module,
     comptime chip: Chip,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
@@ -157,6 +163,7 @@ fn addFirmware(
     mod.addImport("regs", regs);
     mod.addImport("init", init_mod);
     mod.addImport("panic", panic_mod);
+    mod.addImport("hal", hal);
     mod.strip = true;
     // No UBSan runtime on bare metal; Debug safety still traps via our panic.
     mod.sanitize_c = .off;

@@ -28,6 +28,7 @@ pub fn build(b: *std.Build) void {
     mod.addImport("dsp", core.module("dsp"));
     mod.addImport("init", core.module("init"));
     mod.addImport("panic", core.module("panic"));
+    mod.addImport("hal", core.module("hal"));
     mod.addImport("regs", core.module(regs_module));
     mod.strip = true;
     mod.sanitize_c = .off;

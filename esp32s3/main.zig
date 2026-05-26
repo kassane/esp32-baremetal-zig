@@ -10,6 +10,7 @@
 const std = @import("std");
 const mmio = @import("mmio");
 const dsp = @import("dsp");
+const hal = @import("hal");
 const init = @import("init");
 const regs = @import("regs"); // generated from svd/esp32s3.svd
 const gpio = regs.GPIO;
@@ -28,6 +29,9 @@ fn logFn(comptime level: std.log.Level, comptime _: @TypeOf(.enum_literal), comp
 
 // GPIO48 (onboard RGB LED) is in the second bank (pins 32-53) → OUT1/ENABLE1.
 const led_mask: u32 = @as(u32, 1) << (48 - 32);
+const cpu_hz = 240_000_000; // Xtensa default; sets the cycle-accurate Delay scale
+const cycles_per_energy: u32 = 50_000; // blink half-period = energy × this (cycles)
+const Led = hal.Output(gpio.ENABLE1_W1TS, gpio.OUT1_W1TS, gpio.OUT1_W1TC, led_mask);
 
 // Two 8-lane int16 signals (16-byte aligned = one 128-bit PIE vector).
 var sig_a: [8]i16 align(16) = .{ 1, 2, 3, 4, 5, 6, 7, 8 };
@@ -36,14 +40,22 @@ var mixed: [8]i16 align(16) = undefined;
 
 export fn app_main() callconv(.c) noreturn {
     init.disableWatchdogs(regs); // or the chip resets within seconds on real HW
-    mmio.writeReg(gpio.ENABLE1_W1TS, led_mask); // GPIO48 as output
+    Led.init(); // GPIO48 as output
 
     // PIE SIMD pipeline (comptime-generated `q*` clobbers): mixed = sat(a+b) =
     // [2,4,…,16], then energy = Σ mixed² = 816, which sets the blink half-period.
     dsp.addSatS16(&mixed, &sig_a, &sig_b, sig_a.len);
-    const half_period = dsp.dotProductS16(&mixed, &mixed, mixed.len);
+    const energy = dsp.dotProductS16(&mixed, &mixed, mixed.len);
 
-    mmio.blink(gpio.OUT1_W1TS, gpio.OUT1_W1TC, led_mask, half_period);
+    // Blink at a cycle-accurate rate set by the energy (esp-hal-style Delay).
+    const delay = hal.Delay(cpu_hz);
+    const half = energy *% cycles_per_energy;
+    while (true) {
+        Led.setHigh();
+        delay.cycles(half);
+        Led.setLow();
+        delay.cycles(half);
+    }
 }
 
 // ── Startup ───────────────────────────────────────────────────────────────────
