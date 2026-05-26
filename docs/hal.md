@@ -70,6 +70,11 @@ A small register driver layer over `mmio` (imported as `hal`):
   `hashBlock` feeds a 512-bit message block and reads the 256-bit MAC (see
   `examples/hmac/`, which cross-checks it against `std.crypto` on hardware).
   **Build-only**: the key lives in eFuse, which QEMU leaves blank.
+- `hal.Pcnt(conf0, ctrl, cnt, unit)` — Pulse Counter unit (ESP32): channel 0
+  increments a 16-bit signed counter on each positive edge (rotary encoders,
+  frequency/event counting); `count()` reads it (see `examples/pcnt/`). **Build-only**:
+  QEMU models no PCNT. CONF0's count-mode field and CTRL's per-unit reset/pause bits
+  are from the chip register map (the vendored SVD omits them).
 - `hal.Twai(P)` — TWAI (CAN 2.0) controller: transmit a standard-ID data frame on
   the SJA1000-compatible peripheral (`regs.TWAI0`) (see `examples/twai/`).
   **Build-only**: a live bus needs TX/RX routed to pads + an external CAN transceiver.

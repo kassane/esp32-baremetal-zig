@@ -1,0 +1,9 @@
+.{
+    .name = .pcnt_example,
+    .version = "0.1.0",
+    .fingerprint = 0x8b4eb433129f5e70,
+    .dependencies = .{
+        .esp32_hal = .{ .path = "../.." },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "main.zig" },
+}

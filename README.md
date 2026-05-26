@@ -127,8 +127,9 @@ Single-feature programs live alongside them, each its own package you build with
   pull/drive config), `watchdog` (TIMG WDT), `reset_reason` (reset cause),
   `sw_reset` (software reset), `gpio_edge` (poll-based edge detection),
   `clock_gate` (peripheral clock gating), `brownout` (supply brownout detector) and
-  `touch` (capacitive touch sensor) and `deep_sleep` (timer-wakeup deep sleep) on
-  ESP32; `usb_serial` (USB CDC-ACM console), `tsens` (temperature sensor) and
+  `touch` (capacitive touch sensor), `deep_sleep` (timer-wakeup deep sleep) and
+  `pcnt` (pulse counter) on ESP32; `usb_serial` (USB CDC-ACM console), `tsens`
+  (temperature sensor) and
   `hmac` (HMAC-SHA256 accelerator) on ESP32-S3
 - **ULP coprocessor** (RISC-V, build-only): `ulp_s2` — an ESP32-S2 ULP program
   built for `riscv32imc` that drives an RTC GPIO through the generated ULP
