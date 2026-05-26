@@ -103,8 +103,11 @@ building blocks — so you can pull them into your own firmware instead of copyi
 files around. Add it:
 
 ```bash
-zig fetch --save git+https://github.com/kassane/esp32-baremetal-zig
+zig fetch --save=esp32_hal git+https://github.com/kassane/esp32-baremetal-zig
 ```
+
+`--save=esp32_hal` pins the dependency key so `b.dependency("esp32_hal", .{})`
+below resolves regardless of the repo's URL basename.
 
 Then wire the modules into your `build.zig`:
 
