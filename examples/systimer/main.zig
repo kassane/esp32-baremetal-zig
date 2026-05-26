@@ -15,16 +15,11 @@ const regs = @import("regs"); // generated from svd/esp32s3.svd
 const startup = @import("startup");
 const gpio = regs.GPIO;
 
-fn onPanic(msg: []const u8, ret_addr: ?usize) noreturn {
-    mmio.panic(regs.UART0.FIFO, msg, ret_addr);
-}
-pub const panic = @import("panic").Handler(onPanic);
+const con = hal.Console(regs.UART0.FIFO);
+pub const panic = con.panic;
 
 // Route `std.log` through UART0 instead of std.fmt's (unlinkable) default.
-pub const std_options: std.Options = .{ .logFn = logFn };
-fn logFn(comptime level: std.log.Level, comptime _: @TypeOf(.enum_literal), comptime fmt: []const u8, args: anytype) void {
-    mmio.log(regs.UART0.FIFO, level, fmt, args);
-}
+pub const std_options: std.Options = .{ .logFn = con.logFn };
 
 const Timer = hal.SysTimer(regs.SYSTIMER);
 // GPIO48 (onboard RGB LED data pin) is in the second bank (pins 32-53) → OUT1.

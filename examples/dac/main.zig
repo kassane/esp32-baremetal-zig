@@ -11,10 +11,8 @@ const init = @import("init");
 const regs = @import("regs"); // generated from svd/esp32.svd
 const startup = @import("startup");
 
-fn onPanic(msg: []const u8, ret_addr: ?usize) noreturn {
-    mmio.panic(regs.UART0.FIFO, msg, ret_addr);
-}
-pub const panic = @import("panic").Handler(onPanic);
+const con = hal.Console(regs.UART0.FIFO);
+pub const panic = con.panic;
 
 const Dac1 = hal.Dac(regs.RTC_IO.PAD_DAC_0); // DAC1 → GPIO25
 

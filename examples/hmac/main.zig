@@ -16,15 +16,10 @@ const init = @import("init");
 const regs = @import("regs"); // generated from svd/esp32s3.svd
 const startup = @import("startup");
 
-fn onPanic(msg_: []const u8, ret_addr: ?usize) noreturn {
-    mmio.panic(regs.UART0.FIFO, msg_, ret_addr);
-}
-pub const panic = @import("panic").Handler(onPanic);
+const con = hal.Console(regs.UART0.FIFO);
+pub const panic = con.panic;
 
-pub const std_options: std.Options = .{ .logFn = logFn };
-fn logFn(comptime level: std.log.Level, comptime _: @TypeOf(.enum_literal), comptime fmt: []const u8, args: anytype) void {
-    mmio.log(regs.UART0.FIFO, level, fmt, args);
-}
+pub const std_options: std.Options = .{ .logFn = con.logFn };
 
 const Hmac = hal.Hmac(regs.HMAC);
 const key_block = 0; // eFuse key block programmed with the HMAC key

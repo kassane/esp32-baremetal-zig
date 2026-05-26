@@ -39,6 +39,7 @@ pub fn build(b: *std.Build) void {
     const hal = b.addModule("hal", .{ .root_source_file = b.path("src/hal.zig") });
     hal.addImport("mmio", mmio);
     hal.addImport("reg", reg);
+    hal.addImport("panic", panic_mod); // for hal.Console's panic namespace
 
     // Shared Xtensa reset-vector builder, imported as `@import(\"startup\")`.
     const startup = b.addModule("startup", .{ .root_source_file = b.path("src/startup.zig") });

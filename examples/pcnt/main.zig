@@ -13,10 +13,8 @@ const init = @import("init");
 const regs = @import("regs"); // generated from svd/esp32.svd
 const startup = @import("startup");
 
-fn onPanic(msg: []const u8, ret_addr: ?usize) noreturn {
-    mmio.panic(regs.UART0.FIFO, msg, ret_addr);
-}
-pub const panic = @import("panic").Handler(onPanic);
+const con = hal.Console(regs.UART0.FIFO);
+pub const panic = con.panic;
 
 // PCNT unit 0: CONF0 + the shared CTRL register + the unit's count register.
 const Counter = hal.Pcnt(regs.PCNT.UNIT_0_CONF0_0, regs.PCNT.CTRL_0, regs.PCNT.U_CNT_0, 0);
