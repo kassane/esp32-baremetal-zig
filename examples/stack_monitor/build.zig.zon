@@ -1,0 +1,9 @@
+.{
+    .name = .stack_monitor_example,
+    .version = "0.1.0",
+    .fingerprint = 0x4854d2c3e772f56c,
+    .dependencies = .{
+        .esp32_hal = .{ .path = "../.." },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "main.zig" },
+}

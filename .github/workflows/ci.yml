@@ -183,4 +183,5 @@ jobs:
           cd ../deep_sleep   && zig build --summary all
           cd ../pcnt         && zig build --summary all
           cd ../hmac         && zig build --summary all
+          cd ../stack_monitor && zig build --summary all
           cd ../ulp_s2       && zig build --summary all

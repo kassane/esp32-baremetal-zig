@@ -129,8 +129,9 @@ Single-feature programs live alongside them, each its own package you build with
   `clock_gate` (peripheral clock gating), `brownout` (supply brownout detector) and
   `touch` (capacitive touch sensor), `deep_sleep` (timer-wakeup deep sleep) and
   `pcnt` (pulse counter) on ESP32; `usb_serial` (USB CDC-ACM console), `tsens`
-  (temperature sensor) and
-  `hmac` (HMAC-SHA256 accelerator) on ESP32-S3
+  (temperature sensor),
+  `hmac` (HMAC-SHA256 accelerator) and `stack_monitor` (ASSIST_DEBUG
+  stack-overflow monitor) on ESP32-S3
 - **ULP coprocessor** (RISC-V, build-only): `ulp_s2` — an ESP32-S2 ULP program
   built for `riscv32imc` that drives an RTC GPIO through the generated ULP
   registers (`svd/esp32s2-ulp.svd`) and heartbeats the main core via shared RTC
