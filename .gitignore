@@ -2,3 +2,6 @@
 *.o
 *.bin
 *.elf
+# host tools built ad-hoc with `zig build-exe tools/*.zig`
+/svd2zig
+/qemu_smoke
