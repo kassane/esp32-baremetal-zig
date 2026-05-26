@@ -84,7 +84,10 @@ cd esp32 && zig build smoke     # non-interactive boot test (esp32, esp32s3)
 | Source | Chip | CPU | LED | Demo |
 |---|---|---|---|---|
 | `esp32/main.zig`   | ESP32    | Xtensa LX6 | GPIO2  | hardware SHA-256 (vs `std.crypto`) + RNG |
-| `esp32s2/main.zig` | ESP32-S2 | Xtensa LX7 | GPIO18 | fixed-point FFT spectrum + TIMG timer + LEDC PWM |
+| `esp32s2/main.zig` | ESP32-S2 | Xtensa LX7 | GPIO18 | fixed-point FFT spectrum + TIMG timer |
+
+Single-feature programs live in [`examples/`](examples/) and build for a chip via
+`zig build example-<name>` (e.g. `zig build example-pwm` → `esp32s2_pwm`).
 | `esp32s3/main.zig` | ESP32-S3 | Xtensa LX7 | GPIO48 | PIE/SIMD vector kernels |
 
 Shared register/timing helpers live in `src/mmio.zig` (imported as `mmio`).
@@ -212,9 +215,8 @@ A small register driver layer over `mmio` (imported as `hal`):
   the hardware accelerators; the esp32 demo checks both against `std.crypto`'s
   comptime reference (verified live in QEMU).
 - `hal.Pwm(timer, conf0, conf1, hpoint, duty)` — LEDC PWM timer + channel
-  (esp32s2 sets the LED brightness from the FFT peak). **Build-only**: QEMU
-  doesn't model LEDC, and routing the channel to a pad via the GPIO matrix is
-  left to the application.
+  (see `examples/pwm.zig`). **Build-only**: QEMU doesn't model LEDC, and routing
+  the channel to a pad via the GPIO matrix is left to the application.
 
 Every driver is **comptime-parameterized on its register addresses**, so the
 MMIO accesses stay provably aligned/non-null and emit no panic path.

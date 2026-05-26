@@ -82,7 +82,7 @@ pub fn build(b: *std.Build) void {
         regs_step.dependOn(&b.addInstallFileWithDir(regs_src, .prefix, "gen/" ++ chip.name ++ "_regs.zig").step);
 
         // ── Hardware/flash firmware (.elf + raw .bin) ────────────────────────
-        const hw_exe = addFirmware(b, mmio, dsp, regs, init_mod, panic_mod, hal, chip, target, optimize, chip.name ++ "_baremetal_zig");
+        const hw_exe = addFirmware(b, mmio, dsp, regs, init_mod, panic_mod, hal, chip, target, optimize, chip.name ++ "_baremetal_zig", chip.name ++ "/main.zig");
         // Expose the generated linker scripts so example packages can reuse them.
         const flash_ld = ld.add(chip.name ++ ".ld", flashLinker(b, chip));
         hw_exe.setLinkerScript(flash_ld);
@@ -101,7 +101,7 @@ pub fn build(b: *std.Build) void {
         // ── QEMU firmware (all code in IRAM, no flash-cache MMU needed) ───────
         if (chip.qemu) |q| {
             const machine = q.machine;
-            const qemu_exe = addFirmware(b, mmio, dsp, regs, init_mod, panic_mod, hal, chip, target, optimize, chip.name ++ "_qemu");
+            const qemu_exe = addFirmware(b, mmio, dsp, regs, init_mod, panic_mod, hal, chip, target, optimize, chip.name ++ "_qemu", chip.name ++ "/main.zig");
             const qemu_ld = ld.add(chip.name ++ "-qemu.ld", qemuLinker(b, chip.entry, q));
             qemu_exe.setLinkerScript(qemu_ld);
             b.addNamedLazyPath(chip.name ++ "-qemu.ld", qemu_ld);
@@ -140,7 +140,23 @@ pub fn build(b: *std.Build) void {
             demo_chip.dependOn(&run_demo.step);
             demo_step.dependOn(&run_demo.step);
         }
+
+        // ── Extra single-feature examples in examples/ (built for this chip) ──
+        inline for (chip.examples) |ex_src| {
+            const ename = exampleName(ex_src);
+            const ex = addFirmware(b, mmio, dsp, regs, init_mod, panic_mod, hal, chip, target, optimize, b.fmt("{s}_{s}", .{ chip.name, ename }), ex_src);
+            ex.setLinkerScript(flash_ld);
+            const ex_step = b.step(b.fmt("example-{s}", .{ename}), b.fmt("Build the '{s}' example for {s}", .{ ename, chip.name }));
+            ex_step.dependOn(&b.addInstallArtifact(ex, .{}).step);
+            b.getInstallStep().dependOn(ex_step);
+        }
     }
+}
+
+/// `examples/pwm.zig` → `pwm` (used for the artifact + step names).
+fn exampleName(src: []const u8) []const u8 {
+    const base = std.fs.path.basename(src);
+    return base[0 .. base.len - ".zig".len];
 }
 
 fn addFirmware(
@@ -155,9 +171,10 @@ fn addFirmware(
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
     name: []const u8,
+    src: []const u8,
 ) *std.Build.Step.Compile {
     const mod = b.createModule(.{
-        .root_source_file = b.path(chip.name ++ "/main.zig"),
+        .root_source_file = b.path(src),
         .target = target,
         .optimize = optimize,
     });
@@ -288,6 +305,8 @@ const Chip = struct {
     drom: Region,
     // Present only on chips with an Espressif QEMU machine.
     qemu: ?Qemu = null,
+    // Extra single-feature programs in examples/, built for this chip.
+    examples: []const []const u8 = &.{},
 };
 
 const chips = [_]Chip{
@@ -315,6 +334,7 @@ const chips = [_]Chip{
         .dram = .{ .org = 0x3FFB4000, .len = 0x2A000 },
         .irom = .{ .org = 0x40080020, .len = 0x780000 - 0x20 },
         .drom = .{ .org = 0x3F000020, .len = 0x3F0000 - 0x20 },
+        .examples = &.{"examples/pwm.zig"},
     },
     .{
         .name = "esp32s3",
