@@ -84,10 +84,13 @@ inline fn printSpectrum(fifo: u32, spectrum: *const [fft_n]dsp.Cplx) void {
 
 const Led = hal.Output(gpio.ENABLE_W1TS, gpio.OUT_W1TS, gpio.OUT_W1TC, led_mask);
 const Button = hal.Input(gpio.IN, @as(u32, 1) << 0); // GPIO0 (boot button), bank 0
+// TIMG0 timer 0 as a monotonic tick source (esp-hal's `time` reads TIMG too).
+const Uptime = hal.Timer(regs.TIMG0.T_0_CONFIG, regs.TIMG0.T_0_UPDATE, regs.TIMG0.T_0_LO);
 
 export fn main() callconv(.c) noreturn {
     init.disableWatchdogs(regs); // or the chip resets within seconds on real HW
     Led.init();
+    Uptime.start(2); // count up at the timer-group clock / 2
 
     var spectrum: [fft_n]dsp.Cplx = undefined;
     const sp: [*]dsp.Cplx = &spectrum;
@@ -102,7 +105,7 @@ export fn main() callconv(.c) noreturn {
     const lvl: []const u8 = if (Button.isHigh()) "high" else "low";
     // Same routine `std_options.logFn` installs; `std.log.*` can't be called
     // directly (its non-inline helpers need far calls this backend can't emit).
-    mmio.log(regs.UART0.FIFO, .info, "peak bin {d}, half-period {d} ms, GPIO0 {s}", .{ peak, half_ms, lvl });
+    mmio.log(regs.UART0.FIFO, .info, "peak bin {d}, half-period {d} ms, GPIO0 {s}, uptime {d} ticks", .{ peak, half_ms, lvl, Uptime.ticks() });
 
     // Blink at a cycle-accurate rate set by the peak bin (esp-hal-style Delay).
     const delay = hal.Delay(cpu_hz);

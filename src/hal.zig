@@ -1,6 +1,8 @@
-//! Small HAL layer over `mmio` — a Zig take on the esp-hal driver shape
-//! (`Level`/`Output`, a cycle-accurate `Delay`). All `inline`, panic-free
-//! (wrapping arithmetic, comptime division), so it links on this backend.
+//! Small HAL layer over `mmio` — a Zig take on the esp-hal driver shapes
+//! (`Level`/`Output`/`Input`, a cycle-accurate `Delay`, a TIMG `Timer`). All
+//! `inline`, panic-free (wrapping arithmetic, comptime division), so it links on
+//! this backend; drivers are comptime-parameterized on their register addresses
+//! so the MMIO accesses stay provably aligned and non-null (no panic path).
 
 const mmio = @import("mmio");
 
@@ -31,6 +33,28 @@ pub fn Delay(comptime hz: u32) type {
         }
         pub inline fn millis(ms: u32) void {
             delayCycles(per_us *% 1000 *% ms);
+        }
+    };
+}
+
+/// A Timer Group general-purpose timer (TIMGn Tx) as a free-running up-counter —
+/// the time source esp-hal's `time` driver reads, independent of the CPU
+/// `CCOUNT`. Comptime register addresses (config/update/lo): `start` enables the
+/// counter with a 16-bit prescaler, `ticks` latches the live value and returns
+/// its low 32 bits (it counts at the timer-group clock ÷ `divider`).
+pub fn Timer(comptime config_reg: u32, comptime update_reg: u32, comptime lo_reg: u32) type {
+    return struct {
+        // TIMGn_Tx_CONFIG bit fields (chip Technical Reference Manual).
+        const enable: u32 = 1 << 31;
+        const count_up: u32 = 1 << 30;
+        const divider_shift = 13; // 16-bit prescaler at bits 28:13
+
+        pub inline fn start(comptime divider: u16) void {
+            mmio.writeReg(config_reg, enable | count_up | (@as(u32, divider) << divider_shift));
+        }
+        pub inline fn ticks() u32 {
+            mmio.writeReg(update_reg, 1); // latch the live count into the LO/HI shadow
+            return mmio.readReg(lo_reg);
         }
     };
 }
