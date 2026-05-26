@@ -8,24 +8,22 @@
 //!   * no CPU fault was reported (-d guest_errors,unimp).
 //! Exits 0 on pass, non-zero on failure (printing the captured QEMU output).
 //!
-//! Portable (Linux/macOS/Windows): spawns through std.process and drains both
-//! pipes with std.Io.File.MultiReader. A watchdog thread terminates QEMU after
-//! the budget — a read timeout isn't honored on every backend, so the watchdog
-//! (not the read) is what bounds the run; the firmware never exits on its own,
-//! so the watchdog firing (rather than an early EndOfStream) is the pass case.
+//! Portable: spawns through std.process and reads both pipes with
+//! std.Io.File.MultiReader using an Io timeout — when the firmware goes quiet
+//! for the budget the read times out (the pass case), and an early EndOfStream
+//! means QEMU exited on its own (the fail case). No platform-specific syscalls.
 
 const std = @import("std");
-const builtin = @import("builtin");
 
 const fault_markers = [_][]const u8{
     "exception", "unhandled", "unimplemented", "illegal", "guest_error", "fault",
 };
 
-// Read headroom requested per `MultiReader.fill`; the captured output is small.
-const fill_reserve = 64;
 // argv layout: self, qemu, machine, kernel, seconds, [serial-out-file].
 const argc_min = 5; // without the optional serial-out file
 const argc_max = 6; // with it
+// Read headroom requested per `MultiReader.fill`; the captured output is small.
+const fill_reserve = 64;
 
 fn indexOfIgnoreCase(hay: []const u8, needle: []const u8) ?usize {
     if (needle.len == 0 or hay.len < needle.len) return null;
@@ -51,33 +49,6 @@ fn fail(machine: []const u8, reason: []const u8, out: []const u8, err: []const u
     std.debug.print("FAIL: {s} {s}:\n{s}{s}\n", .{ machine, reason, out, err });
     std.process.exit(1);
 }
-
-/// Forcibly terminate the child by pid/handle without going through
-/// `child.kill` (which would also close the pipes the reader is draining).
-fn terminate(child: *std.process.Child) void {
-    if (builtin.os.tag == .windows) {
-        _ = std.os.windows.ntdll.NtTerminateProcess(child.id.?, .SUCCESS);
-    } else {
-        std.posix.kill(child.id.?, std.posix.SIG.TERM) catch {};
-    }
-}
-
-const Watchdog = struct {
-    child: *std.process.Child,
-    io: std.Io,
-    seconds: u32,
-    fired: std.atomic.Value(bool),
-
-    fn run(self: *Watchdog) void {
-        const budget: std.Io.Clock.Duration = .{
-            .raw = std.Io.Duration.fromSeconds(self.seconds),
-            .clock = .awake,
-        };
-        budget.sleep(self.io) catch {};
-        self.fired.store(true, .seq_cst); // set before terminate, so an EOF
-        terminate(self.child); // caused by us reads back as fired == true
-    }
-};
 
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
@@ -110,24 +81,25 @@ pub fn main(init: std.process.Init) !void {
         .stdout = .pipe,
         .stderr = .pipe,
     });
-    defer child.kill(io); // terminate (no-op if dead) + reap + close pipes
+    defer child.kill(io); // terminate + reap (idempotent if it already exited)
 
-    var wd: Watchdog = .{ .child = &child, .io = io, .seconds = seconds, .fired = .init(false) };
-    const watchdog = try std.Thread.spawn(.{}, Watchdog.run, .{&wd});
-
-    // Drain both pipes until QEMU's fds close (it exited, or the watchdog
-    // terminated it). No read timeout — the watchdog bounds the run.
+    // Read both pipes until the firmware goes quiet for `seconds` (Timeout =
+    // still looping = pass) or QEMU's fds close first (EndOfStream = exited).
+    const budget: std.Io.Timeout = .{ .duration = .{
+        .raw = std.Io.Duration.fromSeconds(seconds),
+        .clock = .awake,
+    } };
     var mrb: std.Io.File.MultiReader.Buffer(2) = undefined;
     var mr: std.Io.File.MultiReader = undefined;
     mr.init(gpa, io, mrb.toStreams(), &.{ child.stdout.?, child.stderr.? });
     defer mr.deinit();
-    while (mr.fill(fill_reserve, .none)) |_| {} else |err| switch (err) {
+
+    var timed_out = false;
+    while (mr.fill(fill_reserve, budget)) |_| {} else |err| switch (err) {
         error.EndOfStream => {},
+        error.Timeout => timed_out = true,
         else => return err,
     }
-    // Sample the flag at EOF (before join): true ⇒ the watchdog ended the run.
-    const timed_out = wd.fired.load(.seq_cst);
-    watchdog.join();
 
     const out = mr.reader(0).buffered();
     const err_out = mr.reader(1).buffered();
