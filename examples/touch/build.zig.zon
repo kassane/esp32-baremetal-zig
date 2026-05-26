@@ -1,0 +1,9 @@
+.{
+    .name = .touch_example,
+    .version = "0.1.0",
+    .fingerprint = 0x0267641c6570e36b,
+    .dependencies = .{
+        .esp32_hal = .{ .path = "../.." },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "main.zig" },
+}

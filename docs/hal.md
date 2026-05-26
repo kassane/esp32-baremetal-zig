@@ -122,6 +122,12 @@ A small register driver layer over `mmio` (imported as `hal`):
   supply sag, preserving the register's aliased RTC-memory-CRC bits; `detected()`
   reads the live flag (see `examples/brownout/`). **Build-only**: QEMU has no analog
   supply model to trip it.
+- `hal.Touch(P, pad_reg, nr, out_reg)` — capacitive touch sensor (ESP32):
+  software-forces a measurement of touch pad `nr` and returns its raw count (lower
+  = touched). Pads share result registers two-up (pad 2n/2n+1 → `SAR_TOUCH_OUT_n`,
+  even in the low half / odd in the high), so the caller passes the pad's
+  `RTC_IO.TOUCH_PADn`, its number and the matching `SAR_TOUCH_OUT_*` (see
+  `examples/touch/`). **Build-only**: QEMU has no touch model.
 
 Every driver is **comptime-parameterized on its register addresses** (the I2C
 driver on the peripheral namespace), so the MMIO accesses stay provably
