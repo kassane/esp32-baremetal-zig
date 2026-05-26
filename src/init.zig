@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Matheus C. França
+// SPDX-License-Identifier: Apache-2.0
+
 //! Bare-metal startup helpers. `inline` for the same reason as `mmio`: the
 //! prebuilt xtensa backend can't emit cross-module far calls.
 

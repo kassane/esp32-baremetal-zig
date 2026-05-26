@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Matheus C. França
+// SPDX-License-Identifier: Apache-2.0
+
 //! Small HAL layer over `mmio` — small register drivers in the usual shape
 //! (`Level`/`Output`/`Input`, a cycle-accurate `Delay`, a TIMG `Timer`). All
 //! `inline`, panic-free (wrapping arithmetic, comptime division), so it links on
@@ -137,6 +140,44 @@ pub fn Rng(comptime data: u32) type {
     return struct {
         pub inline fn read() u32 {
             return mmio.readReg(data);
+        }
+    };
+}
+
+/// Single-block SHA-256 on the first-generation SHA accelerator: one 512-bit
+/// block, i.e. messages ≤ 55 bytes. Pass the SHA `TEXT_0` register plus the
+/// SHA-256 START/LOAD/BUSY control registers. Returns the digest as 8 big-endian
+/// words — cross-check it against `std.crypto`'s comptime reference (the esp32
+/// example does exactly that). All indexing uses `[*]`/`@truncate` and the
+/// register writes unroll to comptime addresses, so no safety-check path links.
+pub fn Sha256(comptime text_reg: u32, comptime start_reg: u32, comptime load_reg: u32, comptime busy_reg: u32) type {
+    return struct {
+        pub inline fn hash(msg: []const u8) [8]u32 {
+            var block = [_]u32{0} ** 16;
+            const b: [*]u32 = &block;
+            const p = msg.ptr;
+            // pack big-endian message words
+            var i: usize = 0;
+            while (i < msg.len) : (i +%= 1) b[i >> 2] |= @as(u32, p[i]) << shift(i);
+            // 0x80 terminator, then the 64-bit big-endian bit length in word 15
+            b[msg.len >> 2] |= @as(u32, 0x80) << shift(msg.len);
+            b[15] = @truncate(msg.len *% 8);
+
+            inline for (0..16) |w| mmio.writeReg(text_reg + w * 4, b[w]);
+            mmio.writeReg(start_reg, 1);
+            while (mmio.readReg(busy_reg) != 0) {}
+            mmio.writeReg(load_reg, 1);
+            while (mmio.readReg(busy_reg) != 0) {}
+
+            var out: [8]u32 = undefined;
+            const o: [*]u32 = &out;
+            inline for (0..8) |w| o[w] = mmio.readReg(text_reg + w * 4);
+            return out;
+        }
+
+        // Big-endian byte position of byte `n` within its 32-bit word.
+        inline fn shift(n: usize) u5 {
+            return @truncate((@as(usize, 3) -% (n & 3)) *% 8);
         }
     };
 }

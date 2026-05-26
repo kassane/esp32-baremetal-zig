@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Matheus C. França
+// SPDX-License-Identifier: Apache-2.0
+
 //! Host-native QEMU boot smoke test, invoked by `zig build smoke`.
 //!
 //! Usage: qemu_smoke <qemu-bin> <machine> <kernel-elf> <seconds> [serial-out-file]

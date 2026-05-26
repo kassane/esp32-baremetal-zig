@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Matheus C. França
+// SPDX-License-Identifier: Apache-2.0
+
 //! int16 DSP kernels for the ESP32 family. The vector kernels run on the
 //! ESP32-S3 PIE unit via inline asm (`ee.*`) when the `esp32s3ops` feature is
 //! present, and fall back to Zig's native `@Vector` on chips without it — the

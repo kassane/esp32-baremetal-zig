@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Matheus C. França
+// SPDX-License-Identifier: Apache-2.0
+
 // Bare-metal Zig for ESP32-S3 (Xtensa LX7). Demonstrates the PIE/SIMD kernels
 // whose inline-asm clobbers are generated at comptime by `dsp.qClobbers`:
 // saturating-mix two signals (`ee.vadds.s16`), then take the energy Σ x²

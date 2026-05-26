@@ -2,8 +2,9 @@
 
 **Pure Zig on bare Xtensa silicon** — no ESP-IDF, no RTOS, no libc. Just your
 code, the registers, and the metal. It boots on ESP32, ESP32-S2 and ESP32-S3,
-runs SIMD on the S3's vector unit, and ships an FFT spectrum analyzer you can
-watch scroll past in QEMU.
+each example owning a different trick: the ESP32 verifies its **hardware SHA-256**
+against `std.crypto` live in QEMU, the ESP32-S2 runs a **fixed-point FFT**
+spectrum analyzer, and the ESP32-S3 does **SIMD** on its vector unit.
 
 What you get:
 
@@ -80,11 +81,11 @@ cd esp32 && zig build run       # launch it in QEMU (esp32, esp32s3)
 cd esp32 && zig build smoke     # non-interactive boot test (esp32, esp32s3)
 ```
 
-| Source | Chip | CPU | Onboard LED |
-|---|---|---|---|
-| `esp32/main.zig`   | ESP32    | Xtensa LX6 | GPIO2  |
-| `esp32s2/main.zig` | ESP32-S2 | Xtensa LX7 | GPIO18 |
-| `esp32s3/main.zig` | ESP32-S3 | Xtensa LX7 | GPIO48 |
+| Source | Chip | CPU | LED | Demo |
+|---|---|---|---|---|
+| `esp32/main.zig`   | ESP32    | Xtensa LX6 | GPIO2  | hardware SHA-256 (vs `std.crypto`) + RNG |
+| `esp32s2/main.zig` | ESP32-S2 | Xtensa LX7 | GPIO18 | fixed-point FFT spectrum + TIMG timer |
+| `esp32s3/main.zig` | ESP32-S3 | Xtensa LX7 | GPIO48 | PIE/SIMD vector kernels |
 
 Shared register/timing helpers live in `src/mmio.zig` (imported as `mmio`).
 
@@ -239,8 +240,8 @@ a freestanding image references the unlinkable panic path). Verified in QEMU:
 the demo executes real `ee.*` instructions and computes Σ x² = 816.
 
 `esp32s3/main.zig` is the PIE example (mix → energy → blink). The **FFT
-spectral-analysis demo lives in `esp32/main.zig`** (`fft` is portable scalar
-code; the LX6 has no PIE) and prints the magnitude spectrum over UART. They are
+spectral-analysis demo lives in `esp32s2/main.zig`** (`fft` is portable scalar
+code; the LX7 has no PIE) and prints the magnitude spectrum over UART. They are
 split across chips because an `ee.*` instruction is an optimization barrier that
 un-elides Debug safety-check panics in surrounding code — so a PIE function and
 the higher-level UART/FFT code can't share a build here.
@@ -279,18 +280,18 @@ zig build smoke -Dsmoke-seconds=10
 
 # Show the example's UART output (captured from QEMU via `-serial file:`):
 zig build demo          # all QEMU-capable chips
-zig build demo-esp32    # just the FFT spectrum example
+zig build demo-esp32    # just the ESP32 crypto example
 ```
 
 The firmware writes to UART0 (`regs.UART0.FIFO`); `demo` routes that to a file
-and prints it. **`esp32` renders the FFT magnitude spectrum of a two-tone
-signal** as ASCII bars (`esp32s3` is the PIE/SIMD example and drives the LED
-rather than printing):
+and prints it. **`esp32` is the crypto demo** — it runs SHA-256 on the hardware
+accelerator and checks the digest against `std.crypto`'s comptime reference
+(`esp32s3` is the PIE/SIMD example and drives the LED rather than printing):
 
 ```
-ESP32 FFT magnitude spectrum (tones @ bins 4 and 12):
-bin  4 |##############################################
-bin 12 |#######################
+ESP32 bare-metal Zig — hardware crypto demo
+[info] SHA-256("abc") HW vs std.crypto: OK
+[info] rng sample 3160650498, GPIO0 low
 ```
 
 `build.zig` finds `qemu-system-xtensa` on `PATH`; override it with
