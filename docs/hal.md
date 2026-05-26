@@ -7,6 +7,7 @@ A small register driver layer over `mmio` (imported as `hal`):
 | `Output` / `Input` / `Level` | push-pull / read-only GPIO pin over atomic W1TS/W1TC | any | QEMU-verified |
 | `GpioEdge(pin, mask, status, clr)` | poll-based rising/falling edge latch | any | build-only |
 | `IoMux(pad)` | pad pull / input-enable / drive-strength config | any | build-only |
+| `GpioMatrix` | route a peripheral signal to / from any pad | any | build-only |
 | `Delay(cpu_hz)` | cycle-accurate busy delay (Xtensa `CCOUNT` / RISC-V `cycle`) | any | QEMU-verified |
 | `Timer(cfg, upd, lo)` | Timer-Group free-running up-counter | any | QEMU-verified |
 | `SysTimer(P)` | always-on 52-bit system timer | ESP32-S3 | QEMU-verified |

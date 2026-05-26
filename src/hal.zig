@@ -1293,3 +1293,32 @@ pub const Critical = struct {
         }
     }
 };
+
+/// GPIO matrix — route any peripheral signal to/from any pad. This is the
+/// interconnect the "route … to a pad" notes on the bus drivers refer to: a
+/// peripheral's output signal can be driven onto a chosen pad, and a pad can be fed
+/// into a peripheral's input signal, in software. The config-register addresses are
+/// comptime (so the MMIO stays panic-free, like the pin drivers); pass the pad's
+/// `GPIO.FUNC_OUT_SEL_CFG_<n>` to drive a signal out, or an input signal's
+/// `GPIO.FUNC_IN_SEL_CFG_<m>` to capture a pad. Signal indices come from the chip's
+/// signal map. **Build-only:** the routing has no QEMU-observable effect. Field bits
+/// from the SVD, via reg.zig.
+pub const GpioMatrix = struct {
+    // FUNCn_OUT_SEL_CFG
+    const out_sel = reg.Field(0, 9); // peripheral output signal index → this pad
+    const oe_sel = reg.bit(10); // drive the pad's output-enable from the signal
+    // FUNCm_IN_SEL_CFG
+    const in_sel = reg.Field(0, 6); // pad number → this input signal
+    const sig_in_sel = reg.bit(7); // take the signal through the matrix (not direct IO)
+
+    /// Drive peripheral output `signal` out the pad whose `FUNC_OUT_SEL_CFG` register
+    /// is `out_cfg_reg`, enabling the pad's output from that signal.
+    pub inline fn connectOutput(comptime out_cfg_reg: u32, signal: u9) void {
+        mmio.writeReg(out_cfg_reg, out_sel.set(signal) | oe_sel);
+    }
+    /// Feed `pad` into the peripheral input whose `FUNC_IN_SEL_CFG` register is
+    /// `in_cfg_reg`, routing it through the matrix.
+    pub inline fn connectInput(comptime in_cfg_reg: u32, pad: u6) void {
+        mmio.writeReg(in_cfg_reg, in_sel.set(pad) | sig_in_sel);
+    }
+};
