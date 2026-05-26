@@ -204,3 +204,35 @@ pub fn Aes128(comptime key_reg: u32, comptime text_reg: u32, comptime mode_reg: 
         }
     };
 }
+
+/// LEDC PWM (low-speed timer + channel). **Build-only:** the Espressif QEMU does
+/// not emulate LEDC, so this writes the timer/channel registers per the TRM field
+/// layout but produces no emulator-observable waveform; routing the channel's
+/// output to a pad (via the GPIO matrix, a chip-specific signal index) is left to
+/// the caller. Pass a timer CONF register and a channel's CONF0/CONF1/HPOINT/DUTY.
+pub fn Pwm(comptime timer_conf: u32, comptime ch_conf0: u32, comptime ch_conf1: u32, comptime ch_hpoint: u32, comptime ch_duty: u32) type {
+    return struct {
+        // LEDC_TIMERx_CONF fields
+        const duty_res_pos = 0; // [3:0]  PWM resolution in bits
+        const clk_div_pos = 4; // [21:4] integer.fraction (8 fractional bits) divider
+        const tick_sel_apb: u32 = 1 << 24; // source = APB_CLK
+        const timer_latch: u32 = 1 << 25; // PARA_UP: apply the new timer config
+        // LEDC_CHx_CONF0 / CONF1 / DUTY fields
+        const sig_out_en: u32 = 1 << 2;
+        const ch_latch: u32 = 1 << 4; // PARA_UP: apply the new channel config
+        const duty_start: u32 = 1 << 31;
+        const duty_frac_bits = 4; // CHx_DUTY holds the duty in 1/16 steps
+
+        /// Start the timer: `res_bits` of duty resolution, clocked at APB ÷ `div`.
+        pub inline fn startTimer(comptime res_bits: u4, comptime div: u18) void {
+            mmio.writeReg(timer_conf, (@as(u32, res_bits) << duty_res_pos) | (@as(u32, div) << clk_div_pos) | tick_sel_apb | timer_latch);
+        }
+        /// Drive the channel from `timer` at `duty` (0 .. 2^res_bits).
+        pub inline fn setDuty(comptime timer: u2, duty: u32) void {
+            mmio.writeReg(ch_hpoint, 0);
+            mmio.writeReg(ch_duty, duty << duty_frac_bits);
+            mmio.writeReg(ch_conf1, duty_start);
+            mmio.writeReg(ch_conf0, @as(u32, timer) | sig_out_en | ch_latch);
+        }
+    };
+}

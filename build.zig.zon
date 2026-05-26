@@ -8,6 +8,7 @@
         "src",
         "tools",
         "svd",
+        "examples",
         "esp32",
         "esp32s2",
         "esp32s3",
