@@ -1,0 +1,9 @@
+.{
+    .name = .adc_example,
+    .version = "0.1.0",
+    .fingerprint = 0x38b944f4188d8571,
+    .dependencies = .{
+        .esp32_hal = .{ .path = "../.." },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "main.zig" },
+}

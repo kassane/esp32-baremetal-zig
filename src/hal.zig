@@ -645,3 +645,29 @@ pub fn Dac(comptime pad_dac_reg: u32) type {
         }
     };
 }
+
+/// ADC (SAR) software one-shot read on `regs.SENS.SAR_MEAS_START1` (ADC1) or
+/// `SAR_MEAS_START2` (ADC2). Forces software pad-select + start, triggers a
+/// conversion of `channel` and returns the raw result. This is the trigger/read
+/// core — a real reading also needs attenuation (`SAR_ATTEN*`), the SAR clock
+/// (`SAR_READ_CTRL`) and RTC power configured. **Build-only:** QEMU has no analog
+/// input. Fields from the SVD, via reg.zig.
+pub fn Adc(comptime meas_reg: u32) type {
+    return struct {
+        const data = reg.Field(0, 16); // MEASn_DATA_SAR
+        const done = reg.bit(16); // MEASn_DONE_SAR
+        const start = reg.bit(17); // MEASn_START_SAR (write 1 to trigger)
+        const start_force = reg.bit(18); // software, not the RTC FSM
+        const en_pad = reg.Field(19, 12); // one bit per channel
+        const en_pad_force = reg.bit(31);
+
+        /// Software one-shot of `channel` (0..11): returns the raw SAR value.
+        pub inline fn read(comptime channel: u4) u16 {
+            const sel = en_pad_force | start_force | en_pad.set(@as(u32, 1) << channel);
+            mmio.writeReg(meas_reg, sel); // select the channel
+            mmio.writeReg(meas_reg, sel | start); // trigger the conversion
+            while (mmio.readReg(meas_reg) & done == 0) {} // wait for completion
+            return @truncate(data.get(mmio.readReg(meas_reg)));
+        }
+    };
+}

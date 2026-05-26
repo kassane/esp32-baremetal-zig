@@ -95,8 +95,8 @@ Single-feature programs live alongside them, each its own package you build with
 - `efuse` also runs in QEMU (`cd examples/efuse && zig build demo`)
 - **Build-only**: `pwm` (LEDC) on ESP32-S2; `i2c` (I2C master), `spi` (SPI master),
   `rmt` (IR remote transmit), `rsa` (RSA modular exponentiation), `twai`
-  (CAN 2.0 transmit), `mcpwm` (motor-control PWM), `i2s` (I2S master TX) and
-  `dac` (analog output) on ESP32
+  (CAN 2.0 transmit), `mcpwm` (motor-control PWM), `i2s` (I2S master TX),
+  `dac` (analog output) and `adc` (analog input) on ESP32
 
 Shared register/timing helpers live in `src/mmio.zig` (imported as `mmio`).
 
@@ -266,6 +266,10 @@ A small register driver layer over `mmio` (imported as `hal`):
   DAC1/GPIO25, `PAD_DAC_1` = DAC2/GPIO26); `write(level)` drives 0..Vref the way
   ESP-IDF's `dac_output_voltage` does (see `examples/dac/`). **Build-only**: QEMU
   has no observable analog output.
+- `hal.Adc(meas_reg)` — SAR ADC software one-shot (`SAR_MEAS_START1` = ADC1,
+  `SAR_MEAS_START2` = ADC2): `read(channel)` triggers a conversion and returns the
+  raw value (see `examples/adc/`). **Build-only**: QEMU has no analog input, and a
+  real reading also needs attenuation / SAR clock / RTC power configured.
 
 Every driver is **comptime-parameterized on its register addresses** (the I2C
 driver on the peripheral namespace), so the MMIO accesses stay provably
