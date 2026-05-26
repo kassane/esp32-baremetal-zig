@@ -4,6 +4,7 @@
 
 const std = @import("std");
 const mmio = @import("mmio");
+const hal = @import("hal");
 const init = @import("init");
 const regs = @import("regs"); // generated from svd/esp32s2.svd
 const gpio = regs.GPIO;
@@ -24,15 +25,24 @@ fn logFn(comptime level: std.log.Level, comptime _: @TypeOf(.enum_literal), comp
 // atomic write-1-to-set / write-1-to-clear, so no read-modify-write is needed.
 const led_pin: u5 = 18;
 const led_mask: u32 = @as(u32, 1) << led_pin;
-const blink_half_period: u32 = 1_200_000;
+const cpu_hz = 240_000_000; // Xtensa default; sets the cycle-accurate Delay scale
+const blink_half_ms: u32 = 500;
+const Led = hal.Output(gpio.ENABLE_W1TS, gpio.OUT_W1TS, gpio.OUT_W1TC, led_mask);
 
 // ── Application entry ─────────────────────────────────────────────────────────
 
 export fn app_main() callconv(.c) noreturn {
     init.disableWatchdogs(regs); // or the chip resets within seconds on real HW
     mmio.log(regs.UART0.FIFO, .info, "ESP32-S2 baremetal Zig up; blinking GPIO{d}", .{led_pin});
-    mmio.writeReg(gpio.ENABLE_W1TS, led_mask); // GPIO18 as output
-    mmio.blink(gpio.OUT_W1TS, gpio.OUT_W1TC, led_mask, blink_half_period);
+    Led.init(); // GPIO18 as output
+
+    const delay = hal.Delay(cpu_hz);
+    while (true) {
+        Led.setHigh();
+        delay.millis(blink_half_ms);
+        Led.setLow();
+        delay.millis(blink_half_ms);
+    }
 }
 
 // ── Startup ───────────────────────────────────────────────────────────────────

@@ -5,6 +5,7 @@
 const std = @import("std");
 const mmio = @import("mmio");
 const dsp = @import("dsp");
+const hal = @import("hal");
 const init = @import("init");
 const regs = @import("regs"); // generated from svd/esp32.svd
 const gpio = regs.GPIO;
@@ -24,7 +25,8 @@ fn logFn(comptime level: std.log.Level, comptime _: @TypeOf(.enum_literal), comp
 // GPIO2 = onboard blue LED on ESP32 DevKitC-V4 (bank 0); W1TS/W1TC are atomic.
 const led_pin: u5 = 2;
 const led_mask: u32 = @as(u32, 1) << led_pin;
-const blink_per_bin: u32 = 240_000;
+const cpu_hz = 240_000_000; // Xtensa default; sets the cycle-accurate Delay scale
+const blink_ms_per_bin: u32 = 50; // blink half-period = peak bin × this
 const bar_shift: u5 = 6; // bin magnitude → bar width
 const bar_max = 60;
 
@@ -79,9 +81,11 @@ inline fn printSpectrum(fifo: u32, spectrum: *const [fft_n]dsp.Cplx) void {
 
 // ── Application entry ─────────────────────────────────────────────────────────
 
+const Led = hal.Output(gpio.ENABLE_W1TS, gpio.OUT_W1TS, gpio.OUT_W1TC, led_mask);
+
 export fn main() callconv(.c) noreturn {
     init.disableWatchdogs(regs); // or the chip resets within seconds on real HW
-    mmio.writeReg(gpio.ENABLE_W1TS, led_mask); // GPIO2 as output
+    Led.init();
 
     var spectrum: [fft_n]dsp.Cplx = undefined;
     const sp: [*]dsp.Cplx = &spectrum;
@@ -92,11 +96,19 @@ export fn main() callconv(.c) noreturn {
     printSpectrum(regs.UART0.FIFO, &spectrum);
 
     const peak: u32 = @truncate(peakBin(&spectrum));
+    const half_ms = peak *% blink_ms_per_bin;
     // Same routine `std_options.logFn` installs; `std.log.*` can't be called
     // directly (its non-inline helpers need far calls this backend can't emit).
-    mmio.log(regs.UART0.FIFO, .info, "peak bin {d}, blink half-period {d}", .{ peak, peak *% blink_per_bin });
+    mmio.log(regs.UART0.FIFO, .info, "peak bin {d}, blink half-period {d} ms", .{ peak, half_ms });
 
-    mmio.blink(gpio.OUT_W1TS, gpio.OUT_W1TC, led_mask, peak *% blink_per_bin);
+    // Blink at a cycle-accurate rate set by the peak bin (esp-hal-style Delay).
+    const delay = hal.Delay(cpu_hz);
+    while (true) {
+        Led.setHigh();
+        delay.millis(half_ms);
+        Led.setLow();
+        delay.millis(half_ms);
+    }
 }
 
 // ── Reset vector ────────────────────────────────────────────────────────────

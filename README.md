@@ -114,6 +114,23 @@ path that doesn't link here. A tiny comptime formatter in `src/mmio.zig`
   `mmio.panic` directly — verified in QEMU on a ReleaseSmall build. The backtrace
   is shallow since every call is inlined.
 
+### HAL (`src/hal.zig`)
+
+A small esp-hal-shaped driver layer over `mmio` (imported as `hal`):
+
+- `hal.Output(enable, set, clr, mask)` — a push-pull pin over the atomic
+  W1TS/W1TC registers, with `init`/`setHigh`/`setLow`/`setLevel`. It's
+  **comptime-parameterized** on the register addresses so the stores keep fixed,
+  aligned, non-null targets and emit no alignment/null panic (which wouldn't
+  link). `hal.Level` is the `.low`/`.high` enum (with `not`).
+- `hal.Delay(cpu_hz)` — a cycle-accurate blocking delay (`cycles`/`micros`/
+  `millis`) built on the Xtensa core cycle counter (`rsr.ccount`), the same
+  mechanism xtensa-lx uses. `rsr.ccount` is an optimization barrier (like the
+  `ee.*` PIE ops), so it only un-elides safety checks the surrounding code has
+  already eliminated — which is why `Output` must keep its addresses comptime.
+  Verified in QEMU: the cycle counter advances and the demos blink at the
+  expected `cpu_hz`-scaled rate.
+
 ### DSP kernels (`src/dsp.zig`)
 
 `src/dsp.zig` (imported as `dsp`) is a small int16 DSP library:
