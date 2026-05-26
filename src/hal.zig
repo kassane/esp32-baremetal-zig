@@ -1107,3 +1107,34 @@ pub fn RtcTime(comptime P: type) type {
         }
     };
 }
+
+/// Deep sleep with an RTC-timer wakeup (ESP32). `timerWakeup(ticks)` reads the
+/// current RTC time (reusing `RtcTime`), programs the wakeup alarm `ticks` RTC
+/// slow-clock ticks ahead, enables the timer wakeup source and sets `SLEEP_EN` — the
+/// chip powers down and resets on wake (so it does not return). Takes the RTC_CNTL
+/// namespace. **Build-only:** a live deep sleep powers the chip down (which the QEMU
+/// boot test would flag), and a production sleep also configures the RTC power
+/// domains. Pairs with `ResetReason`; field bits from the SVD, via reg.zig.
+pub fn DeepSleep(comptime P: type) type {
+    return struct {
+        const timer_trigger = reg.bit(3); // the RTC-timer source within WAKEUP_ENA
+        const wakeup_ena = reg.Field(11, 11); // WAKEUP_STATE.WAKEUP_ENA
+        const vector_sel = reg.bit(13); // RESET_STATE.PROCPU_STAT_VECTOR_SEL
+        const slp_hi = reg.Field(0, 16); // SLP_TIMER1.SLP_VAL_HI (alarm bits [47:32])
+        const alarm_en = reg.bit(16); // SLP_TIMER1.MAIN_TIMER_ALARM_EN
+        const slp_wakeup = reg.bit(29); // STATE0.SLP_WAKEUP
+        const sleep_en = reg.bit(31); // STATE0.SLEEP_EN
+
+        /// Enter deep sleep, waking ~`wake_ticks` RTC slow-clock ticks later. Does
+        /// not return — the chip powers down and resets on wake.
+        pub inline fn timerWakeup(wake_ticks: u64) noreturn {
+            const alarm = RtcTime(P).now() +% wake_ticks;
+            mmio.writeReg(P.SLP_TIMER0, @truncate(alarm));
+            mmio.writeReg(P.SLP_TIMER1, slp_hi.set(@truncate(alarm >> 32)) | alarm_en);
+            mmio.writeReg(P.RESET_STATE, mmio.readReg(P.RESET_STATE) | vector_sel);
+            mmio.writeReg(P.WAKEUP_STATE, wakeup_ena.set(timer_trigger));
+            mmio.writeReg(P.STATE0, sleep_en | slp_wakeup);
+            mmio.halt(); // the chip powers down; halt is the panic-free fallback
+        }
+    };
+}
