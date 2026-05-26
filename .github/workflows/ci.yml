@@ -144,3 +144,4 @@ jobs:
           cd ../adc          && zig build --summary all
           cd ../usb_serial   && zig build --summary all
           cd ../tsens        && zig build --summary all
+          cd ../iomux        && zig build --summary all

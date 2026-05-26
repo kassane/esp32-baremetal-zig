@@ -96,8 +96,9 @@ Single-feature programs live alongside them, each its own package you build with
 - **Build-only**: `pwm` (LEDC) on ESP32-S2; `i2c` (I2C master), `spi` (SPI master),
   `rmt` (IR remote transmit), `rsa` (RSA modular exponentiation), `twai`
   (CAN 2.0 transmit), `mcpwm` (motor-control PWM), `i2s` (I2S master TX),
-  `dac` (analog output) and `adc` (analog input) on ESP32; `usb_serial`
-  (USB CDC-ACM console) and `tsens` (temperature sensor) on ESP32-S3
+  `dac` (analog output), `adc` (analog input) and `iomux` (pad pull/drive config)
+  on ESP32; `usb_serial` (USB CDC-ACM console) and `tsens` (temperature sensor)
+  on ESP32-S3
 
 Shared register/timing helpers live in `src/mmio.zig` (imported as `mmio`).
 
@@ -279,6 +280,9 @@ A small register driver layer over `mmio` (imported as `hal`):
   `regs.SENS.SAR_TSENS_CTRL`): `read(div)` powers it up and returns the raw 8-bit
   value (→ °C via a per-chip curve) (see `examples/tsens/`). **Build-only**: QEMU
   has no thermal model.
+- `hal.IoMux(pad_reg)` — pad electrical config (pull-up/down, input-enable, drive
+  strength) for one pad (`regs.IO_MUX.GPIO0`, …), complementing `Output`/`Input`
+  (see `examples/iomux/`). **Build-only**: the pull effect isn't QEMU-observable.
 
 Every driver is **comptime-parameterized on its register addresses** (the I2C
 driver on the peripheral namespace), so the MMIO accesses stay provably

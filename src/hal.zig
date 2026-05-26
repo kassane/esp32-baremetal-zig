@@ -716,3 +716,29 @@ pub fn TempSensor(comptime ctrl_reg: u32) type {
         }
     };
 }
+
+/// IO_MUX pad configuration — pull resistor, input-enable and drive strength for a
+/// single pad (pass its IO_MUX register, e.g. `regs.IO_MUX.GPIO0`). Complements the
+/// `Output`/`Input` drivers, which toggle/read a pad; this sets its electrical
+/// properties. Field bits from the SVD, via reg.zig.
+pub fn IoMux(comptime pad_reg: u32) type {
+    return struct {
+        const fun_wpd = reg.bit(7); // pull-down enable
+        const fun_wpu = reg.bit(8); // pull-up enable
+        const fun_ie = reg.bit(9); // input enable
+        const fun_drv = reg.Field(10, 2); // drive strength 0..3 (~5..40 mA)
+
+        pub const Pull = enum { none, up, down };
+
+        /// Configure the pad: `pull` resistor, whether the input buffer is enabled,
+        /// and `drive` strength (0..3). `if` (not `switch`) on the enum keeps the
+        /// store panic-path-free on this backend.
+        pub inline fn config(pull: Pull, input_enable: bool, drive: u2) void {
+            var v: u32 = fun_drv.set(drive);
+            if (input_enable) v |= fun_ie;
+            if (pull == .up) v |= fun_wpu;
+            if (pull == .down) v |= fun_wpd;
+            mmio.writeReg(pad_reg, v);
+        }
+    };
+}
