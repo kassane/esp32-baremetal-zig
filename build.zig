@@ -32,6 +32,7 @@ pub fn build(b: *std.Build) void {
 
     // Comptime register-field helpers (bit/Field), imported as `@import(\"reg\")`.
     const reg = b.addModule("reg", .{ .root_source_file = b.path("src/reg.zig") });
+    init_mod.addImport("reg", reg); // shares the WDT write-protect key with init
 
     // Register HAL (Level/Output/Input/Delay/Timer/Uart/Rng), imported as
     // `@import(\"hal\")`.
