@@ -120,21 +120,30 @@ pub fn Output(comptime enable_reg: u32, comptime out_reg: u32, comptime set_reg:
     };
 }
 
-/// UART transmitter over a TX FIFO register (e.g. `regs.UART0.FIFO`) — the
-/// QEMU-safe subset of a UART driver (the emulated chardev drains instantly;
-/// real hardware would also gate on the TX-FIFO status). Comptime `fifo` address.
-/// This is just an address-bound convenience over the `mmio` primitives
-/// (`writeReg`/`puts`); `write` forwards to `mmio.puts` so the byte loop lives in
-/// one place. Reach for `Console.write("…")` when a module already holds a `Uart`;
-/// call `mmio.puts(fifo, …)` directly when you only have the raw FIFO address (as
-/// the `mmio.log`/panic formatters do internally).
-pub fn Uart(comptime fifo: u32) type {
+/// UART over a FIFO + STATUS register pair (e.g. `regs.UART0.FIFO`,
+/// `regs.UART0.STATUS`). TX is the QEMU-safe subset (the emulated chardev drains
+/// instantly); RX pops bytes the controller has latched. The TX helpers forward to
+/// the `mmio` primitives so the byte loop lives in one place — reach for
+/// `Console.write("…")` when a module holds a `Uart`, or `mmio.puts(fifo, …)`
+/// directly with a raw FIFO address (as `mmio.log`/the panic formatter do).
+pub fn Uart(comptime fifo: u32, comptime status: u32) type {
     return struct {
+        const rxfifo_cnt = reg.Field(0, 8); // STATUS.RXFIFO_CNT
+
         pub inline fn writeByte(byte: u8) void {
             mmio.writeReg(fifo, byte);
         }
         pub inline fn write(bytes: []const u8) void {
             mmio.puts(fifo, bytes);
+        }
+        /// Number of bytes currently waiting in the RX FIFO.
+        pub inline fn rxAvailable() u32 {
+            return rxfifo_cnt.get(mmio.readReg(status));
+        }
+        /// Pop one received byte, or `null` if the RX FIFO is empty.
+        pub inline fn readByte() ?u8 {
+            if (rxAvailable() == 0) return null;
+            return @truncate(mmio.readReg(fifo));
         }
     };
 }

@@ -219,8 +219,8 @@ A small register driver layer over `mmio` (imported as `hal`):
 - `hal.Timer(config, update, lo)` — a Timer Group general-purpose up-counter (a
   monotonic time base independent of `CCOUNT`); `start(divider)` enables it and
   `ticks()` latches + reads the low 32 bits. The esp32 demo prints its uptime.
-- `hal.Uart(fifo)` — a UART transmitter (`writeByte`/`write`) over the TX FIFO;
-  the QEMU-safe subset (real hardware would also gate on the TX-FIFO status).
+- `hal.Uart(fifo, status)` — full-duplex UART: TX (`writeByte`/`write`) over the
+  FIFO plus RX (`readByte` → `?u8`, `rxAvailable`) gated on `STATUS.RXFIFO_CNT`.
 - `hal.Rng(data)` — reads a 32-bit hardware-RNG sample; the esp32 demo prints one.
 - `hal.Sha256(...)` / `hal.Aes(key_bits, ...)` — single-block SHA-256 and
   AES-ECB (comptime-selected `key_bits` of 128/192/256) on the hardware
