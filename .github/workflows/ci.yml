@@ -169,3 +169,4 @@ jobs:
           cd ../ws2812       && zig build --summary all
           cd ../clock_gate   && zig build --summary all
           cd ../brownout     && zig build --summary all
+          cd ../ulp_s2       && zig build --summary all

@@ -5,6 +5,7 @@
 //! can't emit cross-module far calls, so these must fold into the caller.
 
 const std = @import("std");
+const builtin = @import("builtin");
 
 pub inline fn writeReg(addr: u32, value: u32) void {
     const ptr: *volatile u32 = @ptrFromInt(addr);
@@ -168,7 +169,9 @@ pub inline fn panic(fifo: u32, msg: []const u8, first_addr: ?usize) noreturn {
     puts(fifo, msg);
     puts(fifo, "\r\nbacktrace:\r\n");
     printFrame(fifo, first_addr orelse @returnAddress());
-    walkWindowedStack(fifo);
+    // The frame walk below is Xtensa windowed-ABI specific; the RISC-V ULP just
+    // prints the first frame and halts.
+    if (builtin.cpu.arch == .xtensa) walkWindowedStack(fifo);
     halt();
 }
 
