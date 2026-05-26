@@ -1,0 +1,9 @@
+.{
+    .name = .gpio_matrix_example,
+    .version = "0.1.0",
+    .fingerprint = 0x3d74147d08f6c7eb,
+    .dependencies = .{
+        .esp32_hal = .{ .path = "../.." },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "main.zig" },
+}
