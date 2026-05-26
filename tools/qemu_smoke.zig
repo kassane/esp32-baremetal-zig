@@ -19,6 +19,12 @@ const fault_markers = [_][]const u8{
     "exception", "unhandled", "unimplemented", "illegal", "guest_error", "fault",
 };
 
+// argv layout: self, qemu, machine, kernel, seconds, [serial-out-file].
+const argc_min = 5; // without the optional serial-out file
+const argc_max = 6; // with it
+// Read headroom requested per `MultiReader.fill`; the captured output is small.
+const fill_reserve = 64;
+
 fn indexOfIgnoreCase(hay: []const u8, needle: []const u8) ?usize {
     if (needle.len == 0 or hay.len < needle.len) return null;
     var i: usize = 0;
@@ -39,11 +45,16 @@ fn firstFault(hay: []const u8) ?[]const u8 {
     return null;
 }
 
+fn fail(machine: []const u8, reason: []const u8, out: []const u8, err: []const u8) noreturn {
+    std.debug.print("FAIL: {s} {s}:\n{s}{s}\n", .{ machine, reason, out, err });
+    std.process.exit(1);
+}
+
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
     const gpa = init.arena.allocator();
     const args = try init.minimal.args.toSlice(gpa);
-    if (args.len != 5 and args.len != 6) {
+    if (args.len < argc_min or args.len > argc_max) {
         std.debug.print("usage: {s} <qemu-bin> <machine> <kernel-elf> <seconds> [serial-out-file]\n", .{args[0]});
         std.process.exit(2);
     }
@@ -53,7 +64,7 @@ pub fn main(init: std.process.Init) !void {
     const seconds = try std.fmt.parseInt(u32, args[4], 10);
     // When a serial-out path is given, route the UART there and print it after
     // the run — turns `smoke` into a `demo` that shows the example's output.
-    const serial_out: ?[]const u8 = if (args.len == 6) args[5] else null;
+    const serial_out: ?[]const u8 = if (args.len == argc_max) args[argc_min] else null;
 
     std.debug.print("smoke: booting {s} on machine '{s}' for {d}s ...\n", .{ kernel, machine, seconds });
 
@@ -84,7 +95,7 @@ pub fn main(init: std.process.Init) !void {
     defer mr.deinit();
 
     var timed_out = false;
-    while (mr.fill(64, budget)) |_| {} else |err| switch (err) {
+    while (mr.fill(fill_reserve, budget)) |_| {} else |err| switch (err) {
         error.EndOfStream => {},
         error.Timeout => timed_out = true,
         else => return err,
@@ -94,12 +105,10 @@ pub fn main(init: std.process.Init) !void {
     const err_out = mr.reader(1).buffered();
 
     if (firstFault(err_out) orelse firstFault(out)) |marker| {
-        std.debug.print("FAIL: {s} reported a CPU fault (matched '{s}'):\n{s}{s}\n", .{ machine, marker, out, err_out });
-        std.process.exit(1);
+        fail(machine, try std.fmt.allocPrint(gpa, "reported a CPU fault (matched '{s}')", .{marker}), out, err_out);
     }
     if (!timed_out) {
-        std.debug.print("FAIL: {s} QEMU exited before the timeout; the firmware should loop forever:\n{s}{s}\n", .{ machine, out, err_out });
-        std.process.exit(1);
+        fail(machine, "exited before the timeout; the firmware should loop forever", out, err_out);
     }
 
     if (serial_out) |path| {
