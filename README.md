@@ -49,6 +49,16 @@ zig build -Doptimize=ReleaseSmall
 Per chip this installs an `<chip>_baremetal_zig` ELF plus a raw
 `<chip>_baremetal_zig.bin` (see the flashing note below about its size).
 
+Each `esp32*/` is also a standalone package: its `build.zig` consumes the repo
+root (`esp32_baremetal_zig`) as a local path dependency for the shared modules,
+generated registers and linker scripts, so you can build one example on its own:
+
+```bash
+cd esp32 && zig build           # → zig-out/bin/esp32_baremetal_zig(.bin)
+cd esp32 && zig build run       # launch it in QEMU (esp32, esp32s3)
+cd esp32 && zig build smoke     # non-interactive boot test (esp32, esp32s3)
+```
+
 | Source | Chip | CPU | Onboard LED |
 |---|---|---|---|
 | `esp32/main.zig`   | ESP32    | Xtensa LX6 | GPIO2  |
@@ -56,6 +66,97 @@ Per chip this installs an `<chip>_baremetal_zig` ELF plus a raw
 | `esp32s3/main.zig` | ESP32-S3 | Xtensa LX7 | GPIO48 |
 
 Shared register/timing helpers live in `src/mmio.zig` (imported as `mmio`).
+
+### Register access (svd2zig)
+
+Peripheral register addresses are **not** hardcoded — they're generated from
+CMSIS-SVD by `tools/svd2zig.zig` (a host tool run automatically by `build.zig`).
+For each chip, build.zig runs `svd2zig svd/<chip>.svd <chip>_regs.zig` and
+imports the result as `@import("regs")`; firmware uses e.g.
+`regs.GPIO.OUT_W1TS`. The vendored `svd/*.svd` are the GPIO, TIMG0/TIMG1 and
+RTC_CNTL peripherals extracted from [esp-rs/esp-pacs](https://github.com/esp-rs/esp-pacs)
+(fields stripped to keep them small); the generator expands `<dim>` arrays and
+`derivedFrom` peripherals (e.g. TIMG1 inherits TIMG0's registers), and handles
+the full 2.4 MB SVDs too.
+
+```bash
+zig build regs    # emit the generated modules into zig-out/gen/ to inspect
+```
+
+Using the SVD also surfaces the `*_W1TS` / `*_W1TC` (write-1-to-set / -clear)
+registers, so set/clear GPIO is a single atomic store — no read-modify-write.
+
+### Startup
+
+`src/init.zig` `disableWatchdogs()` clears the TIMG0/TIMG1 (and RTC) watchdogs
+at boot via the generated register addresses — a second-stage bootloader leaves
+the TIMG0 flash-boot watchdog running, so an app that neither feeds nor disables
+it is reset within seconds on real hardware. The RTC watchdog is only touched on
+chips whose `regs` expose the unlock register under the expected name (resolved
+with `comptime @hasDecl`), so one routine is correct for every target.
+
+### Panic handler & `std.log`
+
+Both avoid `std.fmt` — its formatter (`Io.Writer`) references the same panic
+path that doesn't link here. A tiny comptime formatter in `src/mmio.zig`
+(`format`/`printU32`/`printHex`) renders `{s}`/`{d}`/`{x}` to UART instead.
+
+- **`std.log` override.** Each root sets `pub const std_options = .{ .logFn = … }`
+  routing through `mmio.log` → UART0 (the `demo` prints an `[info]` line). Calling
+  `std.log.*` directly won't link — its non-inline helpers need cross-module far
+  calls this backend can't emit — so the firmware calls `mmio.log` (inline).
+- **Panic namespace.** `pub const panic = @import("panic").Handler(onPanic)`
+  replaces std's `FullPanic` (which would pull `std.fmt`); `onPanic` forwards to
+  `mmio.panic`, which prints `!! PANIC: <msg>` plus a best-effort Xtensa
+  windowed-ABI backtrace, then halts. Because the backend emits no non-inline
+  (far) calls, a compiler-*dispatched* panic can't be lowered (the firmware
+  elides all safety checks accordingly); faults are reported by calling
+  `mmio.panic` directly — verified in QEMU on a ReleaseSmall build. The backtrace
+  is shallow since every call is inlined.
+
+### DSP kernels (`src/dsp.zig`)
+
+`src/dsp.zig` (imported as `dsp`) is a small int16 DSP library:
+
+- `addSatS16` — saturating vector add
+- `dotProductS16` — dot product / correlation / energy
+- `firS16` — FIR filter (Q15 convolution)
+- `fft` — in-place radix-2 Q15 complex FFT (port of esp-dsp's fixed-point FFT;
+  comptime twiddle table, no FPU or compiler-rt)
+
+The vector kernels (`addSatS16`, `dotProductS16`) run on the **ESP32-S3 PIE unit
+via inline asm** (`ee.vadds.s16`, `ee.vmulas.s16.accx`) when `esp32s3ops` is
+present, with a scalar fallback otherwise — chosen at comptime.
+
+**Comptime-generated clobbers (`dsp.qClobbers`).** Instead of hand-writing
+`: .{ .q0 = true, .q1 = true }` on every `ee.*` block, the clobber set is built
+at comptime from a register list:
+
+```zig
+asm volatile (… : … : … : qClobbers(.{ 0, 1, 2 }, true)); // q0,q1,q2 + memory
+```
+
+`qClobbers` sets the `q*` fields of `std.builtin.assembly.Clobbers` by comptime
+field name (`"q" ++ …`, **not** `std.fmt` — pulling its formatting machinery into
+a freestanding image references the unlinkable panic path). Verified in QEMU:
+the demo executes real `ee.*` instructions and computes Σ x² = 816.
+
+`esp32s3/main.zig` is the PIE example (mix → energy → blink). The **FFT
+spectral-analysis demo lives in `esp32/main.zig`** (`fft` is portable scalar
+code; the LX6 has no PIE) and prints the magnitude spectrum over UART. They are
+split across chips because an `ee.*` instruction is an optimization barrier that
+un-elides Debug safety-check panics in surrounding code — so a PIE function and
+the higher-level UART/FFT code can't share a build here.
+
+- **Inline required:** kernels are `inline` because the prebuilt xtensa backend
+  can't emit cross-module (far) calls (same reason `mmio` is inline).
+- Q15 math uses `[*]` indexing + wrapping arithmetic so Debug builds emit no
+  bounds-check / overflow / divide panic path (which don't link here).
+
+> Atomics (`@atomicRmw`/`@cmpxchg`) compile and lower correctly to the Xtensa
+> `s32c1i` CAS, but the Espressif QEMU esp32s3 machine does not faithfully model
+> the store-conditional, so an atomic spins forever under emulation (works on
+> real silicon). They are therefore not used in the QEMU-tested firmware.
 
 ---
 
@@ -78,6 +179,21 @@ zig build run-esp32s3
 # faults (this is what CI runs).
 zig build smoke
 zig build smoke -Dsmoke-seconds=10
+
+# Show the example's UART output (captured from QEMU via `-serial file:`):
+zig build demo          # all QEMU-capable chips
+zig build demo-esp32    # just the FFT spectrum example
+```
+
+The firmware writes to UART0 (`regs.UART0.FIFO`); `demo` routes that to a file
+and prints it. **`esp32` renders the FFT magnitude spectrum of a two-tone
+signal** as ASCII bars (`esp32s3` is the PIE/SIMD example and drives the LED
+rather than printing):
+
+```
+ESP32 FFT magnitude spectrum (tones @ bins 4 and 12):
+bin  4 |##############################################
+bin 12 |#######################
 ```
 
 `build.zig` finds `qemu-system-xtensa` on `PATH`; override it with
@@ -167,5 +283,6 @@ esptool.py --chip esp32s2 elf2image --output firmware.bin zig-out/bin/esp32s2_ba
 - [kubo39/esp32-baremetal-ldc](https://github.com/kubo39/esp32-baremetal-ldc) – inspiration
 - [georgik/swift-xtensa](https://github.com/georgik/swift-xtensa) – flashing workflow reference (espflash, --flash-mode dio)
 - [esp-rs/espflash](https://github.com/esp-rs/espflash) – Rust-based flash tool (ELF-aware, `--skip-padding`)
-- [esp-rs/esp-hal](https://github.com/esp-rs/esp-hal)
-</content>
+- [esp-rs/esp-hal](https://github.com/esp-rs/esp-hal) – HAL design reference
+- [esp-rs/esp-pacs](https://github.com/esp-rs/esp-pacs) – source of the vendored `svd/*.svd` (register access generated by `tools/svd2zig.zig`)
+- [espressif/esp-dsp](https://github.com/espressif/esp-dsp) – the fixed-point FFT/DSP algorithms ported into `src/dsp.zig`

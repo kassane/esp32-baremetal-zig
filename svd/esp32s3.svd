@@ -1,0 +1,2908 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Peripherals (GPIO, timers, RTC_CNTL, UART0) extracted from esp-rs/esp-pacs esp32s3.base.svd; fields stripped. -->
+<device><name>ESP32S3</name>
+<peripherals>
+<peripheral>
+      <name>GPIO</name>
+      <description>General Purpose Input/Output</description>
+      <groupName>GPIO</groupName>
+      <baseAddress>0x60004000</baseAddress>
+      <registers>
+        <register>
+          <name>BT_SELECT</name>
+          <description>GPIO bit select register</description>
+          <addressOffset>0x0</addressOffset>
+        </register>
+        <register>
+          <name>OUT</name>
+          <description>GPIO output register for GPIO0-31</description>
+          <addressOffset>0x4</addressOffset>
+        </register>
+        <register>
+          <name>OUT_W1TS</name>
+          <description>GPIO output set register for GPIO0-31</description>
+          <addressOffset>0x8</addressOffset>
+        </register>
+        <register>
+          <name>OUT_W1TC</name>
+          <description>GPIO output clear register for GPIO0-31</description>
+          <addressOffset>0xC</addressOffset>
+        </register>
+        <register>
+          <name>OUT1</name>
+          <description>GPIO output register for GPIO32-53</description>
+          <addressOffset>0x10</addressOffset>
+        </register>
+        <register>
+          <name>OUT1_W1TS</name>
+          <description>GPIO output set register for GPIO32-53</description>
+          <addressOffset>0x14</addressOffset>
+        </register>
+        <register>
+          <name>OUT1_W1TC</name>
+          <description>GPIO output clear register for GPIO32-53</description>
+          <addressOffset>0x18</addressOffset>
+        </register>
+        <register>
+          <name>SDIO_SELECT</name>
+          <description>GPIO sdio select register</description>
+          <addressOffset>0x1C</addressOffset>
+        </register>
+        <register>
+          <name>ENABLE</name>
+          <description>GPIO output enable register for GPIO0-31</description>
+          <addressOffset>0x20</addressOffset>
+        </register>
+        <register>
+          <name>ENABLE_W1TS</name>
+          <description>GPIO output enable set register for GPIO0-31</description>
+          <addressOffset>0x24</addressOffset>
+        </register>
+        <register>
+          <name>ENABLE_W1TC</name>
+          <description>GPIO output enable clear register for GPIO0-31</description>
+          <addressOffset>0x28</addressOffset>
+        </register>
+        <register>
+          <name>ENABLE1</name>
+          <description>GPIO output enable register for GPIO32-53</description>
+          <addressOffset>0x2C</addressOffset>
+        </register>
+        <register>
+          <name>ENABLE1_W1TS</name>
+          <description>GPIO output enable set register for GPIO32-53</description>
+          <addressOffset>0x30</addressOffset>
+        </register>
+        <register>
+          <name>ENABLE1_W1TC</name>
+          <description>GPIO output enable clear register for GPIO32-53</description>
+          <addressOffset>0x34</addressOffset>
+        </register>
+        <register>
+          <name>STRAP</name>
+          <description>pad strapping register</description>
+          <addressOffset>0x38</addressOffset>
+        </register>
+        <register>
+          <name>IN</name>
+          <description>GPIO input register for GPIO0-31</description>
+          <addressOffset>0x3C</addressOffset>
+        </register>
+        <register>
+          <name>IN1</name>
+          <description>GPIO input register for GPIO32-53</description>
+          <addressOffset>0x40</addressOffset>
+        </register>
+        <register>
+          <name>STATUS</name>
+          <description>GPIO interrupt status register for GPIO0-31</description>
+          <addressOffset>0x44</addressOffset>
+        </register>
+        <register>
+          <name>STATUS_W1TS</name>
+          <description>GPIO interrupt status set register for GPIO0-31</description>
+          <addressOffset>0x48</addressOffset>
+        </register>
+        <register>
+          <name>STATUS_W1TC</name>
+          <description>GPIO interrupt status clear register for GPIO0-31</description>
+          <addressOffset>0x4C</addressOffset>
+        </register>
+        <register>
+          <name>STATUS1</name>
+          <description>GPIO interrupt status register for GPIO32-53</description>
+          <addressOffset>0x50</addressOffset>
+        </register>
+        <register>
+          <name>STATUS1_W1TS</name>
+          <description>GPIO interrupt status set register for GPIO32-53</description>
+          <addressOffset>0x54</addressOffset>
+        </register>
+        <register>
+          <name>STATUS1_W1TC</name>
+          <description>GPIO interrupt status clear register for GPIO32-53</description>
+          <addressOffset>0x58</addressOffset>
+        </register>
+        <register>
+          <name>PCPU_INT</name>
+          <description>GPIO PRO_CPU interrupt status register for GPIO0-31</description>
+          <addressOffset>0x5C</addressOffset>
+        </register>
+        <register>
+          <name>PCPU_NMI_INT</name>
+          <description>GPIO PRO_CPU(not shielded) interrupt status register for GPIO0-31</description>
+          <addressOffset>0x60</addressOffset>
+        </register>
+        <register>
+          <name>CPUSDIO_INT</name>
+          <description>GPIO CPUSDIO interrupt status register for GPIO0-31</description>
+          <addressOffset>0x64</addressOffset>
+        </register>
+        <register>
+          <name>PCPU_INT1</name>
+          <description>GPIO PRO_CPU interrupt status register for GPIO32-53</description>
+          <addressOffset>0x68</addressOffset>
+        </register>
+        <register>
+          <name>PCPU_NMI_INT1</name>
+          <description>GPIO PRO_CPU(not shielded) interrupt status register for GPIO32-53</description>
+          <addressOffset>0x6C</addressOffset>
+        </register>
+        <register>
+          <name>CPUSDIO_INT1</name>
+          <description>GPIO CPUSDIO interrupt status register for GPIO32-53</description>
+          <addressOffset>0x70</addressOffset>
+        </register>
+        <register>
+          <name>PIN0</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x74</addressOffset>
+        </register>
+        <register>
+          <name>PIN1</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x78</addressOffset>
+        </register>
+        <register>
+          <name>PIN2</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x7C</addressOffset>
+        </register>
+        <register>
+          <name>PIN3</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x80</addressOffset>
+        </register>
+        <register>
+          <name>PIN4</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x84</addressOffset>
+        </register>
+        <register>
+          <name>PIN5</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x88</addressOffset>
+        </register>
+        <register>
+          <name>PIN6</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x8C</addressOffset>
+        </register>
+        <register>
+          <name>PIN7</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x90</addressOffset>
+        </register>
+        <register>
+          <name>PIN8</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x94</addressOffset>
+        </register>
+        <register>
+          <name>PIN9</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x98</addressOffset>
+        </register>
+        <register>
+          <name>PIN10</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x9C</addressOffset>
+        </register>
+        <register>
+          <name>PIN11</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0xA0</addressOffset>
+        </register>
+        <register>
+          <name>PIN12</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0xA4</addressOffset>
+        </register>
+        <register>
+          <name>PIN13</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0xA8</addressOffset>
+        </register>
+        <register>
+          <name>PIN14</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0xAC</addressOffset>
+        </register>
+        <register>
+          <name>PIN15</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0xB0</addressOffset>
+        </register>
+        <register>
+          <name>PIN16</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0xB4</addressOffset>
+        </register>
+        <register>
+          <name>PIN17</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0xB8</addressOffset>
+        </register>
+        <register>
+          <name>PIN18</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0xBC</addressOffset>
+        </register>
+        <register>
+          <name>PIN19</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0xC0</addressOffset>
+        </register>
+        <register>
+          <name>PIN20</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0xC4</addressOffset>
+        </register>
+        <register>
+          <name>PIN21</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0xC8</addressOffset>
+        </register>
+        <register>
+          <name>PIN22</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0xCC</addressOffset>
+        </register>
+        <register>
+          <name>PIN23</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0xD0</addressOffset>
+        </register>
+        <register>
+          <name>PIN24</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0xD4</addressOffset>
+        </register>
+        <register>
+          <name>PIN25</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0xD8</addressOffset>
+        </register>
+        <register>
+          <name>PIN26</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0xDC</addressOffset>
+        </register>
+        <register>
+          <name>PIN27</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0xE0</addressOffset>
+        </register>
+        <register>
+          <name>PIN28</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0xE4</addressOffset>
+        </register>
+        <register>
+          <name>PIN29</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0xE8</addressOffset>
+        </register>
+        <register>
+          <name>PIN30</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0xEC</addressOffset>
+        </register>
+        <register>
+          <name>PIN31</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0xF0</addressOffset>
+        </register>
+        <register>
+          <name>PIN32</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0xF4</addressOffset>
+        </register>
+        <register>
+          <name>PIN33</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0xF8</addressOffset>
+        </register>
+        <register>
+          <name>PIN34</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0xFC</addressOffset>
+        </register>
+        <register>
+          <name>PIN35</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x100</addressOffset>
+        </register>
+        <register>
+          <name>PIN36</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x104</addressOffset>
+        </register>
+        <register>
+          <name>PIN37</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x108</addressOffset>
+        </register>
+        <register>
+          <name>PIN38</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x10C</addressOffset>
+        </register>
+        <register>
+          <name>PIN39</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x110</addressOffset>
+        </register>
+        <register>
+          <name>PIN40</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x114</addressOffset>
+        </register>
+        <register>
+          <name>PIN41</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x118</addressOffset>
+        </register>
+        <register>
+          <name>PIN42</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x11C</addressOffset>
+        </register>
+        <register>
+          <name>PIN43</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x120</addressOffset>
+        </register>
+        <register>
+          <name>PIN44</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x124</addressOffset>
+        </register>
+        <register>
+          <name>PIN45</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x128</addressOffset>
+        </register>
+        <register>
+          <name>PIN46</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x12C</addressOffset>
+        </register>
+        <register>
+          <name>PIN47</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x130</addressOffset>
+        </register>
+        <register>
+          <name>PIN48</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x134</addressOffset>
+        </register>
+        <register>
+          <name>PIN49</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x138</addressOffset>
+        </register>
+        <register>
+          <name>PIN50</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x13C</addressOffset>
+        </register>
+        <register>
+          <name>PIN51</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x140</addressOffset>
+        </register>
+        <register>
+          <name>PIN52</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x144</addressOffset>
+        </register>
+        <register>
+          <name>PIN53</name>
+          <description>GPIO pin configuration register</description>
+          <addressOffset>0x148</addressOffset>
+        </register>
+        <register>
+          <name>STATUS_NEXT</name>
+          <description>GPIO interrupt source register for GPIO0-31</description>
+          <addressOffset>0x14C</addressOffset>
+        </register>
+        <register>
+          <name>STATUS_NEXT1</name>
+          <description>GPIO interrupt source register for GPIO32-53</description>
+          <addressOffset>0x150</addressOffset>
+        </register>
+        <register>
+          <name>FUNC0_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x154</addressOffset>
+        </register>
+        <register>
+          <name>FUNC1_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x158</addressOffset>
+        </register>
+        <register>
+          <name>FUNC2_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x15C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC3_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x160</addressOffset>
+        </register>
+        <register>
+          <name>FUNC4_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x164</addressOffset>
+        </register>
+        <register>
+          <name>FUNC5_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x168</addressOffset>
+        </register>
+        <register>
+          <name>FUNC6_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x16C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC7_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x170</addressOffset>
+        </register>
+        <register>
+          <name>FUNC8_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x174</addressOffset>
+        </register>
+        <register>
+          <name>FUNC9_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x178</addressOffset>
+        </register>
+        <register>
+          <name>FUNC10_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x17C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC11_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x180</addressOffset>
+        </register>
+        <register>
+          <name>FUNC12_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x184</addressOffset>
+        </register>
+        <register>
+          <name>FUNC13_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x188</addressOffset>
+        </register>
+        <register>
+          <name>FUNC14_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x18C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC15_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x190</addressOffset>
+        </register>
+        <register>
+          <name>FUNC16_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x194</addressOffset>
+        </register>
+        <register>
+          <name>FUNC17_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x198</addressOffset>
+        </register>
+        <register>
+          <name>FUNC18_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x19C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC19_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x1A0</addressOffset>
+        </register>
+        <register>
+          <name>FUNC20_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x1A4</addressOffset>
+        </register>
+        <register>
+          <name>FUNC21_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x1A8</addressOffset>
+        </register>
+        <register>
+          <name>FUNC22_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x1AC</addressOffset>
+        </register>
+        <register>
+          <name>FUNC23_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x1B0</addressOffset>
+        </register>
+        <register>
+          <name>FUNC24_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x1B4</addressOffset>
+        </register>
+        <register>
+          <name>FUNC25_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x1B8</addressOffset>
+        </register>
+        <register>
+          <name>FUNC26_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x1BC</addressOffset>
+        </register>
+        <register>
+          <name>FUNC27_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x1C0</addressOffset>
+        </register>
+        <register>
+          <name>FUNC28_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x1C4</addressOffset>
+        </register>
+        <register>
+          <name>FUNC29_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x1C8</addressOffset>
+        </register>
+        <register>
+          <name>FUNC30_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x1CC</addressOffset>
+        </register>
+        <register>
+          <name>FUNC31_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x1D0</addressOffset>
+        </register>
+        <register>
+          <name>FUNC32_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x1D4</addressOffset>
+        </register>
+        <register>
+          <name>FUNC33_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x1D8</addressOffset>
+        </register>
+        <register>
+          <name>FUNC34_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x1DC</addressOffset>
+        </register>
+        <register>
+          <name>FUNC35_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x1E0</addressOffset>
+        </register>
+        <register>
+          <name>FUNC36_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x1E4</addressOffset>
+        </register>
+        <register>
+          <name>FUNC37_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x1E8</addressOffset>
+        </register>
+        <register>
+          <name>FUNC38_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x1EC</addressOffset>
+        </register>
+        <register>
+          <name>FUNC39_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x1F0</addressOffset>
+        </register>
+        <register>
+          <name>FUNC40_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x1F4</addressOffset>
+        </register>
+        <register>
+          <name>FUNC41_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x1F8</addressOffset>
+        </register>
+        <register>
+          <name>FUNC42_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x1FC</addressOffset>
+        </register>
+        <register>
+          <name>FUNC43_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x200</addressOffset>
+        </register>
+        <register>
+          <name>FUNC44_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x204</addressOffset>
+        </register>
+        <register>
+          <name>FUNC45_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x208</addressOffset>
+        </register>
+        <register>
+          <name>FUNC46_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x20C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC47_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x210</addressOffset>
+        </register>
+        <register>
+          <name>FUNC48_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x214</addressOffset>
+        </register>
+        <register>
+          <name>FUNC49_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x218</addressOffset>
+        </register>
+        <register>
+          <name>FUNC50_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x21C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC51_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x220</addressOffset>
+        </register>
+        <register>
+          <name>FUNC52_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x224</addressOffset>
+        </register>
+        <register>
+          <name>FUNC53_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x228</addressOffset>
+        </register>
+        <register>
+          <name>FUNC54_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x22C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC55_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x230</addressOffset>
+        </register>
+        <register>
+          <name>FUNC56_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x234</addressOffset>
+        </register>
+        <register>
+          <name>FUNC57_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x238</addressOffset>
+        </register>
+        <register>
+          <name>FUNC58_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x23C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC59_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x240</addressOffset>
+        </register>
+        <register>
+          <name>FUNC60_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x244</addressOffset>
+        </register>
+        <register>
+          <name>FUNC61_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x248</addressOffset>
+        </register>
+        <register>
+          <name>FUNC62_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x24C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC63_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x250</addressOffset>
+        </register>
+        <register>
+          <name>FUNC64_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x254</addressOffset>
+        </register>
+        <register>
+          <name>FUNC65_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x258</addressOffset>
+        </register>
+        <register>
+          <name>FUNC66_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x25C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC67_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x260</addressOffset>
+        </register>
+        <register>
+          <name>FUNC68_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x264</addressOffset>
+        </register>
+        <register>
+          <name>FUNC69_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x268</addressOffset>
+        </register>
+        <register>
+          <name>FUNC70_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x26C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC71_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x270</addressOffset>
+        </register>
+        <register>
+          <name>FUNC72_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x274</addressOffset>
+        </register>
+        <register>
+          <name>FUNC73_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x278</addressOffset>
+        </register>
+        <register>
+          <name>FUNC74_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x27C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC75_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x280</addressOffset>
+        </register>
+        <register>
+          <name>FUNC76_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x284</addressOffset>
+        </register>
+        <register>
+          <name>FUNC77_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x288</addressOffset>
+        </register>
+        <register>
+          <name>FUNC78_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x28C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC79_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x290</addressOffset>
+        </register>
+        <register>
+          <name>FUNC80_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x294</addressOffset>
+        </register>
+        <register>
+          <name>FUNC81_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x298</addressOffset>
+        </register>
+        <register>
+          <name>FUNC82_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x29C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC83_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x2A0</addressOffset>
+        </register>
+        <register>
+          <name>FUNC84_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x2A4</addressOffset>
+        </register>
+        <register>
+          <name>FUNC85_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x2A8</addressOffset>
+        </register>
+        <register>
+          <name>FUNC86_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x2AC</addressOffset>
+        </register>
+        <register>
+          <name>FUNC87_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x2B0</addressOffset>
+        </register>
+        <register>
+          <name>FUNC88_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x2B4</addressOffset>
+        </register>
+        <register>
+          <name>FUNC89_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x2B8</addressOffset>
+        </register>
+        <register>
+          <name>FUNC90_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x2BC</addressOffset>
+        </register>
+        <register>
+          <name>FUNC91_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x2C0</addressOffset>
+        </register>
+        <register>
+          <name>FUNC92_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x2C4</addressOffset>
+        </register>
+        <register>
+          <name>FUNC93_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x2C8</addressOffset>
+        </register>
+        <register>
+          <name>FUNC94_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x2CC</addressOffset>
+        </register>
+        <register>
+          <name>FUNC95_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x2D0</addressOffset>
+        </register>
+        <register>
+          <name>FUNC96_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x2D4</addressOffset>
+        </register>
+        <register>
+          <name>FUNC97_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x2D8</addressOffset>
+        </register>
+        <register>
+          <name>FUNC98_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x2DC</addressOffset>
+        </register>
+        <register>
+          <name>FUNC99_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x2E0</addressOffset>
+        </register>
+        <register>
+          <name>FUNC100_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x2E4</addressOffset>
+        </register>
+        <register>
+          <name>FUNC101_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x2E8</addressOffset>
+        </register>
+        <register>
+          <name>FUNC102_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x2EC</addressOffset>
+        </register>
+        <register>
+          <name>FUNC103_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x2F0</addressOffset>
+        </register>
+        <register>
+          <name>FUNC104_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x2F4</addressOffset>
+        </register>
+        <register>
+          <name>FUNC105_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x2F8</addressOffset>
+        </register>
+        <register>
+          <name>FUNC106_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x2FC</addressOffset>
+        </register>
+        <register>
+          <name>FUNC107_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x300</addressOffset>
+        </register>
+        <register>
+          <name>FUNC108_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x304</addressOffset>
+        </register>
+        <register>
+          <name>FUNC109_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x308</addressOffset>
+        </register>
+        <register>
+          <name>FUNC110_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x30C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC111_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x310</addressOffset>
+        </register>
+        <register>
+          <name>FUNC112_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x314</addressOffset>
+        </register>
+        <register>
+          <name>FUNC113_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x318</addressOffset>
+        </register>
+        <register>
+          <name>FUNC114_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x31C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC115_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x320</addressOffset>
+        </register>
+        <register>
+          <name>FUNC116_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x324</addressOffset>
+        </register>
+        <register>
+          <name>FUNC117_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x328</addressOffset>
+        </register>
+        <register>
+          <name>FUNC118_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x32C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC119_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x330</addressOffset>
+        </register>
+        <register>
+          <name>FUNC120_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x334</addressOffset>
+        </register>
+        <register>
+          <name>FUNC121_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x338</addressOffset>
+        </register>
+        <register>
+          <name>FUNC122_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x33C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC123_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x340</addressOffset>
+        </register>
+        <register>
+          <name>FUNC124_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x344</addressOffset>
+        </register>
+        <register>
+          <name>FUNC125_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x348</addressOffset>
+        </register>
+        <register>
+          <name>FUNC126_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x34C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC127_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x350</addressOffset>
+        </register>
+        <register>
+          <name>FUNC128_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x354</addressOffset>
+        </register>
+        <register>
+          <name>FUNC129_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x358</addressOffset>
+        </register>
+        <register>
+          <name>FUNC130_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x35C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC131_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x360</addressOffset>
+        </register>
+        <register>
+          <name>FUNC132_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x364</addressOffset>
+        </register>
+        <register>
+          <name>FUNC133_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x368</addressOffset>
+        </register>
+        <register>
+          <name>FUNC134_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x36C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC135_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x370</addressOffset>
+        </register>
+        <register>
+          <name>FUNC136_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x374</addressOffset>
+        </register>
+        <register>
+          <name>FUNC137_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x378</addressOffset>
+        </register>
+        <register>
+          <name>FUNC138_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x37C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC139_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x380</addressOffset>
+        </register>
+        <register>
+          <name>FUNC140_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x384</addressOffset>
+        </register>
+        <register>
+          <name>FUNC141_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x388</addressOffset>
+        </register>
+        <register>
+          <name>FUNC142_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x38C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC143_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x390</addressOffset>
+        </register>
+        <register>
+          <name>FUNC144_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x394</addressOffset>
+        </register>
+        <register>
+          <name>FUNC145_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x398</addressOffset>
+        </register>
+        <register>
+          <name>FUNC146_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x39C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC147_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x3A0</addressOffset>
+        </register>
+        <register>
+          <name>FUNC148_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x3A4</addressOffset>
+        </register>
+        <register>
+          <name>FUNC149_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x3A8</addressOffset>
+        </register>
+        <register>
+          <name>FUNC150_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x3AC</addressOffset>
+        </register>
+        <register>
+          <name>FUNC151_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x3B0</addressOffset>
+        </register>
+        <register>
+          <name>FUNC152_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x3B4</addressOffset>
+        </register>
+        <register>
+          <name>FUNC153_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x3B8</addressOffset>
+        </register>
+        <register>
+          <name>FUNC154_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x3BC</addressOffset>
+        </register>
+        <register>
+          <name>FUNC155_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x3C0</addressOffset>
+        </register>
+        <register>
+          <name>FUNC156_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x3C4</addressOffset>
+        </register>
+        <register>
+          <name>FUNC157_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x3C8</addressOffset>
+        </register>
+        <register>
+          <name>FUNC158_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x3CC</addressOffset>
+        </register>
+        <register>
+          <name>FUNC159_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x3D0</addressOffset>
+        </register>
+        <register>
+          <name>FUNC160_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x3D4</addressOffset>
+        </register>
+        <register>
+          <name>FUNC161_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x3D8</addressOffset>
+        </register>
+        <register>
+          <name>FUNC162_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x3DC</addressOffset>
+        </register>
+        <register>
+          <name>FUNC163_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x3E0</addressOffset>
+        </register>
+        <register>
+          <name>FUNC164_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x3E4</addressOffset>
+        </register>
+        <register>
+          <name>FUNC165_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x3E8</addressOffset>
+        </register>
+        <register>
+          <name>FUNC166_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x3EC</addressOffset>
+        </register>
+        <register>
+          <name>FUNC167_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x3F0</addressOffset>
+        </register>
+        <register>
+          <name>FUNC168_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x3F4</addressOffset>
+        </register>
+        <register>
+          <name>FUNC169_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x3F8</addressOffset>
+        </register>
+        <register>
+          <name>FUNC170_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x3FC</addressOffset>
+        </register>
+        <register>
+          <name>FUNC171_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x400</addressOffset>
+        </register>
+        <register>
+          <name>FUNC172_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x404</addressOffset>
+        </register>
+        <register>
+          <name>FUNC173_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x408</addressOffset>
+        </register>
+        <register>
+          <name>FUNC174_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x40C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC175_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x410</addressOffset>
+        </register>
+        <register>
+          <name>FUNC176_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x414</addressOffset>
+        </register>
+        <register>
+          <name>FUNC177_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x418</addressOffset>
+        </register>
+        <register>
+          <name>FUNC178_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x41C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC179_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x420</addressOffset>
+        </register>
+        <register>
+          <name>FUNC180_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x424</addressOffset>
+        </register>
+        <register>
+          <name>FUNC181_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x428</addressOffset>
+        </register>
+        <register>
+          <name>FUNC182_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x42C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC183_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x430</addressOffset>
+        </register>
+        <register>
+          <name>FUNC184_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x434</addressOffset>
+        </register>
+        <register>
+          <name>FUNC185_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x438</addressOffset>
+        </register>
+        <register>
+          <name>FUNC186_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x43C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC187_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x440</addressOffset>
+        </register>
+        <register>
+          <name>FUNC188_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x444</addressOffset>
+        </register>
+        <register>
+          <name>FUNC189_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x448</addressOffset>
+        </register>
+        <register>
+          <name>FUNC190_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x44C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC191_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x450</addressOffset>
+        </register>
+        <register>
+          <name>FUNC192_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x454</addressOffset>
+        </register>
+        <register>
+          <name>FUNC193_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x458</addressOffset>
+        </register>
+        <register>
+          <name>FUNC194_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x45C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC195_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x460</addressOffset>
+        </register>
+        <register>
+          <name>FUNC196_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x464</addressOffset>
+        </register>
+        <register>
+          <name>FUNC197_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x468</addressOffset>
+        </register>
+        <register>
+          <name>FUNC198_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x46C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC199_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x470</addressOffset>
+        </register>
+        <register>
+          <name>FUNC200_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x474</addressOffset>
+        </register>
+        <register>
+          <name>FUNC201_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x478</addressOffset>
+        </register>
+        <register>
+          <name>FUNC202_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x47C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC203_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x480</addressOffset>
+        </register>
+        <register>
+          <name>FUNC204_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x484</addressOffset>
+        </register>
+        <register>
+          <name>FUNC205_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x488</addressOffset>
+        </register>
+        <register>
+          <name>FUNC206_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x48C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC207_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x490</addressOffset>
+        </register>
+        <register>
+          <name>FUNC208_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x494</addressOffset>
+        </register>
+        <register>
+          <name>FUNC209_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x498</addressOffset>
+        </register>
+        <register>
+          <name>FUNC210_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x49C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC211_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x4A0</addressOffset>
+        </register>
+        <register>
+          <name>FUNC212_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x4A4</addressOffset>
+        </register>
+        <register>
+          <name>FUNC213_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x4A8</addressOffset>
+        </register>
+        <register>
+          <name>FUNC214_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x4AC</addressOffset>
+        </register>
+        <register>
+          <name>FUNC215_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x4B0</addressOffset>
+        </register>
+        <register>
+          <name>FUNC216_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x4B4</addressOffset>
+        </register>
+        <register>
+          <name>FUNC217_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x4B8</addressOffset>
+        </register>
+        <register>
+          <name>FUNC218_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x4BC</addressOffset>
+        </register>
+        <register>
+          <name>FUNC219_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x4C0</addressOffset>
+        </register>
+        <register>
+          <name>FUNC220_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x4C4</addressOffset>
+        </register>
+        <register>
+          <name>FUNC221_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x4C8</addressOffset>
+        </register>
+        <register>
+          <name>FUNC222_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x4CC</addressOffset>
+        </register>
+        <register>
+          <name>FUNC223_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x4D0</addressOffset>
+        </register>
+        <register>
+          <name>FUNC224_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x4D4</addressOffset>
+        </register>
+        <register>
+          <name>FUNC225_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x4D8</addressOffset>
+        </register>
+        <register>
+          <name>FUNC226_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x4DC</addressOffset>
+        </register>
+        <register>
+          <name>FUNC227_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x4E0</addressOffset>
+        </register>
+        <register>
+          <name>FUNC228_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x4E4</addressOffset>
+        </register>
+        <register>
+          <name>FUNC229_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x4E8</addressOffset>
+        </register>
+        <register>
+          <name>FUNC230_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x4EC</addressOffset>
+        </register>
+        <register>
+          <name>FUNC231_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x4F0</addressOffset>
+        </register>
+        <register>
+          <name>FUNC232_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x4F4</addressOffset>
+        </register>
+        <register>
+          <name>FUNC233_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x4F8</addressOffset>
+        </register>
+        <register>
+          <name>FUNC234_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x4FC</addressOffset>
+        </register>
+        <register>
+          <name>FUNC235_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x500</addressOffset>
+        </register>
+        <register>
+          <name>FUNC236_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x504</addressOffset>
+        </register>
+        <register>
+          <name>FUNC237_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x508</addressOffset>
+        </register>
+        <register>
+          <name>FUNC238_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x50C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC239_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x510</addressOffset>
+        </register>
+        <register>
+          <name>FUNC240_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x514</addressOffset>
+        </register>
+        <register>
+          <name>FUNC241_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x518</addressOffset>
+        </register>
+        <register>
+          <name>FUNC242_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x51C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC243_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x520</addressOffset>
+        </register>
+        <register>
+          <name>FUNC244_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x524</addressOffset>
+        </register>
+        <register>
+          <name>FUNC245_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x528</addressOffset>
+        </register>
+        <register>
+          <name>FUNC246_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x52C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC247_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x530</addressOffset>
+        </register>
+        <register>
+          <name>FUNC248_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x534</addressOffset>
+        </register>
+        <register>
+          <name>FUNC249_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x538</addressOffset>
+        </register>
+        <register>
+          <name>FUNC250_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x53C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC251_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x540</addressOffset>
+        </register>
+        <register>
+          <name>FUNC252_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x544</addressOffset>
+        </register>
+        <register>
+          <name>FUNC253_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x548</addressOffset>
+        </register>
+        <register>
+          <name>FUNC254_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x54C</addressOffset>
+        </register>
+        <register>
+          <name>FUNC255_IN_SEL_CFG</name>
+          <description>GPIO input function configuration register</description>
+          <addressOffset>0x550</addressOffset>
+        </register>
+        <register>
+          <name>FUNC0_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x554</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC1_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x558</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC2_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x55C</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC3_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x560</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC4_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x564</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC5_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x568</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC6_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x56C</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC7_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x570</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC8_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x574</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC9_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x578</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC10_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x57C</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC11_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x580</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC12_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x584</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC13_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x588</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC14_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x58C</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC15_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x590</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC16_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x594</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC17_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x598</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC18_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x59C</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC19_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x5A0</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC20_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x5A4</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC21_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x5A8</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC22_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x5AC</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC23_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x5B0</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC24_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x5B4</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC25_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x5B8</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC26_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x5BC</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC27_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x5C0</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC28_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x5C4</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC29_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x5C8</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC30_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x5CC</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC31_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x5D0</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC32_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x5D4</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC33_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x5D8</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC34_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x5DC</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC35_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x5E0</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC36_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x5E4</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC37_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x5E8</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC38_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x5EC</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC39_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x5F0</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC40_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x5F4</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC41_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x5F8</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC42_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x5FC</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC43_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x600</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC44_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x604</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC45_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x608</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC46_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x60C</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC47_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x610</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC48_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x614</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC49_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x618</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC50_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x61C</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC51_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x620</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC52_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x624</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>FUNC53_OUT_SEL_CFG</name>
+          <description>GPIO output function select register</description>
+          <addressOffset>0x628</addressOffset>
+          <resetValue>0x00000100</resetValue>
+        </register>
+        <register>
+          <name>CLOCK_GATE</name>
+          <description>GPIO clock gate register</description>
+          <addressOffset>0x62C</addressOffset>
+          <resetValue>0x00000001</resetValue>
+        </register>
+        <register>
+          <name>REG_DATE</name>
+          <description>GPIO version register</description>
+          <addressOffset>0x6FC</addressOffset>
+          <resetValue>0x01907040</resetValue>
+        </register>
+      </registers>
+    </peripheral>
+<peripheral>
+      <name>TIMG0</name>
+      <description>Timer Group 0</description>
+      <groupName>TIMG</groupName>
+      <baseAddress>0x6001F000</baseAddress>
+      <registers>
+        <register>
+          <dim>2</dim>
+          <dimIncrement>0x24</dimIncrement>
+          <name>T%sCONFIG</name>
+          <description>Timer %s configuration register</description>
+          <addressOffset>0x0</addressOffset>
+          <resetValue>0x60002000</resetValue>
+        </register>
+        <register>
+          <dim>2</dim>
+          <dimIncrement>0x24</dimIncrement>
+          <name>T%sLO</name>
+          <description>Timer %s current value, low 32 bits</description>
+          <addressOffset>0x4</addressOffset>
+        </register>
+        <register>
+          <dim>2</dim>
+          <dimIncrement>0x24</dimIncrement>
+          <name>T%sHI</name>
+          <description>Timer %s current value, high 22 bits</description>
+          <addressOffset>0x8</addressOffset>
+        </register>
+        <register>
+          <dim>2</dim>
+          <dimIncrement>0x24</dimIncrement>
+          <name>T%sUPDATE</name>
+          <description>Write to copy current timer value to TIMGn_T%s_(LO/HI)_REG</description>
+          <addressOffset>0xC</addressOffset>
+        </register>
+        <register>
+          <dim>2</dim>
+          <dimIncrement>0x24</dimIncrement>
+          <name>T%sALARMLO</name>
+          <description>Timer %s alarm value, low 32 bits</description>
+          <addressOffset>0x10</addressOffset>
+        </register>
+        <register>
+          <dim>2</dim>
+          <dimIncrement>0x24</dimIncrement>
+          <name>T%sALARMHI</name>
+          <description>Timer %s alarm value, high bits</description>
+          <addressOffset>0x14</addressOffset>
+        </register>
+        <register>
+          <dim>2</dim>
+          <dimIncrement>0x24</dimIncrement>
+          <name>T%sLOADLO</name>
+          <description>Timer %s reload value, low 32 bits</description>
+          <addressOffset>0x18</addressOffset>
+        </register>
+        <register>
+          <dim>2</dim>
+          <dimIncrement>0x24</dimIncrement>
+          <name>T%sLOADHI</name>
+          <description>Timer %s reload value, high 22 bits</description>
+          <addressOffset>0x1C</addressOffset>
+        </register>
+        <register>
+          <dim>2</dim>
+          <dimIncrement>0x24</dimIncrement>
+          <name>T%sLOAD</name>
+          <description>Write to reload timer from TIMG_T%s_(LOADLOLOADHI)_REG</description>
+          <addressOffset>0x20</addressOffset>
+        </register>
+        <register>
+          <name>WDTCONFIG0</name>
+          <description>Watchdog timer configuration register</description>
+          <addressOffset>0x48</addressOffset>
+          <resetValue>0x0004C000</resetValue>
+        </register>
+        <register>
+          <name>WDTCONFIG1</name>
+          <description>Watchdog timer prescaler register</description>
+          <addressOffset>0x4C</addressOffset>
+          <resetValue>0x00010000</resetValue>
+        </register>
+        <register>
+          <name>WDTCONFIG2</name>
+          <description>Watchdog timer stage 0 timeout value</description>
+          <addressOffset>0x50</addressOffset>
+          <resetValue>0x018CBA80</resetValue>
+        </register>
+        <register>
+          <name>WDTCONFIG3</name>
+          <description>Watchdog timer stage 1 timeout value</description>
+          <addressOffset>0x54</addressOffset>
+          <resetValue>0x07FFFFFF</resetValue>
+        </register>
+        <register>
+          <name>WDTCONFIG4</name>
+          <description>Watchdog timer stage 2 timeout value</description>
+          <addressOffset>0x58</addressOffset>
+          <resetValue>0x000FFFFF</resetValue>
+        </register>
+        <register>
+          <name>WDTCONFIG5</name>
+          <description>Watchdog timer stage 3 timeout value</description>
+          <addressOffset>0x5C</addressOffset>
+          <resetValue>0x000FFFFF</resetValue>
+        </register>
+        <register>
+          <name>WDTFEED</name>
+          <description>Write to feed the watchdog timer</description>
+          <addressOffset>0x60</addressOffset>
+        </register>
+        <register>
+          <name>WDTWPROTECT</name>
+          <description>Watchdog write protect register</description>
+          <addressOffset>0x64</addressOffset>
+          <resetValue>0x50D83AA1</resetValue>
+        </register>
+        <register>
+          <name>RTCCALICFG</name>
+          <description>RTC calibration configure register</description>
+          <addressOffset>0x68</addressOffset>
+          <resetValue>0x00013000</resetValue>
+        </register>
+        <register>
+          <name>RTCCALICFG1</name>
+          <description>RTC calibration configure1 register</description>
+          <addressOffset>0x6C</addressOffset>
+        </register>
+        <register>
+          <name>INT_ENA_TIMERS</name>
+          <description>Interrupt enable bits</description>
+          <addressOffset>0x70</addressOffset>
+        </register>
+        <register>
+          <name>INT_RAW_TIMERS</name>
+          <description>Raw interrupt status</description>
+          <addressOffset>0x74</addressOffset>
+        </register>
+        <register>
+          <name>INT_ST_TIMERS</name>
+          <description>Masked interrupt status</description>
+          <addressOffset>0x78</addressOffset>
+        </register>
+        <register>
+          <name>INT_CLR_TIMERS</name>
+          <description>Interrupt clear bits</description>
+          <addressOffset>0x7C</addressOffset>
+        </register>
+        <register>
+          <name>RTCCALICFG2</name>
+          <description>Timer group calibration register</description>
+          <addressOffset>0x80</addressOffset>
+          <resetValue>0xFFFFFF98</resetValue>
+        </register>
+        <register>
+          <name>NTIMERS_DATE</name>
+          <description>Timer version control register</description>
+          <addressOffset>0xF8</addressOffset>
+          <resetValue>0x02003071</resetValue>
+        </register>
+        <register>
+          <name>REGCLK</name>
+          <description>Timer group clock gate register</description>
+          <addressOffset>0xFC</addressOffset>
+        </register>
+      </registers>
+    </peripheral>
+<peripheral derivedFrom="TIMG0">
+      <name>TIMG1</name>
+      <description>Timer Group 1</description>
+      <baseAddress>0x60020000</baseAddress>
+    </peripheral>
+<peripheral>
+      <name>RTC_CNTL</name>
+      <description>Real-Time Clock Control</description>
+      <groupName>RTC_CNTL</groupName>
+      <baseAddress>0x60008000</baseAddress>
+      <registers>
+        <register>
+          <name>RTC_OPTIONS0</name>
+          <description>RTC common configure register</description>
+          <addressOffset>0x0</addressOffset>
+          <resetValue>0x1C00A000</resetValue>
+        </register>
+        <register>
+          <name>RTC_SLP_TIMER0</name>
+          <description>configure min sleep time</description>
+          <addressOffset>0x4</addressOffset>
+        </register>
+        <register>
+          <name>RTC_SLP_TIMER1</name>
+          <description>configure sleep time hi</description>
+          <addressOffset>0x8</addressOffset>
+        </register>
+        <register>
+          <name>RTC_TIME_UPDATE</name>
+          <description>update rtc main timer</description>
+          <addressOffset>0xC</addressOffset>
+        </register>
+        <register>
+          <name>RTC_TIME_LOW0</name>
+          <description>read rtc_main timer low bits</description>
+          <addressOffset>0x10</addressOffset>
+        </register>
+        <register>
+          <name>RTC_TIME_HIGH0</name>
+          <description>read rtc_main timer high bits</description>
+          <addressOffset>0x14</addressOffset>
+        </register>
+        <register>
+          <name>RTC_STATE0</name>
+          <description>configure chip sleep</description>
+          <addressOffset>0x18</addressOffset>
+        </register>
+        <register>
+          <name>RTC_TIMER1</name>
+          <description>rtc state wait time</description>
+          <addressOffset>0x1C</addressOffset>
+          <resetValue>0x28140403</resetValue>
+        </register>
+        <register>
+          <name>RTC_TIMER2</name>
+          <description>rtc monitor state delay time</description>
+          <addressOffset>0x20</addressOffset>
+          <resetValue>0x01080000</resetValue>
+        </register>
+        <register>
+          <name>RTC_TIMER3</name>
+          <description>No public</description>
+          <addressOffset>0x24</addressOffset>
+          <resetValue>0x14160A08</resetValue>
+        </register>
+        <register>
+          <name>RTC_TIMER4</name>
+          <description>No public</description>
+          <addressOffset>0x28</addressOffset>
+          <resetValue>0x10200A08</resetValue>
+        </register>
+        <register>
+          <name>RTC_TIMER5</name>
+          <description>configure min sleep time</description>
+          <addressOffset>0x2C</addressOffset>
+          <resetValue>0x00008000</resetValue>
+        </register>
+        <register>
+          <name>RTC_TIMER6</name>
+          <description>No public</description>
+          <addressOffset>0x30</addressOffset>
+          <resetValue>0x10200A08</resetValue>
+        </register>
+        <register>
+          <name>RTC_ANA_CONF</name>
+          <description>analog configure register</description>
+          <addressOffset>0x34</addressOffset>
+          <resetValue>0x00440000</resetValue>
+        </register>
+        <register>
+          <name>RTC_RESET_STATE</name>
+          <description>get reset state</description>
+          <addressOffset>0x38</addressOffset>
+          <resetValue>0x00003000</resetValue>
+        </register>
+        <register>
+          <name>RTC_WAKEUP_STATE</name>
+          <description>configure wakeup state</description>
+          <addressOffset>0x3C</addressOffset>
+          <resetValue>0x00060000</resetValue>
+        </register>
+        <register>
+          <name>INT_ENA_RTC</name>
+          <description>configure rtc interrupt register</description>
+          <addressOffset>0x40</addressOffset>
+        </register>
+        <register>
+          <name>INT_RAW_RTC</name>
+          <description>rtc interrupt register</description>
+          <addressOffset>0x44</addressOffset>
+        </register>
+        <register>
+          <name>INT_ST_RTC</name>
+          <description>rtc interrupt register</description>
+          <addressOffset>0x48</addressOffset>
+        </register>
+        <register>
+          <name>INT_CLR_RTC</name>
+          <description>rtc interrupt register</description>
+          <addressOffset>0x4C</addressOffset>
+        </register>
+        <register>
+          <name>RTC_STORE0</name>
+          <description>Reserved register</description>
+          <addressOffset>0x50</addressOffset>
+        </register>
+        <register>
+          <name>RTC_STORE1</name>
+          <description>Reserved register</description>
+          <addressOffset>0x54</addressOffset>
+        </register>
+        <register>
+          <name>RTC_STORE2</name>
+          <description>Reserved register</description>
+          <addressOffset>0x58</addressOffset>
+        </register>
+        <register>
+          <name>RTC_STORE3</name>
+          <description>Reserved register</description>
+          <addressOffset>0x5C</addressOffset>
+        </register>
+        <register>
+          <name>RTC_EXT_XTL_CONF</name>
+          <description>Reserved register</description>
+          <addressOffset>0x60</addressOffset>
+          <resetValue>0x00066C80</resetValue>
+        </register>
+        <register>
+          <name>RTC_EXT_WAKEUP_CONF</name>
+          <description>ext wakeup configure</description>
+          <addressOffset>0x64</addressOffset>
+        </register>
+        <register>
+          <name>RTC_SLP_REJECT_CONF</name>
+          <description>reject sleep register</description>
+          <addressOffset>0x68</addressOffset>
+        </register>
+        <register>
+          <name>RTC_CPU_PERIOD_CONF</name>
+          <description>conigure cpu freq</description>
+          <addressOffset>0x6C</addressOffset>
+        </register>
+        <register>
+          <name>RTC_SDIO_ACT_CONF</name>
+          <description>No public</description>
+          <addressOffset>0x70</addressOffset>
+        </register>
+        <register>
+          <name>RTC_CLK_CONF</name>
+          <description>configure clock register</description>
+          <addressOffset>0x74</addressOffset>
+          <resetValue>0x1158321C</resetValue>
+        </register>
+        <register>
+          <name>RTC_SLOW_CLK_CONF</name>
+          <description>configure slow clk</description>
+          <addressOffset>0x78</addressOffset>
+          <resetValue>0x00400000</resetValue>
+        </register>
+        <register>
+          <name>RTC_SDIO_CONF</name>
+          <description>configure flash power</description>
+          <addressOffset>0x7C</addressOffset>
+          <resetValue>0x0AB0BE0A</resetValue>
+        </register>
+        <register>
+          <name>RTC_BIAS_CONF</name>
+          <description>No public</description>
+          <addressOffset>0x80</addressOffset>
+          <resetValue>0x00010800</resetValue>
+        </register>
+        <register>
+          <name>RTC</name>
+          <description>configure rtc regulator</description>
+          <addressOffset>0x84</addressOffset>
+          <resetValue>0xA0000000</resetValue>
+        </register>
+        <register>
+          <name>RTC_PWC</name>
+          <description>configure rtc power</description>
+          <addressOffset>0x88</addressOffset>
+          <resetValue>0x00000925</resetValue>
+        </register>
+        <register>
+          <name>RTC_REGULATOR_DRV_CTRL</name>
+          <description>No public</description>
+          <addressOffset>0x8C</addressOffset>
+        </register>
+        <register>
+          <name>DIG_PWC</name>
+          <description>configure digital power</description>
+          <addressOffset>0x90</addressOffset>
+          <resetValue>0x00545010</resetValue>
+        </register>
+        <register>
+          <name>DIG_ISO</name>
+          <description>congigure digital power isolation</description>
+          <addressOffset>0x94</addressOffset>
+          <resetValue>0xAA805080</resetValue>
+        </register>
+        <register>
+          <name>RTC_WDTCONFIG0</name>
+          <description>configure rtc watch dog</description>
+          <addressOffset>0x98</addressOffset>
+          <resetValue>0x00013214</resetValue>
+        </register>
+        <register>
+          <name>RTC_WDTCONFIG1</name>
+          <description>stage0 hold time</description>
+          <addressOffset>0x9C</addressOffset>
+          <resetValue>0x00030D40</resetValue>
+        </register>
+        <register>
+          <name>RTC_WDTCONFIG2</name>
+          <description>stage1 hold time</description>
+          <addressOffset>0xA0</addressOffset>
+          <resetValue>0x00013880</resetValue>
+        </register>
+        <register>
+          <name>RTC_WDTCONFIG3</name>
+          <description>stage2 hold time</description>
+          <addressOffset>0xA4</addressOffset>
+          <resetValue>0x00000FFF</resetValue>
+        </register>
+        <register>
+          <name>RTC_WDTCONFIG4</name>
+          <description>stage3 hold time</description>
+          <addressOffset>0xA8</addressOffset>
+          <resetValue>0x00000FFF</resetValue>
+        </register>
+        <register>
+          <name>RTC_WDTFEED</name>
+          <description>rtc wdt feed</description>
+          <addressOffset>0xAC</addressOffset>
+        </register>
+        <register>
+          <name>RTC_WDTWPROTECT</name>
+          <description>configure rtc watch dog</description>
+          <addressOffset>0xB0</addressOffset>
+          <resetValue>0x50D83AA1</resetValue>
+        </register>
+        <register>
+          <name>RTC_SWD_CONF</name>
+          <description>congfigure super watch dog</description>
+          <addressOffset>0xB4</addressOffset>
+          <resetValue>0x04B00000</resetValue>
+        </register>
+        <register>
+          <name>RTC_SWD_WPROTECT</name>
+          <description>super watch dog key</description>
+          <addressOffset>0xB8</addressOffset>
+          <resetValue>0x8F1D312A</resetValue>
+        </register>
+        <register>
+          <name>RTC_SW_CPU_STALL</name>
+          <description>configure cpu stall by sw</description>
+          <addressOffset>0xBC</addressOffset>
+        </register>
+        <register>
+          <name>RTC_STORE4</name>
+          <description>reserved register</description>
+          <addressOffset>0xC0</addressOffset>
+        </register>
+        <register>
+          <name>RTC_STORE5</name>
+          <description>reserved register</description>
+          <addressOffset>0xC4</addressOffset>
+        </register>
+        <register>
+          <name>RTC_STORE6</name>
+          <description>reserved register</description>
+          <addressOffset>0xC8</addressOffset>
+        </register>
+        <register>
+          <name>RTC_STORE7</name>
+          <description>reserved register</description>
+          <addressOffset>0xCC</addressOffset>
+        </register>
+        <register>
+          <name>RTC_LOW_POWER_ST</name>
+          <description>reserved register</description>
+          <addressOffset>0xD0</addressOffset>
+        </register>
+        <register>
+          <name>RTC_DIAG0</name>
+          <description>No public</description>
+          <addressOffset>0xD4</addressOffset>
+        </register>
+        <register>
+          <name>RTC_PAD_HOLD</name>
+          <description>rtc pad hold configure</description>
+          <addressOffset>0xD8</addressOffset>
+        </register>
+        <register>
+          <name>DIG_PAD_HOLD</name>
+          <description>configure digtal pad hold</description>
+          <addressOffset>0xDC</addressOffset>
+        </register>
+        <register>
+          <name>RTC_EXT_WAKEUP1</name>
+          <description>configure ext1 wakeup</description>
+          <addressOffset>0xE0</addressOffset>
+        </register>
+        <register>
+          <name>RTC_EXT_WAKEUP1_STATUS</name>
+          <description>check ext wakeup1 status</description>
+          <addressOffset>0xE4</addressOffset>
+        </register>
+        <register>
+          <name>RTC_BROWN_OUT</name>
+          <description>congfigure brownout</description>
+          <addressOffset>0xE8</addressOffset>
+          <resetValue>0x43FF0010</resetValue>
+        </register>
+        <register>
+          <name>RTC_TIME_LOW1</name>
+          <description>RTC timer low 32 bits</description>
+          <addressOffset>0xEC</addressOffset>
+        </register>
+        <register>
+          <name>RTC_TIME_HIGH1</name>
+          <description>RTC timer high 16 bits</description>
+          <addressOffset>0xF0</addressOffset>
+        </register>
+        <register>
+          <name>RTC_XTAL32K_CLK_FACTOR</name>
+          <description>xtal 32k watch dog backup clock factor</description>
+          <addressOffset>0xF4</addressOffset>
+        </register>
+        <register>
+          <name>RTC_XTAL32K_CONF</name>
+          <description>configure xtal32k</description>
+          <addressOffset>0xF8</addressOffset>
+          <resetValue>0x0FF00000</resetValue>
+        </register>
+        <register>
+          <name>RTC_ULP_CP_TIMER</name>
+          <description>configure ulp</description>
+          <addressOffset>0xFC</addressOffset>
+        </register>
+        <register>
+          <name>RTC_ULP_CP_CTRL</name>
+          <description>configure ulp</description>
+          <addressOffset>0x100</addressOffset>
+          <resetValue>0x00100200</resetValue>
+        </register>
+        <register>
+          <name>RTC_COCPU_CTRL</name>
+          <description>configure ulp-riscv</description>
+          <addressOffset>0x104</addressOffset>
+          <resetValue>0x008A0810</resetValue>
+        </register>
+        <register>
+          <name>RTC_TOUCH_CTRL1</name>
+          <description>configure touch controller</description>
+          <addressOffset>0x108</addressOffset>
+          <resetValue>0x10000100</resetValue>
+        </register>
+        <register>
+          <name>RTC_TOUCH_CTRL2</name>
+          <description>configure touch controller</description>
+          <addressOffset>0x10C</addressOffset>
+          <resetValue>0x000840CC</resetValue>
+        </register>
+        <register>
+          <name>RTC_TOUCH_SCAN_CTRL</name>
+          <description>configure touch controller</description>
+          <addressOffset>0x110</addressOffset>
+          <resetValue>0xF0000102</resetValue>
+        </register>
+        <register>
+          <name>RTC_TOUCH_SLP_THRES</name>
+          <description>configure touch controller</description>
+          <addressOffset>0x114</addressOffset>
+          <resetValue>0x78000000</resetValue>
+        </register>
+        <register>
+          <name>RTC_TOUCH_APPROACH</name>
+          <description>configure touch controller</description>
+          <addressOffset>0x118</addressOffset>
+          <resetValue>0x50000000</resetValue>
+        </register>
+        <register>
+          <name>RTC_TOUCH_FILTER_CTRL</name>
+          <description>configure touch controller</description>
+          <addressOffset>0x11C</addressOffset>
+          <resetValue>0x96AA8800</resetValue>
+        </register>
+        <register>
+          <name>RTC_USB_CONF</name>
+          <description>usb configure</description>
+          <addressOffset>0x120</addressOffset>
+        </register>
+        <register>
+          <name>RTC_TOUCH_TIMEOUT_CTRL</name>
+          <description>configure touch controller</description>
+          <addressOffset>0x124</addressOffset>
+          <resetValue>0x007FFFFF</resetValue>
+        </register>
+        <register>
+          <name>RTC_SLP_REJECT_CAUSE</name>
+          <description>get reject casue</description>
+          <addressOffset>0x128</addressOffset>
+        </register>
+        <register>
+          <name>RTC_OPTION1</name>
+          <description>rtc common configure</description>
+          <addressOffset>0x12C</addressOffset>
+        </register>
+        <register>
+          <name>RTC_SLP_WAKEUP_CAUSE</name>
+          <description>get wakeup cause</description>
+          <addressOffset>0x130</addressOffset>
+        </register>
+        <register>
+          <name>RTC_ULP_CP_TIMER_1</name>
+          <description>configure ulp sleep time</description>
+          <addressOffset>0x134</addressOffset>
+          <resetValue>0x0000C800</resetValue>
+        </register>
+        <register>
+          <name>INT_ENA_RTC_W1TS</name>
+          <description>oneset rtc interrupt</description>
+          <addressOffset>0x138</addressOffset>
+        </register>
+        <register>
+          <name>INT_ENA_RTC_W1TC</name>
+          <description>oneset clr rtc interrupt enable</description>
+          <addressOffset>0x13C</addressOffset>
+        </register>
+        <register>
+          <name>RETENTION_CTRL</name>
+          <description>configure retention</description>
+          <addressOffset>0x140</addressOffset>
+          <resetValue>0x28340000</resetValue>
+        </register>
+        <register>
+          <name>PG_CTRL</name>
+          <description>configure power glitch</description>
+          <addressOffset>0x144</addressOffset>
+        </register>
+        <register>
+          <name>RTC_FIB_SEL</name>
+          <description>No public</description>
+          <addressOffset>0x148</addressOffset>
+          <resetValue>0x00000007</resetValue>
+        </register>
+        <register>
+          <name>TOUCH_DAC</name>
+          <description>configure touch dac</description>
+          <addressOffset>0x14C</addressOffset>
+        </register>
+        <register>
+          <name>TOUCH_DAC1</name>
+          <description>configure touch dac</description>
+          <addressOffset>0x150</addressOffset>
+        </register>
+        <register>
+          <name>RTC_COCPU_DISABLE</name>
+          <description>configure ulp diable</description>
+          <addressOffset>0x154</addressOffset>
+        </register>
+        <register>
+          <name>DATE</name>
+          <description>version register</description>
+          <addressOffset>0x1FC</addressOffset>
+          <resetValue>0x02101271</resetValue>
+        </register>
+      </registers>
+    </peripheral>
+<peripheral>
+      <name>UART0</name>
+      <description>UART (Universal Asynchronous Receiver-Transmitter) Controller 0</description>
+      <groupName>UART</groupName>
+      <baseAddress>0x60000000</baseAddress>
+      <registers>
+        <register>
+          <name>FIFO</name>
+          <description>FIFO data register</description>
+          <addressOffset>0x0</addressOffset>
+        </register>
+        <register>
+          <name>INT_RAW</name>
+          <description>Raw interrupt status</description>
+          <addressOffset>0x4</addressOffset>
+          <resetValue>0x00000002</resetValue>
+        </register>
+        <register>
+          <name>INT_ST</name>
+          <description>Masked interrupt status</description>
+          <addressOffset>0x8</addressOffset>
+        </register>
+        <register>
+          <name>INT_ENA</name>
+          <description>Interrupt enable bits</description>
+          <addressOffset>0xC</addressOffset>
+        </register>
+        <register>
+          <name>INT_CLR</name>
+          <description>Interrupt clear bits</description>
+          <addressOffset>0x10</addressOffset>
+        </register>
+        <register>
+          <name>CLKDIV</name>
+          <description>Clock divider configuration</description>
+          <addressOffset>0x14</addressOffset>
+          <resetValue>0x000002B6</resetValue>
+        </register>
+        <register>
+          <name>RX_FILT</name>
+          <description>Rx Filter configuration</description>
+          <addressOffset>0x18</addressOffset>
+          <resetValue>0x00000008</resetValue>
+        </register>
+        <register>
+          <name>STATUS</name>
+          <description>UART status register</description>
+          <addressOffset>0x1C</addressOffset>
+          <resetValue>0xE000C000</resetValue>
+        </register>
+        <register>
+          <name>CONF0</name>
+          <description>a</description>
+          <addressOffset>0x20</addressOffset>
+          <resetValue>0x1000001C</resetValue>
+        </register>
+        <register>
+          <name>CONF1</name>
+          <description>Configuration register 1</description>
+          <addressOffset>0x24</addressOffset>
+          <resetValue>0x00018060</resetValue>
+        </register>
+        <register>
+          <name>LOWPULSE</name>
+          <description>Autobaud minimum low pulse duration register</description>
+          <addressOffset>0x28</addressOffset>
+          <resetValue>0x00000FFF</resetValue>
+        </register>
+        <register>
+          <name>HIGHPULSE</name>
+          <description>Autobaud minimum high pulse duration register</description>
+          <addressOffset>0x2C</addressOffset>
+          <resetValue>0x00000FFF</resetValue>
+        </register>
+        <register>
+          <name>RXD_CNT</name>
+          <description>Autobaud edge change count register</description>
+          <addressOffset>0x30</addressOffset>
+        </register>
+        <register>
+          <name>FLOW_CONF</name>
+          <description>Software flow-control configuration</description>
+          <addressOffset>0x34</addressOffset>
+        </register>
+        <register>
+          <name>SLEEP_CONF</name>
+          <description>Sleep-mode configuration</description>
+          <addressOffset>0x38</addressOffset>
+          <resetValue>0x000000F0</resetValue>
+        </register>
+        <register>
+          <name>SWFC_CONF0</name>
+          <description>Software flow-control character configuration</description>
+          <addressOffset>0x3C</addressOffset>
+          <resetValue>0x00004CE0</resetValue>
+        </register>
+        <register>
+          <name>SWFC_CONF1</name>
+          <description>Software flow-control character configuration</description>
+          <addressOffset>0x40</addressOffset>
+          <resetValue>0x00004400</resetValue>
+        </register>
+        <register>
+          <name>TXBRK_CONF</name>
+          <description>Tx Break character configuration</description>
+          <addressOffset>0x44</addressOffset>
+          <resetValue>0x0000000A</resetValue>
+        </register>
+        <register>
+          <name>IDLE_CONF</name>
+          <description>Frame-end idle configuration</description>
+          <addressOffset>0x48</addressOffset>
+          <resetValue>0x00040100</resetValue>
+        </register>
+        <register>
+          <name>RS485_CONF</name>
+          <description>RS485 mode configuration</description>
+          <addressOffset>0x4C</addressOffset>
+        </register>
+        <register>
+          <name>AT_CMD_PRECNT</name>
+          <description>Pre-sequence timing configuration</description>
+          <addressOffset>0x50</addressOffset>
+          <resetValue>0x00000901</resetValue>
+        </register>
+        <register>
+          <name>AT_CMD_POSTCNT</name>
+          <description>Post-sequence timing configuration</description>
+          <addressOffset>0x54</addressOffset>
+          <resetValue>0x00000901</resetValue>
+        </register>
+        <register>
+          <name>AT_CMD_GAPTOUT</name>
+          <description>Timeout configuration</description>
+          <addressOffset>0x58</addressOffset>
+          <resetValue>0x0000000B</resetValue>
+        </register>
+        <register>
+          <name>AT_CMD_CHAR</name>
+          <description>AT escape sequence detection configuration</description>
+          <addressOffset>0x5C</addressOffset>
+          <resetValue>0x0000032B</resetValue>
+        </register>
+        <register>
+          <name>MEM_CONF</name>
+          <description>UART threshold and allocation configuration</description>
+          <addressOffset>0x60</addressOffset>
+          <resetValue>0x00140012</resetValue>
+        </register>
+        <register>
+          <name>MEM_TX_STATUS</name>
+          <description>Tx-FIFO write and read offset address.</description>
+          <addressOffset>0x64</addressOffset>
+        </register>
+        <register>
+          <name>MEM_RX_STATUS</name>
+          <description>Rx-FIFO write and read offset address.</description>
+          <addressOffset>0x68</addressOffset>
+          <resetValue>0x00100200</resetValue>
+        </register>
+        <register>
+          <name>FSM_STATUS</name>
+          <description>UART transmit and receive status.</description>
+          <addressOffset>0x6C</addressOffset>
+        </register>
+        <register>
+          <name>POSPULSE</name>
+          <description>Autobaud high pulse register</description>
+          <addressOffset>0x70</addressOffset>
+          <resetValue>0x00000FFF</resetValue>
+        </register>
+        <register>
+          <name>NEGPULSE</name>
+          <description>Autobaud low pulse register</description>
+          <addressOffset>0x74</addressOffset>
+          <resetValue>0x00000FFF</resetValue>
+        </register>
+        <register>
+          <name>CLK_CONF</name>
+          <description>UART core clock configuration</description>
+          <addressOffset>0x78</addressOffset>
+          <resetValue>0x03701000</resetValue>
+        </register>
+        <register>
+          <name>DATE</name>
+          <description>UART Version register</description>
+          <addressOffset>0x7C</addressOffset>
+          <resetValue>0x02008270</resetValue>
+        </register>
+        <register>
+          <name>ID</name>
+          <description>UART ID register</description>
+          <addressOffset>0x80</addressOffset>
+          <resetValue>0x40000500</resetValue>
+        </register>
+      </registers>
+    </peripheral>
+</peripherals></device>

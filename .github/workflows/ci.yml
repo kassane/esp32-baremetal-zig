@@ -46,3 +46,6 @@ jobs:
 
       - name: Boot-test firmware in QEMU (ESP32 + ESP32-S3)
         run: zig build smoke --summary all
+
+      - name: Show example UART output (banners + FFT spectrum)
+        run: zig build demo

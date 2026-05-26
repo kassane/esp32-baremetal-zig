@@ -11,7 +11,21 @@ pub fn build(b: *std.Build) void {
     const smoke_seconds = b.option(u32, "smoke-seconds", "Seconds to run each chip during `zig build smoke`") orelse 5;
 
     // Shared bare-metal helpers, imported by every chip as `@import(\"mmio\")`.
-    const mmio = b.createModule(.{ .root_source_file = b.path("src/mmio.zig") });
+    // `addModule` (not `createModule`) so the per-example packages can consume
+    // them via `b.dependency(\"esp32_baremetal_zig\", …).module(\"mmio\")`.
+    const mmio = b.addModule("mmio", .{ .root_source_file = b.path("src/mmio.zig") });
+
+    // Portable DSP kernels (SIMD on esp32s3, scalar fallback elsewhere),
+    // imported as `@import(\"dsp\")`.
+    const dsp = b.addModule("dsp", .{ .root_source_file = b.path("src/dsp.zig") });
+
+    // Startup helpers (watchdog disable, …), imported as `@import(\"init\")`.
+    const init_mod = b.addModule("init", .{ .root_source_file = b.path("src/init.zig") });
+    init_mod.addImport("mmio", mmio);
+
+    // Custom panic namespace, imported as `@import(\"panic\")`. The root binds it
+    // with its own `call` (forwarding to mmio.panic) — see src/panic.zig.
+    const panic_mod = b.addModule("panic", .{ .root_source_file = b.path("src/panic.zig") });
 
     // All generated linker scripts live in a single WriteFiles step — no *.ld
     // files on disk.
@@ -27,8 +41,20 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
+    // Host tool that generates a Zig register module from a chip's SVD.
+    const svd2zig = b.addExecutable(.{
+        .name = "svd2zig",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tools/svd2zig.zig"),
+            .target = b.graph.host,
+            .optimize = .ReleaseFast,
+        }),
+    });
+
     const qemu_step = b.step("qemu", "Build all QEMU firmware images (IRAM-only)");
     const smoke_step = b.step("smoke", "Boot every QEMU-capable chip and assert no CPU faults");
+    const demo_step = b.step("demo", "Boot QEMU-capable chips and print their UART output");
+    const regs_step = b.step("regs", "Generate register modules from svd/*.svd into zig-out/gen/");
     var prev_smoke: ?*std.Build.Step = null;
 
     inline for (chips) |chip| {
@@ -39,9 +65,20 @@ pub fn build(b: *std.Build) void {
             .abi = .none,
         });
 
+        // Auto-generate the chip's register module from its (esp-pacs) SVD.
+        const gen = b.addRunArtifact(svd2zig);
+        gen.addFileArg(b.path("svd/" ++ chip.name ++ ".svd"));
+        const regs_src = gen.addOutputFileArg(chip.name ++ "_regs.zig");
+        // Exposed as `<chip>_regs` so example packages can import it directly.
+        const regs = b.addModule(chip.name ++ "_regs", .{ .root_source_file = regs_src });
+        regs_step.dependOn(&b.addInstallFileWithDir(regs_src, .prefix, "gen/" ++ chip.name ++ "_regs.zig").step);
+
         // ── Hardware/flash firmware (.elf + raw .bin) ────────────────────────
-        const hw_exe = addFirmware(b, mmio, chip, target, optimize, chip.name ++ "_baremetal_zig");
-        hw_exe.setLinkerScript(ld.add(chip.name ++ ".ld", flashLinker(b, chip)));
+        const hw_exe = addFirmware(b, mmio, dsp, regs, init_mod, panic_mod, chip, target, optimize, chip.name ++ "_baremetal_zig");
+        // Expose the generated linker scripts so example packages can reuse them.
+        const flash_ld = ld.add(chip.name ++ ".ld", flashLinker(b, chip));
+        hw_exe.setLinkerScript(flash_ld);
+        b.addNamedLazyPath(chip.name ++ ".ld", flash_ld);
 
         const bin = b.addObjCopy(hw_exe.getEmittedBin(), .{
             .format = .bin,
@@ -54,9 +91,12 @@ pub fn build(b: *std.Build) void {
         b.getInstallStep().dependOn(chip_step);
 
         // ── QEMU firmware (all code in IRAM, no flash-cache MMU needed) ───────
-        if (chip.qemu_machine) |machine| {
-            const qemu_exe = addFirmware(b, mmio, chip, target, optimize, chip.name ++ "_qemu");
-            qemu_exe.setLinkerScript(ld.add(chip.name ++ "-qemu.ld", qemuLinker(b, chip)));
+        if (chip.qemu) |q| {
+            const machine = q.machine;
+            const qemu_exe = addFirmware(b, mmio, dsp, regs, init_mod, panic_mod, chip, target, optimize, chip.name ++ "_qemu");
+            const qemu_ld = ld.add(chip.name ++ "-qemu.ld", qemuLinker(b, chip.entry, q));
+            qemu_exe.setLinkerScript(qemu_ld);
+            b.addNamedLazyPath(chip.name ++ "-qemu.ld", qemu_ld);
 
             const qemu_chip_step = b.step("qemu-" ++ chip.name, "Build " ++ chip.name ++ " QEMU firmware");
             qemu_chip_step.dependOn(&b.addInstallArtifact(qemu_exe, .{}).step);
@@ -78,6 +118,19 @@ pub fn build(b: *std.Build) void {
             if (prev_smoke) |p| run_smoke.step.dependOn(p);
             prev_smoke = &run_smoke.step;
             smoke_step.dependOn(&run_smoke.step);
+
+            // `zig build demo[-<chip>]` — same boot, but capture the UART output
+            // to a file and print it (shows the example's output, e.g. FFT bars).
+            const run_demo = b.addRunArtifact(smoke_tool);
+            run_demo.addArg(qemu_bin);
+            run_demo.addArg(machine);
+            run_demo.addFileArg(qemu_exe.getEmittedBin());
+            run_demo.addArg(b.fmt("{d}", .{smoke_seconds}));
+            _ = run_demo.addOutputFileArg(chip.name ++ "-uart.txt");
+            run_demo.stdio = .inherit;
+            const demo_chip = b.step("demo-" ++ chip.name, "Run " ++ chip.name ++ " in QEMU and print its UART output");
+            demo_chip.dependOn(&run_demo.step);
+            demo_step.dependOn(&run_demo.step);
         }
     }
 }
@@ -85,6 +138,10 @@ pub fn build(b: *std.Build) void {
 fn addFirmware(
     b: *std.Build,
     mmio: *std.Build.Module,
+    dsp: *std.Build.Module,
+    regs: *std.Build.Module,
+    init_mod: *std.Build.Module,
+    panic_mod: *std.Build.Module,
     comptime chip: Chip,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
@@ -96,6 +153,10 @@ fn addFirmware(
         .optimize = optimize,
     });
     mod.addImport("mmio", mmio);
+    mod.addImport("dsp", dsp);
+    mod.addImport("regs", regs);
+    mod.addImport("init", init_mod);
+    mod.addImport("panic", panic_mod);
     mod.strip = true;
     // No UBSan runtime on bare metal; Debug safety still traps via our panic.
     mod.sanitize_c = .off;
@@ -149,16 +210,16 @@ fn flashLinker(b: *std.Build, comptime chip: Chip) []const u8 {
         \\
     , .{
         chip.entry,
-        chip.iram_org, chip.iram_len,
-        chip.dram_org, chip.dram_len,
-        chip.irom_org, chip.irom_len,
-        chip.drom_org, chip.drom_len,
+        chip.iram.org, chip.iram.len,
+        chip.dram.org, chip.dram.len,
+        chip.irom.org, chip.irom.len,
+        chip.drom.org, chip.drom.len,
     });
 }
 
 /// QEMU layout: ALL code in IRAM so `qemu -kernel <elf>` runs without the ROM
 /// bootloader initialising the flash cache. IRAM is oversized for Debug builds.
-fn qemuLinker(b: *std.Build, comptime chip: Chip) []const u8 {
+fn qemuLinker(b: *std.Build, comptime entry: []const u8, comptime q: Qemu) []const u8 {
     return b.fmt(
         \\ENTRY({s})
         \\MEMORY {{
@@ -190,9 +251,9 @@ fn qemuLinker(b: *std.Build, comptime chip: Chip) []const u8 {
         \\}}
         \\
     , .{
-        chip.entry,
-        chip.qemu_iram_org, chip.qemu_iram_len,
-        chip.qemu_dram_org, chip.qemu_dram_len,
+        entry,
+        q.iram.org, q.iram.len,
+        q.dram.org, q.dram.len,
     });
 }
 
@@ -200,25 +261,23 @@ fn qemuLinker(b: *std.Build, comptime chip: Chip) []const u8 {
 // Requires the zig-espressif-bootstrap fork; upstream zig lacks esp32 CPU models.
 // Addresses verified against ESP-IDF components/esp_system/ld/<chip>/memory.ld.in.
 
+/// A memory region as the linker wants it: ORIGIN + LENGTH.
+const Region = struct { org: u64, len: u64 };
+
+/// QEMU support for a chip: machine name + the IRAM-only layout it boots with.
+const Qemu = struct { machine: []const u8, iram: Region, dram: Region };
+
 const Chip = struct {
     name: []const u8,
     cpu: *const std.Target.Cpu.Model,
     entry: []const u8,
     // Hardware/flash regions.
-    iram_org: u64,
-    iram_len: u64,
-    dram_org: u64,
-    dram_len: u64,
-    irom_org: u64,
-    irom_len: u64,
-    drom_org: u64,
-    drom_len: u64,
-    // QEMU IRAM-only regions; qemu_machine == null means no QEMU support.
-    qemu_machine: ?[]const u8 = null,
-    qemu_iram_org: u64 = 0,
-    qemu_iram_len: u64 = 0,
-    qemu_dram_org: u64 = 0,
-    qemu_dram_len: u64 = 0,
+    iram: Region,
+    dram: Region,
+    irom: Region,
+    drom: Region,
+    // Present only on chips with an Espressif QEMU machine.
+    qemu: ?Qemu = null,
 };
 
 const chips = [_]Chip{
@@ -226,13 +285,15 @@ const chips = [_]Chip{
         .name = "esp32",
         .cpu = &std.Target.xtensa.cpu.esp32,
         .entry = "Reset",
-        .iram_org = 0x40080000, .iram_len = 0x20000,
-        .dram_org = 0x3FFB0000, .dram_len = 0x2C200,
-        .irom_org = 0x400D0020, .irom_len = 0x330000 - 0x20,
-        .drom_org = 0x3F400020, .drom_len = 0x400000 - 0x20,
-        .qemu_machine = "esp32",
-        .qemu_iram_org = 0x40080000, .qemu_iram_len = 0x100000,
-        .qemu_dram_org = 0x3FFB0000, .qemu_dram_len = 0x2C200,
+        .iram = .{ .org = 0x40080000, .len = 0x20000 },
+        .dram = .{ .org = 0x3FFB0000, .len = 0x2C200 },
+        .irom = .{ .org = 0x400D0020, .len = 0x330000 - 0x20 },
+        .drom = .{ .org = 0x3F400020, .len = 0x400000 - 0x20 },
+        .qemu = .{
+            .machine = "esp32",
+            .iram = .{ .org = 0x40080000, .len = 0x100000 },
+            .dram = .{ .org = 0x3FFB0000, .len = 0x2C200 },
+        },
     },
     .{
         // ESP32-S2 has no QEMU machine in the Espressif build, so it is
@@ -240,21 +301,23 @@ const chips = [_]Chip{
         .name = "esp32s2",
         .cpu = &std.Target.xtensa.cpu.esp32s2,
         .entry = "call_start_cpu0",
-        .iram_org = 0x40024000, .iram_len = 0x2A000,
-        .dram_org = 0x3FFB4000, .dram_len = 0x2A000,
-        .irom_org = 0x40080020, .irom_len = 0x780000 - 0x20,
-        .drom_org = 0x3F000020, .drom_len = 0x3F0000 - 0x20,
+        .iram = .{ .org = 0x40024000, .len = 0x2A000 },
+        .dram = .{ .org = 0x3FFB4000, .len = 0x2A000 },
+        .irom = .{ .org = 0x40080020, .len = 0x780000 - 0x20 },
+        .drom = .{ .org = 0x3F000020, .len = 0x3F0000 - 0x20 },
     },
     .{
         .name = "esp32s3",
         .cpu = &std.Target.xtensa.cpu.esp32s3,
         .entry = "call_start_cpu0",
-        .iram_org = 0x40370000, .iram_len = 0x10000,
-        .dram_org = 0x3FC88000, .dram_len = 0x78000,
-        .irom_org = 0x42000020, .irom_len = 0x400000 - 0x20,
-        .drom_org = 0x3C000020, .drom_len = 0x400000 - 0x20,
-        .qemu_machine = "esp32s3",
-        .qemu_iram_org = 0x40370000, .qemu_iram_len = 0x100000,
-        .qemu_dram_org = 0x3FC88000, .qemu_dram_len = 0x4B000,
+        .iram = .{ .org = 0x40370000, .len = 0x10000 },
+        .dram = .{ .org = 0x3FC88000, .len = 0x78000 },
+        .irom = .{ .org = 0x42000020, .len = 0x400000 - 0x20 },
+        .drom = .{ .org = 0x3C000020, .len = 0x400000 - 0x20 },
+        .qemu = .{
+            .machine = "esp32s3",
+            .iram = .{ .org = 0x40370000, .len = 0x100000 },
+            .dram = .{ .org = 0x3FC88000, .len = 0x4B000 },
+        },
     },
 };

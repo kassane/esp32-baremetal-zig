@@ -1,81 +1,73 @@
-// Minimal bare-metal Zig for ESP32-S3 (Xtensa LX7)
-// Blinks GPIO48 (onboard RGB LED on ESP32-S3-DevKitC-1).
-// No std lib, no OS, no IDF.
+// Bare-metal Zig for ESP32-S3 (Xtensa LX7). Demonstrates the PIE/SIMD kernels
+// whose inline-asm clobbers are generated at comptime by `dsp.qClobbers`:
+// saturating-mix two signals (`ee.vadds.s16`), then take the energy Σ x²
+// (`ee.vmulas.s16.accx`), and blink GPIO48 at a rate set by the result.
+//
+// (No UART here: an `ee.*` instruction is an optimization barrier that un-elides
+// Debug safety-check panics in surrounding code, and those don't link on this
+// backend — so the PIE example stays minimal. The FFT/UART demo lives in esp32.)
 
 const std = @import("std");
 const mmio = @import("mmio");
+const dsp = @import("dsp");
+const init = @import("init");
+const regs = @import("regs"); // generated from svd/esp32s3.svd
+const gpio = regs.GPIO;
 
-/// Baremetal panic: halt forever (no std runtime to unwind into).
-pub fn panic(_: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
-    mmio.halt();
+// Custom panic namespace: UART message + backtrace, no std.fmt (see src/panic.zig).
+fn onPanic(msg: []const u8, ret_addr: ?usize) noreturn {
+    mmio.panic(regs.UART0.FIFO, msg, ret_addr);
+}
+pub const panic = @import("panic").Handler(onPanic);
+
+// Route `std.log` through UART0 instead of std.fmt's (unlinkable) default.
+pub const std_options: std.Options = .{ .logFn = logFn };
+fn logFn(comptime level: std.log.Level, comptime _: @TypeOf(.enum_literal), comptime fmt: []const u8, args: anytype) void {
+    mmio.log(regs.UART0.FIFO, level, fmt, args);
 }
 
-// ── Peripheral register addresses (ESP32-S3) ─────────────────────────────────
-//
-// GPIO pins 0-31  → GPIO_OUT_REG    / GPIO_ENABLE_REG
-// GPIO pins 32-53 → GPIO_OUT1_REG   / GPIO_ENABLE1_REG
-//
-// GPIO48 is in the second bank: bit (48 - 32) = 16.
+// GPIO48 (onboard RGB LED) is in the second bank (pins 32-53) → OUT1/ENABLE1.
+const led_mask: u32 = @as(u32, 1) << (48 - 32);
 
-const GPIO_BASE: u32 = 0x6000_4000;
-/// GPIO output register – GPIO 32-53
-const GPIO_OUT1_REG: u32 = GPIO_BASE + 0x0008;
-/// GPIO output enable – GPIO 32-53
-const GPIO_ENABLE1_REG: u32 = GPIO_BASE + 0x0024;
-
-// ── Application entry ─────────────────────────────────────────────────────────
+// Two 8-lane int16 signals (16-byte aligned = one 128-bit PIE vector).
+var sig_a: [8]i16 align(16) = .{ 1, 2, 3, 4, 5, 6, 7, 8 };
+var sig_b: [8]i16 align(16) = .{ 1, 2, 3, 4, 5, 6, 7, 8 };
+var mixed: [8]i16 align(16) = undefined;
 
 export fn app_main() callconv(.c) noreturn {
-    // GPIO48 = onboard RGB LED on ESP32-S3-DevKitC-1
-    // Pin >= 32 → second bank; bit position = pin - 32
-    const led_mask: u32 = @as(u32, 1) << (48 - 32);
+    init.disableWatchdogs(regs); // or the chip resets within seconds on real HW
+    mmio.writeReg(gpio.ENABLE1_W1TS, led_mask); // GPIO48 as output
 
-    // Enable GPIO48 as output (second bank)
-    mmio.setBits(GPIO_ENABLE1_REG, led_mask);
+    // PIE SIMD pipeline (comptime-generated `q*` clobbers): mixed = sat(a+b) =
+    // [2,4,…,16], then energy = Σ mixed² = 816, which sets the blink half-period.
+    dsp.addSatS16(&mixed, &sig_a, &sig_b, sig_a.len);
+    const half_period = dsp.dotProductS16(&mixed, &mixed, mixed.len);
 
-    while (true) {
-        mmio.setBits(GPIO_OUT1_REG, led_mask); // LED ON
-        mmio.delay(1_200_000);
-        mmio.clearBits(GPIO_OUT1_REG, led_mask); // LED OFF
-        mmio.delay(1_200_000);
-    }
+    mmio.blink(gpio.OUT1_W1TS, gpio.OUT1_W1TC, led_mask, half_period);
 }
 
 // ── Startup ───────────────────────────────────────────────────────────────────
 
-/// ROM bootloader jumps here (symbol expected by the IDF boot flow).
-///
-/// Hardware: ROM has already set PS.WOE=1 and configured the register file.
-/// Re-initialising is idempotent and safe.
-///
-/// QEMU (-kernel): jumps here with PS.WOE=0, making every windowed 'entry'
-/// instruction illegal.  We must set WOE and init the register window before
-/// any Zig C-ABI function (which begins with 'entry a1,N') runs.
-///
-/// PS.WOE = bit 18 = 0x40000 (too large for movi; built with movi+slli).
-/// Stack pointer: top of DRAM = 0x3FCD3000 (0x3FC88000 + 300 K for QEMU).
+/// Entry point (symbol expected by the IDF boot flow). Enables windowed
+/// registers and sets SP (top of DRAM) before the first C-ABI call.
 export fn call_start_cpu0() callconv(.naked) noreturn {
     asm volatile (
         \\ .align 4
-        \\ // ── PS.WOE = bit 18 (enables windowed 'entry' instructions) ──────
         \\ movi    a0, 1
-        \\ slli    a0, a0, 18        // a0 = 0x00040000
+        \\ slli    a0, a0, 18        // PS.WOE = bit 18
         \\ wsr.ps  a0
         \\ rsync
-        \\ // ── Windowed register file: WINDOWBASE=0, WINDOWSTART=1 ──────────
         \\ movi    a0, 0
         \\ wsr.windowbase a0
         \\ rsync
         \\ movi    a0, 1
         \\ wsr.windowstart a0
         \\ rsync
-        \\ // ── Stack pointer: 0x3FCD3000 = 0x40000000 − 0x32D000 ─────────────
         \\ movi    a1, 1
         \\ slli    a1, a1, 30        // a1 = 0x40000000
-        \\ movi    a0, 0x32D         // 813
+        \\ movi    a0, 0x32D
         \\ slli    a0, a0, 12        // a0 = 0x32D000
-        \\ sub     a1, a1, a0        // a1 = 0x3FCD3000
-        \\ // ── Windowed call: CALLINC=2 matches 'entry a1,N' in callee ──────
+        \\ sub     a1, a1, a0        // SP = 0x3FCD3000 (top of DRAM)
         \\ call8   app_main
         \\0:
         \\ j       0b

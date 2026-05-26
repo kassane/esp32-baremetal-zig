@@ -1,76 +1,127 @@
-// Minimal bare-metal Zig for ESP32 (Xtensa LX6)
-// Blinks GPIO2 (onboard LED on ESP32 DevKitC-V4).
-// Entry via Reset vector; no std runtime, no OS.
+// Bare-metal Zig for ESP32 (Xtensa LX6). FFT spectral-analysis demo: FFTs a
+// two-tone signal and prints the magnitude spectrum over UART0 (the LX6 has no
+// PIE unit, so dsp.fft runs as portable scalar code). Blinks GPIO2.
 
 const std = @import("std");
 const mmio = @import("mmio");
+const dsp = @import("dsp");
+const init = @import("init");
+const regs = @import("regs"); // generated from svd/esp32.svd
+const gpio = regs.GPIO;
 
-/// Baremetal panic: halt forever (no std runtime to unwind into).
-pub fn panic(_: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
-    mmio.halt();
+// Custom panic namespace: UART message + backtrace, no std.fmt (see src/panic.zig).
+fn onPanic(msg: []const u8, ret_addr: ?usize) noreturn {
+    mmio.panic(regs.UART0.FIFO, msg, ret_addr);
+}
+pub const panic = @import("panic").Handler(onPanic);
+
+// Route `std.log` through UART0 instead of std.fmt's (unlinkable) default.
+pub const std_options: std.Options = .{ .logFn = logFn };
+fn logFn(comptime level: std.log.Level, comptime _: @TypeOf(.enum_literal), comptime fmt: []const u8, args: anytype) void {
+    mmio.log(regs.UART0.FIFO, level, fmt, args);
 }
 
-// ── Peripheral register addresses (ESP32) ────────────────────────────────────
+// GPIO2 = onboard blue LED on ESP32 DevKitC-V4 (bank 0); W1TS/W1TC are atomic.
+const led_pin: u5 = 2;
+const led_mask: u32 = @as(u32, 1) << led_pin;
+const blink_per_bin: u32 = 240_000;
+const bar_shift: u5 = 6; // bin magnitude → bar width
+const bar_max = 60;
 
-const GPIO_BASE: u32 = 0x3FF4_4000;
-/// GPIO output register – controls GPIO 0-31
-const GPIO_OUT_REG: u32 = GPIO_BASE + 0x0004;
-/// GPIO output enable register – GPIO 0-31
-const GPIO_ENABLE_REG: u32 = GPIO_BASE + 0x0020;
+// Two-tone test signal (bins 4 and 12), generated at comptime.
+const fft_n = 64;
+const tone_a = 4;
+const tone_b = 12;
+const signal: [fft_n]dsp.Cplx = blk: {
+    @setEvalBranchQuota(20000);
+    var s: [fft_n]dsp.Cplx = undefined;
+    for (0..fft_n) |n| {
+        const t = 2.0 * std.math.pi * @as(f64, @floatFromInt(n)) / @as(f64, fft_n);
+        const v = @cos(@as(f64, tone_a) * t) * 6000.0 + @cos(@as(f64, tone_b) * t) * 3000.0;
+        s[n] = .{ .re = @intFromFloat(@round(v)), .im = 0 };
+    }
+    break :blk s;
+};
+
+/// Index of the strongest bin in 1..N/2 (|re|²+|im|²).
+inline fn peakBin(spectrum: *const [fft_n]dsp.Cplx) usize {
+    const s: [*]const dsp.Cplx = spectrum;
+    var best: usize = 1;
+    var best_mag: i32 = 0;
+    var b: usize = 1;
+    while (b < fft_n / 2) : (b +%= 1) {
+        const mag = @as(i32, s[b].re) *% @as(i32, s[b].re) +% @as(i32, s[b].im) *% @as(i32, s[b].im);
+        if (mag > best_mag) {
+            best_mag = mag;
+            best = b;
+        }
+    }
+    return best;
+}
+
+/// Print bins 0..N/2 of `spectrum` as a horizontal ASCII magnitude plot.
+inline fn printSpectrum(fifo: u32, spectrum: *const [fft_n]dsp.Cplx) void {
+    const s: [*]const dsp.Cplx = spectrum;
+    mmio.puts(fifo, "\r\nESP32 FFT magnitude spectrum (tones @ bins 4 and 12):\r\n");
+    var b: usize = 0;
+    while (b <= fft_n / 2) : (b +%= 1) {
+        const mag: u32 = @abs(@as(i32, s[b].re)) +% @abs(@as(i32, s[b].im));
+        var w: u32 = mag >> bar_shift;
+        if (w > bar_max) w = bar_max;
+        mmio.puts(fifo, "bin ");
+        if (b < 10) mmio.puts(fifo, " ");
+        mmio.printU32(fifo, @truncate(b));
+        mmio.puts(fifo, " |");
+        mmio.bar(fifo, w);
+        mmio.puts(fifo, "\r\n");
+    }
+}
 
 // ── Application entry ─────────────────────────────────────────────────────────
 
 export fn main() callconv(.c) noreturn {
-    // GPIO2 = onboard blue LED on ESP32 DevKitC-V4 (active-high)
-    const led_mask: u32 = @as(u32, 1) << 2;
+    init.disableWatchdogs(regs); // or the chip resets within seconds on real HW
+    mmio.writeReg(gpio.ENABLE_W1TS, led_mask); // GPIO2 as output
 
-    // Enable GPIO2 as output
-    mmio.setBits(GPIO_ENABLE_REG, led_mask);
+    var spectrum: [fft_n]dsp.Cplx = undefined;
+    const sp: [*]dsp.Cplx = &spectrum;
+    const tp: [*]const dsp.Cplx = &signal;
+    var n: usize = 0;
+    while (n < fft_n) : (n +%= 1) sp[n] = tp[n]; // element-wise copy (no memcpy)
+    dsp.fft(fft_n, &spectrum);
+    printSpectrum(regs.UART0.FIFO, &spectrum);
 
-    while (true) {
-        mmio.setBits(GPIO_OUT_REG, led_mask); // LED ON
-        mmio.delay(1_200_000);
-        mmio.clearBits(GPIO_OUT_REG, led_mask); // LED OFF
-        mmio.delay(1_200_000);
-    }
+    const peak: u32 = @truncate(peakBin(&spectrum));
+    // Same routine `std_options.logFn` installs; `std.log.*` can't be called
+    // directly (its non-inline helpers need far calls this backend can't emit).
+    mmio.log(regs.UART0.FIFO, .info, "peak bin {d}, blink half-period {d}", .{ peak, peak *% blink_per_bin });
+
+    mmio.blink(gpio.OUT_W1TS, gpio.OUT_W1TC, led_mask, peak *% blink_per_bin);
 }
 
 // ── Reset vector ────────────────────────────────────────────────────────────
 
-/// Reset vector – first code executed on both real hardware and QEMU.
-///
-/// Hardware: ROM bootloader has already set PS.WOE=1 and configured the
-/// register file before jumping here.  Re-initialising is idempotent.
-///
-/// QEMU (-kernel): jumps here with PS.WOE=0, making every subsequent
-/// windowed 'entry' instruction illegal.  We must explicitly set WOE and
-/// initialise the register window before any Zig C-ABI function runs.
-///
-/// PS.WOE = bit 18 = 0x40000.  Too large for 'movi' (12-bit signed ±2047),
-/// so we build it with 'movi a0, 1 / slli a0, a0, 18'.
-/// Stack pointer: top of DRAM = 0x3FFDC200 (= 0x40000000 − 0x23E00).
+/// Entry point. QEMU `-kernel` enters with PS.WOE=0, so windowed registers must
+/// be enabled and SP set (top of DRAM) before the first C-ABI call. The ROM
+/// already does this on hardware, where redoing it is harmless.
 export fn Reset() callconv(.naked) noreturn {
     asm volatile (
         \\ .align 4
-        \\ // ── PS.WOE = bit 18 (enables windowed 'entry' instructions) ──────
         \\ movi    a0, 1
-        \\ slli    a0, a0, 18        // a0 = 0x00040000
+        \\ slli    a0, a0, 18        // PS.WOE = bit 18
         \\ wsr.ps  a0
         \\ rsync
-        \\ // ── Windowed register file: WINDOWBASE=0, WINDOWSTART=1 ──────────
         \\ movi    a0, 0
         \\ wsr.windowbase a0
         \\ rsync
         \\ movi    a0, 1
         \\ wsr.windowstart a0
         \\ rsync
-        \\ // ── Stack pointer: 0x3FFDC200 = 0x40000000 − 0x23E00 ─────────────
         \\ movi    a1, 1
         \\ slli    a1, a1, 30        // a1 = 0x40000000
-        \\ movi    a0, 0x23E         // 574
-        \\ slli    a0, a0, 8         // a0 = 0x0023E00
-        \\ sub     a1, a1, a0        // a1 = 0x3FFDC200
-        \\ // ── Windowed call: CALLINC=2 matches 'entry a1,N' in callee ──────
+        \\ movi    a0, 0x23E
+        \\ slli    a0, a0, 8         // a0 = 0x23E00
+        \\ sub     a1, a1, a0        // SP = 0x3FFDC200 (top of DRAM)
         \\ call8   main
         \\0:
         \\ j       0b
