@@ -181,3 +181,26 @@ pub fn Sha256(comptime text_reg: u32, comptime start_reg: u32, comptime load_reg
         }
     };
 }
+
+/// AES-128 ECB single-block encryption on the first-generation AES accelerator.
+/// Pass the `KEY_0` / `TEXT_0` register bases plus MODE/START/IDLE. Key and block
+/// are 4 *little-endian* words (`std.mem.readInt(.little)` of the byte arrays,
+/// matching the accelerator's reset-default endianness); the result comes back
+/// the same way — line it up with `std.crypto`'s comptime reference.
+pub fn Aes128(comptime key_reg: u32, comptime text_reg: u32, comptime mode_reg: u32, comptime start_reg: u32, comptime idle_reg: u32) type {
+    return struct {
+        const encrypt_aes128 = 0; // AES_MODE: 0 = encrypt, 128-bit key
+
+        pub inline fn encryptBlock(key: [4]u32, block: [4]u32) [4]u32 {
+            inline for (0..4) |i| mmio.writeReg(key_reg + i * 4, key[i]);
+            mmio.writeReg(mode_reg, encrypt_aes128);
+            inline for (0..4) |i| mmio.writeReg(text_reg + i * 4, block[i]);
+            mmio.writeReg(start_reg, 1);
+            while (mmio.readReg(idle_reg) == 0) {} // IDLE reads 1 when done
+            var out: [4]u32 = undefined;
+            const o: [*]u32 = &out;
+            inline for (0..4) |i| o[i] = mmio.readReg(text_reg + i * 4);
+            return out;
+        }
+    };
+}
