@@ -13,10 +13,8 @@ const init = @import("init");
 const regs = @import("regs"); // generated from svd/esp32.svd
 const startup = @import("startup");
 
-fn onPanic(msg: []const u8, ret_addr: ?usize) noreturn {
-    mmio.panic(regs.UART0.FIFO, msg, ret_addr);
-}
-pub const panic = @import("panic").Handler(onPanic);
+const con = hal.Console(regs.UART0.FIFO);
+pub const panic = con.panic;
 
 // Touch pad T0 = GPIO4 → RTC_IO.TOUCH_PAD0, touch number 0, result in SAR_TOUCH_OUT_0.
 const Pad = hal.Touch(regs.SENS, regs.RTC_IO.TOUCH_PAD0, 0, regs.SENS.SAR_TOUCH_OUT_0);

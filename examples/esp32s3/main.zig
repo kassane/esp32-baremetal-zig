@@ -20,16 +20,11 @@ const startup = @import("startup");
 const gpio = regs.GPIO;
 
 // Custom panic namespace: UART message + backtrace, no std.fmt (see src/panic.zig).
-fn onPanic(msg: []const u8, ret_addr: ?usize) noreturn {
-    mmio.panic(regs.UART0.FIFO, msg, ret_addr);
-}
-pub const panic = @import("panic").Handler(onPanic);
+const con = hal.Console(regs.UART0.FIFO);
+pub const panic = con.panic;
 
 // Route `std.log` through UART0 instead of std.fmt's (unlinkable) default.
-pub const std_options: std.Options = .{ .logFn = logFn };
-fn logFn(comptime level: std.log.Level, comptime _: @TypeOf(.enum_literal), comptime fmt: []const u8, args: anytype) void {
-    mmio.log(regs.UART0.FIFO, level, fmt, args);
-}
+pub const std_options: std.Options = .{ .logFn = con.logFn };
 
 // GPIO48 (onboard RGB LED) is in the second bank (pins 32-53) → OUT1/ENABLE1.
 const led_mask: u32 = @as(u32, 1) << (48 - 32);

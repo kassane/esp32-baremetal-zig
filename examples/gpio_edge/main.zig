@@ -12,10 +12,8 @@ const regs = @import("regs"); // generated from svd/esp32.svd
 const startup = @import("startup");
 const gpio = regs.GPIO;
 
-fn onPanic(msg: []const u8, ret_addr: ?usize) noreturn {
-    mmio.panic(regs.UART0.FIFO, msg, ret_addr);
-}
-pub const panic = @import("panic").Handler(onPanic);
+const con = hal.Console(regs.UART0.FIFO);
+pub const panic = con.panic;
 
 const Button = hal.GpioEdge(gpio.PIN_0, @as(u32, 1) << 0, gpio.STATUS, gpio.STATUS_W1TC); // GPIO0
 const Led = hal.Output(gpio.ENABLE_W1TS, gpio.OUT, gpio.OUT_W1TS, gpio.OUT_W1TC, @as(u32, 1) << 2); // GPIO2

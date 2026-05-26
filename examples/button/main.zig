@@ -11,10 +11,8 @@ const regs = @import("regs"); // generated from svd/esp32.svd
 const startup = @import("startup");
 const gpio = regs.GPIO;
 
-fn onPanic(msg: []const u8, ret_addr: ?usize) noreturn {
-    mmio.panic(regs.UART0.FIFO, msg, ret_addr);
-}
-pub const panic = @import("panic").Handler(onPanic);
+const con = hal.Console(regs.UART0.FIFO);
+pub const panic = con.panic;
 
 const poll_iters: u32 = 200_000; // busy-loop iterations between samples
 const Button = hal.Input(gpio.IN, @as(u32, 1) << 0); // GPIO0 (boot button)

@@ -15,15 +15,10 @@ const init = @import("init");
 const regs = @import("regs"); // generated from svd/esp32.svd
 const startup = @import("startup");
 
-fn onPanic(msg: []const u8, ret_addr: ?usize) noreturn {
-    mmio.panic(regs.UART0.FIFO, msg, ret_addr);
-}
-pub const panic = @import("panic").Handler(onPanic);
+const con = hal.Console(regs.UART0.FIFO);
+pub const panic = con.panic;
 
-pub const std_options: std.Options = .{ .logFn = logFn };
-fn logFn(comptime level: std.log.Level, comptime _: @TypeOf(.enum_literal), comptime fmt: []const u8, args: anytype) void {
-    mmio.log(regs.UART0.FIFO, level, fmt, args);
-}
+pub const std_options: std.Options = .{ .logFn = con.logFn };
 
 const Scratch = hal.RtcStore(regs.RTC_CNTL.STORE0);
 const magic: u32 = 0xC0FFEE42;

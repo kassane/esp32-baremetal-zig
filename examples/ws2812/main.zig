@@ -15,10 +15,8 @@ const init = @import("init");
 const regs = @import("regs"); // generated from svd/esp32.svd
 const startup = @import("startup");
 
-fn onPanic(msg: []const u8, ret_addr: ?usize) noreturn {
-    mmio.panic(regs.UART0.FIFO, msg, ret_addr);
-}
-pub const panic = @import("panic").Handler(onPanic);
+const con = hal.Console(regs.UART0.FIFO);
+pub const panic = con.panic;
 
 // RMT channel 0: CONF0 / CONF1 / DATA window + the shared APB_CONF (as in rmt/).
 const Led = hal.Ws2812(regs.RMT.CHCONF0_0, regs.RMT.CHCONF1_0, regs.RMT.CHDATA_0, regs.RMT.APB_CONF);

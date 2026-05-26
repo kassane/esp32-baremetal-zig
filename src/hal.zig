@@ -7,9 +7,33 @@
 //! this backend; drivers are comptime-parameterized on their register addresses
 //! so the MMIO accesses stay provably aligned and non-null (no panic path).
 
+const std = @import("std");
 const builtin = @import("builtin");
 const mmio = @import("mmio");
 const reg = @import("reg");
+const panic_ns = @import("panic");
+
+/// A UART console bound to a `fifo` register — bundles the freestanding panic
+/// handler and the `std.log` backend an example wires into its root, so each one
+/// needn't hand-roll them:
+/// ```
+/// const con = hal.Console(regs.UART0.FIFO);
+/// pub const panic = con.panic;
+/// pub const std_options: std.Options = .{ .logFn = con.logFn };
+/// ```
+pub fn Console(comptime fifo: u32) type {
+    return struct {
+        fn onPanic(msg: []const u8, ret_addr: ?usize) noreturn {
+            mmio.panic(fifo, msg, ret_addr);
+        }
+        /// Panic namespace: render the message + backtrace over UART, then halt.
+        pub const panic = panic_ns.Handler(onPanic);
+        /// `std.options.logFn` backend: `[level] message` per line over UART.
+        pub fn logFn(comptime level: std.log.Level, comptime _: @TypeOf(.enum_literal), comptime fmt: []const u8, args: anytype) void {
+            mmio.log(fifo, level, fmt, args);
+        }
+    };
+}
 
 /// Read the core cycle counter — the Xtensa `CCOUNT` special register, or the
 /// RISC-V `cycle` CSR on the ULP coprocessor. Advances at the core clock.

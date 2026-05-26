@@ -11,10 +11,8 @@ const regs = @import("regs"); // generated from svd/esp32.svd
 const startup = @import("startup");
 const gpio = regs.GPIO;
 
-fn onPanic(msg: []const u8, ret_addr: ?usize) noreturn {
-    mmio.panic(regs.UART0.FIFO, msg, ret_addr);
-}
-pub const panic = @import("panic").Handler(onPanic);
+const con = hal.Console(regs.UART0.FIFO);
+pub const panic = con.panic;
 
 const cpu_hz = 240_000_000; // Xtensa default; sets the cycle-accurate Delay scale
 const led_mask: u32 = @as(u32, 1) << 2; // GPIO2 (onboard LED), bank 0
