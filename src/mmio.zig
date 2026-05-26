@@ -85,6 +85,21 @@ pub inline fn printHex(fifo: u32, v: u32) void {
     }
 }
 
+/// Print `b` as exactly two lowercase hex digits (no `0x` prefix) — e.g. for
+/// byte-wise dumps like a MAC address. The nibble→ASCII conversion is arithmetic
+/// (not a table lookup), so it stays bounds-check-free even next to the volatile
+/// MMIO writes, which act as optimization barriers that would otherwise un-elide
+/// a table index's panic path (which can't link on this backend).
+pub inline fn printHexByte(fifo: u32, b: u8) void {
+    writeReg(fifo, hexNibble(@truncate(b >> 4)));
+    writeReg(fifo, hexNibble(@truncate(b)));
+}
+
+inline fn hexNibble(n: u4) u8 {
+    const v: u8 = n;
+    return if (v < 10) '0' +% v else 'a' +% v -% 10;
+}
+
 // ── std.log + panic plumbing ────────────────────────────────────────────────
 // A tiny comptime formatter so `std.log` (overridden via `std_options.logFn`)
 // and the panic handler can render to UART without `std.fmt` — its formatting
