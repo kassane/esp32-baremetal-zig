@@ -18,21 +18,25 @@ env:
 
 jobs:
   build-and-test:
+    name: ${{ matrix.name }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - name: Linux
+            os: ubuntu-latest
             zig_asset: zig-relsafe-x86_64-linux-musl-baseline.tar.xz
             zig_dir: zig-relsafe-x86_64-linux-musl-baseline
             qemu_asset: qemu-xtensa-softmmu-esp_develop_9.2.2_20260417-x86_64-linux-gnu.tar.xz
             run_qemu: true
-          - os: macos-latest
+          - name: macOS
+            os: macos-latest
             zig_asset: zig-relsafe-aarch64-macos-baseline.tar.xz
             zig_dir: zig-relsafe-aarch64-macos-baseline
             qemu_asset: qemu-xtensa-softmmu-esp_develop_9.2.2_20260417-aarch64-apple-darwin.tar.xz
             run_qemu: true
-          - os: windows-latest
+          - name: Windows
+            os: windows-latest
             zig_asset: zig-relsafe-x86_64-windows-baseline.zip
             zig_dir: zig-relsafe-x86_64-windows-baseline
             qemu_asset: qemu-xtensa-softmmu-esp_develop_9.2.2_20260417-x86_64-w64-mingw32.tar.xz
