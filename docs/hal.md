@@ -117,6 +117,11 @@ A small register driver layer over `mmio` (imported as `hal`):
   (`regs.DPORT.PERIP_CLK_EN` / `PERIP_RST_EN` on ESP32), the explicit form of the
   clock bring-up the boot ROM performs for the peripherals the other drivers assume
   are already running (see `examples/clock_gate/`). **Build-only**.
+- `hal.Brownout(brown_out_reg)` — RTC brownout detector (`regs.RTC_CNTL.BROWN_OUT`):
+  `arm(level)` enables detection at trip `level` (0..7) and resets the chip on a
+  supply sag, preserving the register's aliased RTC-memory-CRC bits; `detected()`
+  reads the live flag (see `examples/brownout/`). **Build-only**: QEMU has no analog
+  supply model to trip it.
 
 Every driver is **comptime-parameterized on its register addresses** (the I2C
 driver on the peripheral namespace), so the MMIO accesses stay provably

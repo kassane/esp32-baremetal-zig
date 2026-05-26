@@ -1001,3 +1001,31 @@ pub fn RtcStore(comptime store_reg: u32) type {
         }
     };
 }
+
+/// Brownout detector (`regs.RTC_CNTL.BROWN_OUT`) — trips when the supply sags below
+/// a threshold, so firmware never runs on a collapsing rail (battery droop, the
+/// inrush of a peripheral powering on). `arm(level)` enables detection at `level`
+/// (0..7, higher = higher trip voltage) and resets the chip on a brownout;
+/// `detected()` reads the live flag. The detector bits share their register with
+/// unrelated RTC-memory-CRC fields, so `arm` read-modify-writes to leave those
+/// intact. **Build-only:** QEMU has no analog supply to trip. Fields from the SVD.
+pub fn Brownout(comptime brown_out_reg: u32) type {
+    return struct {
+        const ena = reg.bit(30); // BROWN_OUT.ENA — detector enable
+        const rst_ena = reg.bit(26); // RST_ENA — reset the chip on a brownout
+        const threshold = reg.Field(27, 3); // DBROWN_OUT_THRES — trip level
+        const det = reg.bit(31); // DET — brownout currently detected (read-only)
+        const own_bits = ena | rst_ena | threshold.mask;
+
+        /// Enable the detector at `level` (0..7; higher trips at a higher voltage)
+        /// and reset the chip when it trips. Preserves the register's other fields.
+        pub inline fn arm(comptime level: u3) void {
+            const others = mmio.readReg(brown_out_reg) & ~own_bits;
+            mmio.writeReg(brown_out_reg, others | ena | rst_ena | threshold.set(level));
+        }
+        /// True if a brownout is currently being detected.
+        pub inline fn detected() bool {
+            return mmio.readReg(brown_out_reg) & det != 0;
+        }
+    };
+}
