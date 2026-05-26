@@ -162,6 +162,8 @@ pub fn build(b: *std.Build) void {
         const gen = b.addRunArtifact(svd2zig);
         gen.addFileArg(b.path("svd/" ++ ulp ++ ".svd"));
         const regs_src = gen.addOutputFileArg(ulp ++ "_regs.zig");
+        // Exposed as `<ulp>_regs` so a ULP example package can import it.
+        _ = b.addModule(ulp ++ "_regs", .{ .root_source_file = regs_src });
         const check = b.addSystemCommand(&.{ b.graph.zig_exe, "ast-check" });
         check.addFileArg(regs_src);
         regs_step.dependOn(&check.step);

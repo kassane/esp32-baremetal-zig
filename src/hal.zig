@@ -7,14 +7,21 @@
 //! this backend; drivers are comptime-parameterized on their register addresses
 //! so the MMIO accesses stay provably aligned and non-null (no panic path).
 
+const builtin = @import("builtin");
 const mmio = @import("mmio");
 const reg = @import("reg");
 
-/// Read the Xtensa core cycle counter (`CCOUNT`). Advances at the CPU clock.
+/// Read the core cycle counter — the Xtensa `CCOUNT` special register, or the
+/// RISC-V `cycle` CSR on the ULP coprocessor. Advances at the core clock.
 pub inline fn cycleCount() u32 {
-    return asm volatile ("rsr.ccount %[ret]"
-        : [ret] "=r" (-> u32),
-    );
+    return switch (builtin.cpu.arch) {
+        .xtensa => asm volatile ("rsr.ccount %[ret]"
+            : [ret] "=r" (-> u32),
+        ),
+        else => asm volatile ("csrr %[ret], cycle"
+            : [ret] "=r" (-> u32),
+        ),
+    };
 }
 
 /// Busy-wait `clocks` CPU cycles. Wrapping subtract handles the 32-bit rollover.

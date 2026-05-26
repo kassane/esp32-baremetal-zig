@@ -23,6 +23,10 @@ SVDs (`svd/esp32s2-ulp.svd`, `svd/esp32s3-ulp.svd`) alongside the three Xtensa
 chips. The ULP cores aren't firmware targets here (this is an Xtensa project), but
 `zig build regs` generates their register modules too and runs `zig ast-check` on
 each — so svd2zig's output is verified valid Zig across both architectures, in CI.
+`examples/ulp_s2` goes one step further: a real `riscv32imc` ULP program that
+imports the generated ULP registers and the shared `hal`/`mmio`/`startup` modules
+(the register drivers are arch-agnostic; `startup.ulpVector` is the RISC-V reset
+prologue) — build-only, since QEMU does not run the ULP core.
 
 ```bash
 zig build regs    # emit every module into zig-out/gen/ and ast-check it

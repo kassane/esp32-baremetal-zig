@@ -112,6 +112,10 @@ Single-feature programs live alongside them, each its own package you build with
   `clock_gate` (peripheral clock gating) and `brownout` (supply brownout detector)
   on ESP32; `usb_serial` (USB CDC-ACM console) and `tsens` (temperature sensor) on
   ESP32-S3
+- **ULP coprocessor** (RISC-V, build-only): `ulp_s2` — an ESP32-S2 ULP program
+  built for `riscv32imc` that drives an RTC GPIO through the generated ULP
+  registers (`svd/esp32s2-ulp.svd`) and heartbeats the main core via shared RTC
+  memory. A separate firmware the main core loads and starts (loader out of scope).
 
 Shared register/timing helpers live in `src/mmio.zig` (imported as `mmio`).
 

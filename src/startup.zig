@@ -57,3 +57,15 @@ pub fn vector() []const u8 {
         "call8 main\n" ++
         "0: j 0b\n";
 }
+
+/// Reset prologue for the **RISC-V ULP** low-power coprocessor (esp32s2/-s3): set
+/// the stack pointer to the top of the ULP's RTC RAM (`__stack_top`, from the ULP
+/// linker script) and enter `main`. The ULP's naked `reset_vector` is just
+/// `asm volatile (startup.ulpVector())`, mirroring `vector()` for the Xtensa cores.
+pub fn ulpVector() []const u8 {
+    return
+    \\ la sp, __stack_top
+    \\ call main
+    \\ 0: j 0b
+    ;
+}
