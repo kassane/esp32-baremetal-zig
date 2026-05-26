@@ -323,6 +323,7 @@ const chips = [_]Chip{
             .iram = .{ .org = 0x40080000, .len = 0x100000 },
             .dram = .{ .org = 0x3FFB0000, .len = 0x2C200 },
         },
+        .examples = &.{ "examples/blink.zig", "examples/button.zig" },
     },
     .{
         // ESP32-S2 has no QEMU machine in the Espressif build, so it is

@@ -87,7 +87,8 @@ cd esp32 && zig build smoke     # non-interactive boot test (esp32, esp32s3)
 | `esp32s2/main.zig` | ESP32-S2 | Xtensa LX7 | GPIO18 | fixed-point FFT spectrum + TIMG timer |
 
 Single-feature programs live in [`examples/`](examples/) and build for a chip via
-`zig build example-<name>` (e.g. `zig build example-pwm` → `esp32s2_pwm`).
+`zig build example-<name>`: `blink` (GPIO + Delay) and `button` (GPIO in→out) on
+ESP32, `pwm` (LEDC) on ESP32-S2.
 | `esp32s3/main.zig` | ESP32-S3 | Xtensa LX7 | GPIO48 | PIE/SIMD vector kernels |
 
 Shared register/timing helpers live in `src/mmio.zig` (imported as `mmio`).
