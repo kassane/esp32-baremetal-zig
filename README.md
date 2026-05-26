@@ -94,7 +94,8 @@ Single-feature programs live alongside them, each its own package you build with
 - `blink` (GPIO + Delay), `button` (GPIO in→out), `efuse` (factory MAC) on ESP32
 - `efuse` also runs in QEMU (`cd examples/efuse && zig build demo`)
 - **Build-only**: `pwm` (LEDC) on ESP32-S2; `i2c` (I2C master), `spi` (SPI master),
-  `rmt` (IR remote transmit) and `rsa` (RSA modular exponentiation) on ESP32
+  `rmt` (IR remote transmit), `rsa` (RSA modular exponentiation) and `twai`
+  (CAN 2.0 transmit) on ESP32
 
 Shared register/timing helpers live in `src/mmio.zig` (imported as `mmio`).
 
@@ -250,6 +251,9 @@ A small register driver layer over `mmio` (imported as `hal`):
   2³²`, `r = 2^(2·bits) mod M`), so the driver computes nothing in software (see
   `examples/rsa/`). **Build-only** for now; the Espressif QEMU *does* model RSA, so
   a value-checked run against a comptime `std.math.big` reference is a natural next step.
+- `hal.Twai(P)` — TWAI (CAN 2.0) controller: transmit a standard-ID data frame on
+  the SJA1000-compatible peripheral (`regs.TWAI0`) (see `examples/twai/`).
+  **Build-only**: a live bus needs TX/RX routed to pads + an external CAN transceiver.
 
 Every driver is **comptime-parameterized on its register addresses** (the I2C
 driver on the peripheral namespace), so the MMIO accesses stay provably

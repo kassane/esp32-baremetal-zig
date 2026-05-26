@@ -498,3 +498,41 @@ pub fn Rsa(comptime P: type, comptime words: u32) type {
         }
     };
 }
+
+/// TWAI (CAN 2.0) controller — transmit a standard (11-bit ID) data frame. The
+/// ESP32 TWAI is SJA1000-compatible: configure bit timing in reset mode, drop to
+/// operating mode, write the frame to the TX buffer (`DATA_*`), then request TX.
+/// Takes the peripheral namespace (`regs.TWAI0`). **Build-only:** routing TX/RX to
+/// pads and a transceiver is board-specific, and the data-byte writes unroll over
+/// comptime indices (constant MMIO addresses, no panic path).
+pub fn Twai(comptime P: type) type {
+    return struct {
+        const reset_mode = reg.bit(0); // MODE.RESET_MODE — 1 = config, 0 = run
+        const tx_req = reg.bit(0); // CMD.TX_REQ
+        const tx_buf_free = reg.bit(2); // STATUS.TX_BUF_ST — 1 when buffer free
+        const dlc = reg.Field(0, 4); // DATA_0[3:0] — data length code
+
+        /// Enter the bus with SJA1000 bit-timing register values (compute
+        /// `timing0` = BAUD_PRESC|SJW and `timing1` = TSEG1|TSEG2|SAMP for the
+        /// target bit rate), then switch to normal operating mode.
+        pub inline fn init(comptime timing0: u8, comptime timing1: u8) void {
+            mmio.writeReg(P.MODE, reset_mode); // reset/config mode
+            mmio.writeReg(P.BUS_TIMING_0, timing0);
+            mmio.writeReg(P.BUS_TIMING_1, timing1);
+            mmio.writeReg(P.MODE, 0); // operating, normal mode
+        }
+
+        /// Transmit a standard-frame (SFF, no RTR) data message, `data` ≤ 8 bytes.
+        pub inline fn send(id: u11, data: []const u8) void {
+            while (mmio.readReg(P.STATUS) & tx_buf_free == 0) {} // await a free TX buffer
+            mmio.writeReg(P.DATA_0, dlc.set(@truncate(data.len)));
+            mmio.writeReg(P.DATA_1, @as(u32, id) >> 3); // ID[10:3]
+            mmio.writeReg(P.DATA_2, (@as(u32, id) & 0x7) << 5); // ID[2:0] in bits [7:5]
+            const p = data.ptr;
+            inline for (0..8) |i| {
+                if (i < data.len) mmio.writeReg(P.DATA_3 + i * 4, p[i]);
+            }
+            mmio.writeReg(P.CMD, tx_req);
+        }
+    };
+}
