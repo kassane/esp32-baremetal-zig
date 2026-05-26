@@ -147,3 +147,4 @@ jobs:
           cd ../iomux        && zig build --summary all
           cd ../watchdog     && zig build --summary all
           cd ../reset_reason && zig build --summary all
+          cd ../sw_reset     && zig build --summary all

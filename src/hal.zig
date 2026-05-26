@@ -788,3 +788,12 @@ pub fn ResetReason(comptime reset_state_reg: u32) type {
         }
     };
 }
+
+/// Trigger an immediate full software reset via `regs.RTC_CNTL.OPTIONS0`
+/// (sets `SW_SYS_RST`). Does not return — the chip restarts; `mmio.halt` is the
+/// fallback spin (a panic-free `noreturn`, since a compiler `unreachable` here
+/// would emit an unlinkable panic path).
+pub inline fn softwareReset(comptime options0_reg: u32) noreturn {
+    mmio.writeReg(options0_reg, mmio.readReg(options0_reg) | reg.bit(31));
+    mmio.halt();
+}
