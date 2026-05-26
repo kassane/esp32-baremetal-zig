@@ -85,6 +85,11 @@ A small register driver layer over `mmio` (imported as `hal`):
   words from a flash offset — the entry the storage stacks use, so no flash-controller
   driver is needed (see `examples/flash/`). Read-only (erase/write can brick a running
   image). **Build-only**: the ROM address is fixed per chip/ROM revision.
+- `hal.Critical` — critical section: `enter()` masks interrupts (Xtensa `rsil`, or
+  the RISC-V `mstatus.MIE` bit) and returns a token; `exit(token)` restores it,
+  making a register sequence atomic against an interrupt handler (see
+  `examples/critical/`, QEMU-verified). The firmware enables no interrupts itself —
+  this is for code that does.
 - `hal.Twai(P)` — TWAI (CAN 2.0) controller: transmit a standard-ID data frame on
   the SJA1000-compatible peripheral (`regs.TWAI0`) (see `examples/twai/`).
   **Build-only**: a live bus needs TX/RX routed to pads + an external CAN transceiver.
