@@ -62,9 +62,9 @@ A small register driver layer over `mmio` (imported as `hal`):
 - `hal.Rsa(P, words)` — RSA modular exponentiation (`base^exp mod modulus`), the
   core of RSA sign/verify, for `words`×32-bit operands (512-bit increments). The
   caller supplies the Montgomery constants (`m' = -M⁻¹ mod 2³²`,
-  `r = 2^(2·bits) mod M`), so the driver computes nothing in software (see
-  `examples/rsa/`). **Build-only** for now; the Espressif QEMU *does* model RSA, so
-  a value-checked run against a comptime `std.math.big` reference is a natural next step.
+  `r = 2^(2·bits) mod M`), so the driver computes nothing in software.
+  **QEMU-verified**: `examples/rsa` runs a known-answer vector — 2² mod (2⁵¹²−1) = 4,
+  a modulus for which both constants reduce to 1 — live under `zig build demo`.
 - `hal.Twai(P)` — TWAI (CAN 2.0) controller: transmit a standard-ID data frame on
   the SJA1000-compatible peripheral (`regs.TWAI0`) (see `examples/twai/`).
   **Build-only**: a live bus needs TX/RX routed to pads + an external CAN transceiver.

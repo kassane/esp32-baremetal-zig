@@ -127,6 +127,11 @@ jobs:
         shell: bash
         run: cd examples/rtc_store && zig build demo
 
+      - name: ESP32 example — RSA known-answer modexp over UART
+        if: matrix.run_qemu
+        shell: bash
+        run: cd examples/rsa && zig build demo
+
       - name: ESP32 example — eFuse base-MAC reader over UART
         if: matrix.run_qemu
         shell: bash
@@ -146,7 +151,6 @@ jobs:
           cd ../i2c          && zig build --summary all
           cd ../rmt          && zig build --summary all
           cd ../spi          && zig build --summary all
-          cd ../rsa          && zig build --summary all
           cd ../twai         && zig build --summary all
           cd ../mcpwm        && zig build --summary all
           cd ../i2s          && zig build --summary all
