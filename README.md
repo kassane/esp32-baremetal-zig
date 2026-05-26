@@ -136,12 +136,15 @@ root over a local `.path` dependency, so copy one as a working starting point.
 Peripheral register addresses are **not** hardcoded — they're generated from
 CMSIS-SVD by `tools/svd2zig.zig` (a host tool run automatically by `build.zig`).
 For each chip, build.zig runs `svd2zig svd/<chip>.svd <chip>_regs.zig` and
-imports the result as `@import("regs")`; firmware uses e.g.
-`regs.GPIO.OUT_W1TS`. The vendored `svd/*.svd` are the GPIO, TIMG0/TIMG1 and
-RTC_CNTL peripherals extracted from [esp-rs/esp-pacs](https://github.com/esp-rs/esp-pacs)
-(fields stripped to keep them small); the generator expands `<dim>` arrays and
-`derivedFrom` peripherals (e.g. TIMG1 inherits TIMG0's registers), and handles
-the full 2.4 MB SVDs too.
+imports the result as `@import("regs")`; firmware uses e.g. `regs.GPIO.OUT_W1TS`.
+
+The vendored `svd/*.svd` are the **full** [esp-rs/esp-pacs](https://github.com/esp-rs/esp-pacs)
+SVDs, patched with that project's `xtask` (clone esp-pacs, `cargo xtask patch
+<chip>`, copy `<chip>/svd/<chip>.svd`). svd2zig handles them in full: it expands
+`<dim>` arrays, flattens nested `<cluster>`s to prefixed names
+(`CH_0_IN_INT_RAW`) with accumulated offsets, follows `derivedFrom` (TIMG1
+inherits TIMG0), and suffixes any residual name clash — so it generates valid
+Zig for **every** esp32* target (Xtensa *and* RISC-V), verified by `ast-check`.
 
 ```bash
 zig build regs    # emit the generated modules into zig-out/gen/ to inspect
