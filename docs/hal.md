@@ -112,6 +112,11 @@ A small register driver layer over `mmio` (imported as `hal`):
   keeps running through deep sleep (unlike `CCOUNT`/`SysTimer`); `now()` returns a
   coherent `u64` via the `TIME_UPDATE`/`TIME_VALID` latch handshake. QEMU advances
   it, so `examples/rtc_time` prints the climbing count under `zig build demo`.
+- `hal.DeepSleep(P)` — deep sleep with an RTC-timer wakeup: `timerWakeup(ticks)`
+  reads the RTC timer (reusing `RtcTime`), programs the wakeup alarm `ticks` ahead,
+  enables the timer wakeup source and powers the chip down (does not return; it
+  resets on wake). Pairs with `ResetReason` (see `examples/deep_sleep/`).
+  **Build-only**: a live deep sleep powers the chip down.
 - `hal.GpioEdge(pin_reg, mask, status_reg, clr_reg)` — poll-based edge detection:
   latches rising/falling edges in the GPIO event-status register so a loop catches
   transitions without interrupts (`takeEdge`), complementing `Input` (see

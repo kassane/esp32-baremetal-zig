@@ -1,0 +1,9 @@
+.{
+    .name = .deep_sleep_example,
+    .version = "0.1.0",
+    .fingerprint = 0x8be63c1cb0f8744b,
+    .dependencies = .{
+        .esp32_hal = .{ .path = "../.." },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "main.zig" },
+}
