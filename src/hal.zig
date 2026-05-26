@@ -1084,3 +1084,26 @@ pub fn Touch(comptime P: type, comptime pad_reg: u32, comptime nr: u4, comptime 
         }
     };
 }
+
+/// RTC main timer — the always-on 48-bit slow-clock counter in the RTC power domain
+/// (it keeps running through deep sleep, unlike `CCOUNT` or `SysTimer`). Takes the
+/// RTC_CNTL namespace (`regs.RTC_CNTL`). A read is a latch handshake: pulse
+/// `TIME_UPDATE`, wait for `TIME_VALID`, then read `TIME0` (low 32) + `TIME1` (high
+/// 16) so the halves can't tear. Counts at the RTC slow clock (~150 kHz default).
+/// Field bits from the SVD, via reg.zig.
+pub fn RtcTime(comptime P: type) type {
+    return struct {
+        const valid = reg.bit(30); // TIME_UPDATE.TIME_VALID
+        const update = reg.bit(31); // TIME_UPDATE.TIME_UPDATE — request a latch
+        const hi_value = reg.Field(0, 16); // TIME1.TIME_HI holds count bits [47:32]
+
+        /// Coherent 48-bit RTC counter value as a u64.
+        pub inline fn now() u64 {
+            mmio.writeReg(P.TIME_UPDATE, update);
+            while (mmio.readReg(P.TIME_UPDATE) & valid == 0) {} // await a coherent snapshot
+            const hi = hi_value.get(mmio.readReg(P.TIME1));
+            const lo = mmio.readReg(P.TIME0);
+            return (@as(u64, hi) << 32) | lo;
+        }
+    };
+}

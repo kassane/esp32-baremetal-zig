@@ -1,0 +1,9 @@
+.{
+    .name = .rtc_time_example,
+    .version = "0.1.0",
+    .fingerprint = 0xa7a5d6c0b88ea321,
+    .dependencies = .{
+        .esp32_hal = .{ .path = "../.." },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "main.zig" },
+}

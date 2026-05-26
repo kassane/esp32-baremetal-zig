@@ -108,6 +108,10 @@ A small register driver layer over `mmio` (imported as `hal`):
   power-on; pairs with `ResetReason`/`softwareReset` for boot counters and sleep
   state (see `examples/rtc_store/`). QEMU backs the register, so the round-trip runs
   under `zig build demo`.
+- `hal.RtcTime(P)` — the always-on 48-bit RTC main timer (`regs.RTC_CNTL`), which
+  keeps running through deep sleep (unlike `CCOUNT`/`SysTimer`); `now()` returns a
+  coherent `u64` via the `TIME_UPDATE`/`TIME_VALID` latch handshake. QEMU advances
+  it, so `examples/rtc_time` prints the climbing count under `zig build demo`.
 - `hal.GpioEdge(pin_reg, mask, status_reg, clr_reg)` — poll-based edge detection:
   latches rising/falling edges in the GPIO event-status register so a loop catches
   transitions without interrupts (`takeEdge`), complementing `Input` (see
