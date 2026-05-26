@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Matheus C. França
+// SPDX-License-Identifier: Apache-2.0
+
 // Bare-metal Zig for ESP32-S3 (Xtensa LX7). Demonstrates the PIE/SIMD kernels
 // whose inline-asm clobbers are generated at comptime by `dsp.qClobbers`:
 // saturating-mix two signals (`ee.vadds.s16`), then take the energy Σ x²
@@ -31,7 +34,7 @@ fn logFn(comptime level: std.log.Level, comptime _: @TypeOf(.enum_literal), comp
 const led_mask: u32 = @as(u32, 1) << (48 - 32);
 const cpu_hz = 240_000_000; // Xtensa default; sets the cycle-accurate Delay scale
 const cycles_per_energy: u32 = 50_000; // blink half-period = energy × this (cycles)
-const Led = hal.Output(gpio.ENABLE1_W1TS, gpio.OUT1_W1TS, gpio.OUT1_W1TC, led_mask);
+const Led = hal.Output(gpio.ENABLE1_W1TS, gpio.OUT1, gpio.OUT1_W1TS, gpio.OUT1_W1TC, led_mask);
 
 // Two 8-lane int16 signals (16-byte aligned = one 128-bit PIE vector).
 var sig_a: [8]i16 align(16) = .{ 1, 2, 3, 4, 5, 6, 7, 8 };
@@ -47,7 +50,7 @@ export fn app_main() callconv(.c) noreturn {
     dsp.addSatS16(&mixed, &sig_a, &sig_b, sig_a.len);
     const energy = dsp.dotProductS16(&mixed, &mixed, mixed.len);
 
-    // Blink at a cycle-accurate rate set by the energy (esp-hal-style Delay).
+    // Blink at a cycle-accurate rate set by the energy (cycle-counter Delay).
     const delay = hal.Delay(cpu_hz);
     const half = energy *% cycles_per_energy;
     while (true) {

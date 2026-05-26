@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Matheus C. França
+// SPDX-License-Identifier: Apache-2.0
+
 //! Bare-metal MMIO + timing helpers. All `inline`: the prebuilt xtensa backend
 //! can't emit cross-module far calls, so these must fold into the caller.
 

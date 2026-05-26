@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Matheus C. França
+// SPDX-License-Identifier: Apache-2.0
+
 //! Custom panic namespace replacing std's `debug.FullPanic`, whose helpers
 //! format via `std.fmt`/`Io.Writer` — i.e. the very panic path that can't link
 //! here. A root `pub const panic = <namespace>` overrides it (std.builtin.panic),

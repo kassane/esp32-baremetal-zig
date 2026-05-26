@@ -2,14 +2,15 @@
 
 **Pure Zig on bare Xtensa silicon** — no ESP-IDF, no RTOS, no libc. Just your
 code, the registers, and the metal. It boots on ESP32, ESP32-S2 and ESP32-S3,
-runs SIMD on the S3's vector unit, and ships an FFT spectrum analyzer you can
-watch scroll past in QEMU.
+each example owning a different trick: the ESP32 verifies its **hardware SHA-256**
+against `std.crypto` live in QEMU, the ESP32-S2 runs a **fixed-point FFT**
+spectrum analyzer, and the ESP32-S3 does **SIMD** on its vector unit.
 
 What you get:
 
 - **Registers from SVD, never magic numbers.** `tools/svd2zig.zig` turns vendored
   CMSIS-SVD into `@import("regs")` at build time — `regs.GPIO.OUT_W1TS`, not `0x...`.
-- **A pocket-sized esp-hal-style HAL** — `Output` / `Input` / `Level`, plus a
+- **A pocket-sized register HAL** — `Output` / `Input` / `Level`, plus a
   cycle-accurate `Delay` read straight off the Xtensa `CCOUNT` counter.
 - **Fixed-point DSP** — saturating add, dot product, FIR, and a radix-2 Q15 FFT
   (ported from esp-dsp). The vector kernels compile to ESP32-S3 PIE inline asm and
@@ -80,11 +81,11 @@ cd esp32 && zig build run       # launch it in QEMU (esp32, esp32s3)
 cd esp32 && zig build smoke     # non-interactive boot test (esp32, esp32s3)
 ```
 
-| Source | Chip | CPU | Onboard LED |
-|---|---|---|---|
-| `esp32/main.zig`   | ESP32    | Xtensa LX6 | GPIO2  |
-| `esp32s2/main.zig` | ESP32-S2 | Xtensa LX7 | GPIO18 |
-| `esp32s3/main.zig` | ESP32-S3 | Xtensa LX7 | GPIO48 |
+| Source | Chip | CPU | LED | Demo |
+|---|---|---|---|---|
+| `esp32/main.zig`   | ESP32    | Xtensa LX6 | GPIO2  | hardware SHA-256 (vs `std.crypto`) + RNG |
+| `esp32s2/main.zig` | ESP32-S2 | Xtensa LX7 | GPIO18 | fixed-point FFT spectrum + TIMG timer |
+| `esp32s3/main.zig` | ESP32-S3 | Xtensa LX7 | GPIO48 | PIE/SIMD vector kernels |
 
 Shared register/timing helpers live in `src/mmio.zig` (imported as `mmio`).
 
@@ -183,10 +184,10 @@ path that doesn't link here. A tiny comptime formatter in `src/mmio.zig`
 
 ### HAL (`src/hal.zig`)
 
-A small esp-hal-shaped driver layer over `mmio` (imported as `hal`):
+A small register driver layer over `mmio` (imported as `hal`):
 
-- `hal.Output(enable, set, clr, mask)` — a push-pull pin over the atomic
-  W1TS/W1TC registers, with `init`/`setHigh`/`setLow`/`setLevel`. It's
+- `hal.Output(enable, out, set, clr, mask)` — a push-pull pin over the atomic
+  W1TS/W1TC registers (`init`/`setHigh`/`setLow`/`setLevel`/`toggle`/`isSetHigh`). It's
   **comptime-parameterized** on the register addresses so the stores keep fixed,
   aligned, non-null targets and emit no alignment/null panic (which wouldn't
   link). `hal.Level` is the `.low`/`.high` enum (with `not`).
@@ -196,12 +197,20 @@ A small esp-hal-shaped driver layer over `mmio` (imported as `hal`):
   (In hot read loops use the boolean `isHigh`, not the `Level` enum — a `switch`
   on it emits a corrupt-value safety check that doesn't link.)
 - `hal.Delay(cpu_hz)` — a cycle-accurate blocking delay (`cycles`/`micros`/
-  `millis`) built on the Xtensa core cycle counter (`rsr.ccount`), the same
-  mechanism xtensa-lx uses. `rsr.ccount` is an optimization barrier (like the
-  `ee.*` PIE ops), so it only un-elides safety checks the surrounding code has
-  already eliminated — which is why `Output` must keep its addresses comptime.
-  Verified in QEMU: the cycle counter advances and the demos blink at the
-  expected `cpu_hz`-scaled rate.
+  `millis`) built on the Xtensa core cycle counter (`rsr.ccount`). `rsr.ccount`
+  is an optimization barrier (like the `ee.*` PIE ops), so it only un-elides
+  safety checks the surrounding code has already eliminated — which is why
+  `Output` must keep its addresses comptime. Verified in QEMU: the cycle counter
+  advances and the demos blink at the expected `cpu_hz`-scaled rate.
+- `hal.Timer(config, update, lo)` — a Timer Group general-purpose up-counter (a
+  monotonic time base independent of `CCOUNT`); `start(divider)` enables it and
+  `ticks()` latches + reads the low 32 bits. The esp32 demo prints its uptime.
+- `hal.Uart(fifo)` — a UART transmitter (`writeByte`/`write`) over the TX FIFO;
+  the QEMU-safe subset (real hardware would also gate on the TX-FIFO status).
+- `hal.Rng(data)` — reads a 32-bit hardware-RNG sample; the esp32 demo prints one.
+
+Every driver is **comptime-parameterized on its register addresses**, so the
+MMIO accesses stay provably aligned/non-null and emit no panic path.
 
 ### DSP kernels (`src/dsp.zig`)
 
@@ -231,8 +240,8 @@ a freestanding image references the unlinkable panic path). Verified in QEMU:
 the demo executes real `ee.*` instructions and computes Σ x² = 816.
 
 `esp32s3/main.zig` is the PIE example (mix → energy → blink). The **FFT
-spectral-analysis demo lives in `esp32/main.zig`** (`fft` is portable scalar
-code; the LX6 has no PIE) and prints the magnitude spectrum over UART. They are
+spectral-analysis demo lives in `esp32s2/main.zig`** (`fft` is portable scalar
+code; the LX7 has no PIE) and prints the magnitude spectrum over UART. They are
 split across chips because an `ee.*` instruction is an optimization barrier that
 un-elides Debug safety-check panics in surrounding code — so a PIE function and
 the higher-level UART/FFT code can't share a build here.
@@ -271,18 +280,18 @@ zig build smoke -Dsmoke-seconds=10
 
 # Show the example's UART output (captured from QEMU via `-serial file:`):
 zig build demo          # all QEMU-capable chips
-zig build demo-esp32    # just the FFT spectrum example
+zig build demo-esp32    # just the ESP32 crypto example
 ```
 
 The firmware writes to UART0 (`regs.UART0.FIFO`); `demo` routes that to a file
-and prints it. **`esp32` renders the FFT magnitude spectrum of a two-tone
-signal** as ASCII bars (`esp32s3` is the PIE/SIMD example and drives the LED
-rather than printing):
+and prints it. **`esp32` is the crypto demo** — it runs SHA-256 on the hardware
+accelerator and checks the digest against `std.crypto`'s comptime reference
+(`esp32s3` is the PIE/SIMD example and drives the LED rather than printing):
 
 ```
-ESP32 FFT magnitude spectrum (tones @ bins 4 and 12):
-bin  4 |##############################################
-bin 12 |#######################
+ESP32 bare-metal Zig — hardware crypto demo
+[info] SHA-256("abc") HW vs std.crypto: OK
+[info] rng sample 3160650498, GPIO0 low
 ```
 
 `build.zig` finds `qemu-system-xtensa` on `PATH`; override it with
@@ -372,6 +381,5 @@ esptool.py --chip esp32s2 elf2image --output firmware.bin zig-out/bin/esp32s2_ba
 - [kubo39/esp32-baremetal-ldc](https://github.com/kubo39/esp32-baremetal-ldc) – inspiration
 - [georgik/swift-xtensa](https://github.com/georgik/swift-xtensa) – flashing workflow reference (espflash, --flash-mode dio)
 - [esp-rs/espflash](https://github.com/esp-rs/espflash) – Rust-based flash tool (ELF-aware, `--skip-padding`)
-- [esp-rs/esp-hal](https://github.com/esp-rs/esp-hal) – HAL design reference
 - [esp-rs/esp-pacs](https://github.com/esp-rs/esp-pacs) – source of the vendored `svd/*.svd` (register access generated by `tools/svd2zig.zig`)
 - [espressif/esp-dsp](https://github.com/espressif/esp-dsp) – the fixed-point FFT/DSP algorithms ported into `src/dsp.zig`

@@ -1,11 +1,15 @@
-// Bare-metal Zig for ESP32 (Xtensa LX6). FFT spectral-analysis demo: FFTs a
-// two-tone signal and prints the magnitude spectrum over UART0 (the LX6 has no
-// PIE unit, so dsp.fft runs as portable scalar code), reports the GPIO0 input
-// level, and blinks GPIO2 at a cycle-accurate rate set by the peak bin.
+// Copyright (c) 2026 Matheus C. França
+// SPDX-License-Identifier: Apache-2.0
+
+// Bare-metal Zig for ESP32 (Xtensa LX6) — hardware-crypto demo. Runs SHA-256 on
+// the SHA accelerator and checks the digest, word for word, against the value
+// std.crypto computes at comptime; also samples the hardware RNG and reports the
+// GPIO0 level. Blinks GPIO2. (The cycle-accurate Delay lives in the esp32s2/s3
+// examples — it's an optimization barrier that would un-elide the inlined SHA
+// safety checks, so this demo uses the plain busy-loop blink.)
 
 const std = @import("std");
 const mmio = @import("mmio");
-const dsp = @import("dsp");
 const hal = @import("hal");
 const init = @import("init");
 const regs = @import("regs"); // generated from svd/esp32.svd
@@ -26,92 +30,66 @@ fn logFn(comptime level: std.log.Level, comptime _: @TypeOf(.enum_literal), comp
 // GPIO2 = onboard blue LED on ESP32 DevKitC-V4 (bank 0); W1TS/W1TC are atomic.
 const led_pin: u5 = 2;
 const led_mask: u32 = @as(u32, 1) << led_pin;
-const cpu_hz = 240_000_000; // Xtensa default; sets the cycle-accurate Delay scale
-const blink_ms_per_bin: u32 = 50; // blink half-period = peak bin × this
-const bar_shift: u5 = 6; // bin magnitude → bar width
-const bar_max = 60;
+const blink_half: u32 = 480_000; // busy-loop iterations per blink half-period
 
-// Two-tone test signal (bins 4 and 12), generated at comptime.
-const fft_n = 64;
-const tone_a = 4;
-const tone_b = 12;
-const signal: [fft_n]dsp.Cplx = blk: {
-    @setEvalBranchQuota(20000);
-    var s: [fft_n]dsp.Cplx = undefined;
-    for (0..fft_n) |n| {
-        const t = 2.0 * std.math.pi * @as(f64, @floatFromInt(n)) / @as(f64, fft_n);
-        const v = @cos(@as(f64, tone_a) * t) * 6000.0 + @cos(@as(f64, tone_b) * t) * 3000.0;
-        s[n] = .{ .re = @intFromFloat(@round(v)), .im = 0 };
-    }
-    break :blk s;
-};
-
-/// Index of the strongest bin in 1..N/2 (|re|²+|im|²).
-inline fn peakBin(spectrum: *const [fft_n]dsp.Cplx) usize {
-    const s: [*]const dsp.Cplx = spectrum;
-    var best: usize = 1;
-    var best_mag: i32 = 0;
-    var b: usize = 1;
-    while (b < fft_n / 2) : (b +%= 1) {
-        const mag = @as(i32, s[b].re) *% @as(i32, s[b].re) +% @as(i32, s[b].im) *% @as(i32, s[b].im);
-        if (mag > best_mag) {
-            best_mag = mag;
-            best = b;
-        }
-    }
-    return best;
-}
-
-/// Print bins 0..N/2 of `spectrum` as a horizontal ASCII magnitude plot.
-inline fn printSpectrum(fifo: u32, spectrum: *const [fft_n]dsp.Cplx) void {
-    const s: [*]const dsp.Cplx = spectrum;
-    mmio.puts(fifo, "\r\nESP32 FFT magnitude spectrum (tones @ bins 4 and 12):\r\n");
-    var b: usize = 0;
-    while (b <= fft_n / 2) : (b +%= 1) {
-        const mag: u32 = @abs(@as(i32, s[b].re)) +% @abs(@as(i32, s[b].im));
-        var w: u32 = mag >> bar_shift;
-        if (w > bar_max) w = bar_max;
-        mmio.puts(fifo, "bin ");
-        if (b < 10) mmio.puts(fifo, " ");
-        mmio.printU32(fifo, @truncate(b));
-        mmio.puts(fifo, " |");
-        mmio.bar(fifo, w);
-        mmio.puts(fifo, "\r\n");
-    }
-}
-
-// ── Application entry ─────────────────────────────────────────────────────────
-
-const Led = hal.Output(gpio.ENABLE_W1TS, gpio.OUT_W1TS, gpio.OUT_W1TC, led_mask);
+const Led = hal.Output(gpio.ENABLE_W1TS, gpio.OUT, gpio.OUT_W1TS, gpio.OUT_W1TC, led_mask);
 const Button = hal.Input(gpio.IN, @as(u32, 1) << 0); // GPIO0 (boot button), bank 0
+const Console = hal.Uart(regs.UART0.FIFO); // UART transmitter
+const Entropy = hal.Rng(regs.RNG.DATA); // hardware RNG
+const Hasher = hal.Sha256(regs.SHA.TEXT_0, regs.SHA.SHA256_START, regs.SHA.SHA256_LOAD, regs.SHA.SHA256_BUSY);
+const Cipher = hal.Aes128(regs.AES.KEY_0, regs.AES.TEXT_0, regs.AES.MODE, regs.AES.START, regs.AES.IDLE);
+
+/// SHA-256 of `m` (8 big-endian words) computed by `std.crypto` at comptime —
+/// the reference the hardware accelerator is checked against. The software path
+/// can't link here, but comptime evaluation emits no runtime code.
+fn sha256ref(comptime m: []const u8) [8]u32 {
+    @setEvalBranchQuota(100_000);
+    var h: [32]u8 = undefined;
+    std.crypto.hash.sha2.Sha256.hash(m, &h, .{});
+    var w: [8]u32 = undefined;
+    for (&w, 0..) |*word, i| word.* = std.mem.readInt(u32, h[i * 4 ..][0..4], .big);
+    return w;
+}
+
+/// AES-128-ECB(key, pt) ciphertext as 4 little-endian words, via `std.crypto` at
+/// comptime — the reference for the hardware AES accelerator.
+fn aes128ref(comptime key: [16]u8, comptime pt: [16]u8) [4]u32 {
+    @setEvalBranchQuota(100_000);
+    var ct: [16]u8 = undefined;
+    std.crypto.core.aes.Aes128.initEnc(key).encrypt(&ct, &pt);
+    var w: [4]u32 = undefined;
+    for (&w, 0..) |*word, i| word.* = std.mem.readInt(u32, ct[i * 4 ..][0..4], .little);
+    return w;
+}
 
 export fn main() callconv(.c) noreturn {
     init.disableWatchdogs(regs); // or the chip resets within seconds on real HW
     Led.init();
+    Console.write("\r\nESP32 bare-metal Zig — hardware crypto demo\r\n");
 
-    var spectrum: [fft_n]dsp.Cplx = undefined;
-    const sp: [*]dsp.Cplx = &spectrum;
-    const tp: [*]const dsp.Cplx = &signal;
-    var n: usize = 0;
-    while (n < fft_n) : (n +%= 1) sp[n] = tp[n]; // element-wise copy (no memcpy)
-    dsp.fft(fft_n, &spectrum);
-    printSpectrum(regs.UART0.FIFO, &spectrum);
-
-    const peak: u32 = @truncate(peakBin(&spectrum));
-    const half_ms = peak *% blink_ms_per_bin;
-    const lvl: []const u8 = if (Button.isHigh()) "high" else "low";
+    // Hardware SHA-256("abc"), checked word-for-word against std.crypto's
+    // comptime reference digest.
+    const hw = Hasher.hash("abc");
+    const ref = comptime sha256ref("abc");
+    var sha_ok = true;
+    inline for (0..8) |w| {
+        if (hw[w] != ref[w]) sha_ok = false;
+    }
     // Same routine `std_options.logFn` installs; `std.log.*` can't be called
     // directly (its non-inline helpers need far calls this backend can't emit).
-    mmio.log(regs.UART0.FIFO, .info, "peak bin {d}, half-period {d} ms, GPIO0 {s}", .{ peak, half_ms, lvl });
+    mmio.log(regs.UART0.FIFO, .info, "SHA-256(\"abc\") HW vs std.crypto: {s}", .{if (sha_ok) "OK" else "MISMATCH"});
 
-    // Blink at a cycle-accurate rate set by the peak bin (esp-hal-style Delay).
-    const delay = hal.Delay(cpu_hz);
-    while (true) {
-        Led.setHigh();
-        delay.millis(half_ms);
-        Led.setLow();
-        delay.millis(half_ms);
+    // Hardware AES-128-ECB of an all-zero key+block, checked against std.crypto.
+    const ct = Cipher.encryptBlock(.{ 0, 0, 0, 0 }, .{ 0, 0, 0, 0 });
+    const ct_ref = comptime aes128ref([_]u8{0} ** 16, [_]u8{0} ** 16);
+    var aes_ok = true;
+    inline for (0..4) |w| {
+        if (ct[w] != ct_ref[w]) aes_ok = false;
     }
+    mmio.log(regs.UART0.FIFO, .info, "AES-128-ECB HW vs std.crypto: {s}", .{if (aes_ok) "OK" else "MISMATCH"});
+    mmio.log(regs.UART0.FIFO, .info, "rng sample {d}, GPIO0 {s}", .{ Entropy.read(), if (Button.isHigh()) "high" else "low" });
+
+    mmio.blink(gpio.OUT_W1TS, gpio.OUT_W1TC, led_mask, blink_half);
 }
 
 // ── Reset vector ────────────────────────────────────────────────────────────

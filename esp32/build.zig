@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Matheus C. França
+// SPDX-License-Identifier: Apache-2.0
+
 const std = @import("std");
 
 // Standalone package for the ESP32 example. It consumes the workspace root

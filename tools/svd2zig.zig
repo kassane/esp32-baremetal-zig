@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Matheus C. França
+// SPDX-License-Identifier: Apache-2.0
+
 //! svd2zig — minimal CMSIS-SVD → Zig generator (host tool, run by build.zig).
 //!
 //! Usage: svd2zig <input.svd> <output.zig>
