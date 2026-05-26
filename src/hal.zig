@@ -742,3 +742,34 @@ pub fn IoMux(comptime pad_reg: u32) type {
         }
     };
 }
+
+/// Timer-Group watchdog (TIMGn WDT) — the inverse of `init.disableWatchdogs`: arm
+/// a reset-on-timeout watchdog and `feed` it. Pass the timer-group namespace
+/// (`regs.TIMG0`). Stage 0 is configured to reset the whole system if the counter
+/// (TIMG clock ÷ prescaler) reaches the timeout before a `feed`. Writes are guarded
+/// by the hardware write-protect key. Field bits from the SVD, via reg.zig.
+pub fn Watchdog(comptime P: type) type {
+    return struct {
+        const wkey: u32 = 0x50D8_3AA1; // WDTWPROTECT unlock value (TRM constant)
+        const wdt_en = reg.bit(31); // WDTCONFIG0.WDT_EN
+        const stg0 = reg.Field(29, 2); // stage-0 action
+        const prescale = reg.Field(16, 16); // WDTCONFIG1.WDT_CLK_PRESCALE
+        const reset_system = 3; // stage action: reset the whole system
+
+        /// Arm the watchdog: TIMG clock ÷ `presc`, stage-0 system reset after
+        /// `timeout` ticks. Call `feed()` regularly to avoid the reset.
+        pub inline fn start(comptime presc: u16, timeout: u32) void {
+            mmio.writeReg(P.WDTWPROTECT, wkey); // unlock
+            mmio.writeReg(P.WDTCONFIG1, prescale.set(presc));
+            mmio.writeReg(P.WDTCONFIG_0, timeout); // stage-0 hold time (ticks)
+            mmio.writeReg(P.WDTCONFIG0, wdt_en | stg0.set(reset_system));
+            mmio.writeReg(P.WDTWPROTECT, 0); // re-lock
+        }
+        /// Reset the timeout counter ("feed the dog").
+        pub inline fn feed() void {
+            mmio.writeReg(P.WDTWPROTECT, wkey);
+            mmio.writeReg(P.WDTFEED, 1);
+            mmio.writeReg(P.WDTWPROTECT, 0);
+        }
+    };
+}
