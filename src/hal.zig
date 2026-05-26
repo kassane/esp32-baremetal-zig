@@ -1261,3 +1261,35 @@ pub fn FlashRom(comptime read_addr: u32) type {
         }
     };
 }
+
+/// Critical section — briefly mask interrupts so a multi-step register sequence is
+/// atomic against an interrupt handler. `enter()` raises the interrupt level
+/// (Xtensa `rsil`, or the RISC-V `mstatus.MIE` bit) and returns a token; pass it
+/// back to `exit()` to restore. This firmware is poll-based (it enables no
+/// interrupts), so this is here for code that does. Arch-selected at comptime.
+pub const Critical = struct {
+    /// Mask interrupts; returns the prior state to give back to `exit`.
+    pub inline fn enter() u32 {
+        return switch (builtin.cpu.arch) {
+            .xtensa => asm volatile ("rsil %[t], 5"
+                : [t] "=r" (-> u32),
+            ),
+            else => asm volatile ("csrrci %[t], mstatus, 8" // clear mstatus.MIE
+                : [t] "=r" (-> u32),
+            ),
+        };
+    }
+    /// Restore the interrupt state captured by `enter`.
+    pub inline fn exit(token: u32) void {
+        switch (builtin.cpu.arch) {
+            .xtensa => asm volatile ("wsr.ps %[t]\n rsync"
+                :
+                : [t] "r" (token),
+            ),
+            else => asm volatile ("csrw mstatus, %[t]"
+                :
+                : [t] "r" (token),
+            ),
+        }
+    }
+};
