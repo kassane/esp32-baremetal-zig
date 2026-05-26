@@ -194,7 +194,7 @@ fn addFirmware(
 // ── Linker script generators (emitted via b.addWriteFiles) ──────────────────
 
 /// Flash layout: code in IROM, rodata in DROM, data/bss in DRAM. Mirrors the
-/// IDF app image; the entry runs from flash after the ROM enables the cache.
+/// vendor app image; the entry runs from flash after the ROM enables the cache.
 fn flashLinker(b: *std.Build, comptime chip: Chip) []const u8 {
     return b.fmt(
         \\ENTRY({s})
@@ -288,7 +288,8 @@ fn qemuLinker(b: *std.Build, comptime entry: []const u8, comptime q: Qemu) []con
 
 // ── Chip definitions ────────────────────────────────────────────────────────
 // Requires the zig-espressif-bootstrap fork; upstream zig lacks esp32 CPU models.
-// Addresses verified against ESP-IDF components/esp_system/ld/<chip>/memory.ld.in.
+// Addresses verified against the vendor SDK's per-chip memory layout
+// (esp_system/ld/<chip>/memory.ld.in).
 
 /// A memory region as the linker wants it: ORIGIN + LENGTH.
 const Region = struct { org: u64, len: u64 };

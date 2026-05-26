@@ -466,8 +466,8 @@ pub fn Spi(comptime P: type) type {
 /// RSA accelerator — modular exponentiation `Z = base^exponent mod modulus`, the
 /// core of RSA sign/verify. Takes the peripheral namespace (`regs.RSA`) and the
 /// operand length in 32-bit `words` (a multiple of 16, i.e. 512-bit increments).
-/// Following ESP-IDF / esp-hal, the caller supplies the two Montgomery constants
-/// the hardware needs — `m_prime = -M⁻¹ mod 2³²` and `r = 2^(2·words·32) mod M` —
+/// The caller supplies the two Montgomery constants the hardware needs —
+/// `m_prime = -M⁻¹ mod 2³²` and `r = 2^(2·words·32) mod M` —
 /// so this driver computes nothing in software (it would not link freestanding).
 /// The memory-block writes unroll over comptime indices, keeping every MMIO
 /// address a compile-time constant (no `@ptrFromInt` panic path).
@@ -629,8 +629,8 @@ pub fn I2s(comptime P: type) type {
 
 /// DAC — 8-bit analog output on an RTC DAC pad (`regs.RTC_IO.PAD_DAC_0` = DAC1 on
 /// GPIO25, `PAD_DAC_1` = DAC2 on GPIO26). Writing forces the pad's DAC power-up
-/// control to this register and drives `level` (0..255 ≈ 0..Vref) — the same path
-/// ESP-IDF's `dac_output_voltage` takes. **Build-only:** QEMU has no observable
+/// control to this register and drives `level` (0..255 ≈ 0..Vref), the standard
+/// software-driven DAC output path. **Build-only:** QEMU has no observable
 /// analog output (the cosine-wave generator is left disabled, its reset default).
 pub fn Dac(comptime pad_dac_reg: u32) type {
     return struct {
@@ -818,6 +818,92 @@ pub fn GpioEdge(comptime pin_reg: u32, comptime mask: u32, comptime status_reg: 
             const hit = mmio.readReg(status_reg) & mask != 0;
             if (hit) mmio.writeReg(clr_reg, mask);
             return hit;
+        }
+    };
+}
+
+/// ESP32-S3 System Timer — the SoC's always-on 52-bit up-counter, a monotonic time
+/// base independent of the Timer-Group `Timer` and of the CPU-clock changes
+/// `CCOUNT` tracks. Takes the peripheral namespace (`regs.SYSTIMER`). A read is a
+/// latch handshake — pulse `UNIT_OP.UPDATE`, wait for `VALUE_VALID`, then read the
+/// HI/LO snapshot — so `count()` returns a coherent value even while the counter
+/// advances. One of the blocks the Espressif QEMU esp32s3 machine emulates, so
+/// `examples/systimer` runs under `zig build demo`. Field bits from the SVD, via
+/// reg.zig.
+pub fn SysTimer(comptime P: type) type {
+    return struct {
+        const clk_en = reg.bit(31); // CONF.CLK_EN — peripheral clock
+        const unit0_work_en = reg.bit(30); // CONF.TIMER_UNIT0_WORK_EN — run unit 0
+        const update = reg.bit(30); // UNIT_OP_0.TIMER_UNIT0_UPDATE — latch a snapshot
+        const value_valid = reg.bit(29); // UNIT_OP_0.TIMER_UNIT0_VALUE_VALID
+        const hi_value = reg.Field(0, 20); // UNIT_VALUE_0_HI holds count bits [51:32]
+
+        /// Enable the timer clock and unit 0's counter. Call once at boot.
+        pub inline fn init() void {
+            mmio.writeReg(P.CONF, clk_en | unit0_work_en);
+        }
+        /// Coherent 52-bit count of unit 0 as a u64 (latched via the UPDATE/VALID
+        /// handshake so the HI and LO halves can't tear as the counter advances).
+        pub inline fn count() u64 {
+            mmio.writeReg(P.UNIT_OP_0, update);
+            while (mmio.readReg(P.UNIT_OP_0) & value_valid == 0) {} // await a coherent snapshot
+            const hi = hi_value.get(mmio.readReg(P.UNIT_VALUE_0_HI));
+            const lo = mmio.readReg(P.UNIT_VALUE_0_LO);
+            return (@as(u64, hi) << 32) | lo;
+        }
+    };
+}
+
+/// WS2812 / NeoPixel addressable-RGB driver built on the `Rmt` transmitter — the
+/// "smart LED" on many ESP32 dev boards (e.g. the ESP32-S3 onboard RGB). Each
+/// colour bit becomes one RMT symbol whose high-time encodes 0 vs 1 (the WS2812's
+/// single-wire NRZ line code); the 24 bits of a pixel stream out a pad in G-R-B,
+/// MSB-first order, and the transmitter's trailing idle doubles as the > 50 µs
+/// latch/reset. Takes the same four channel registers as `Rmt`, and reuses it
+/// wholesale. **Build-only:** no Espressif QEMU machine models RMT (route the
+/// channel to the LED's data pad via the GPIO matrix on hardware). The bit timing
+/// folds from the datasheet nanoseconds to source-clock ticks at comptime — no
+/// hand-tuned tick counts.
+pub fn Ws2812(comptime conf0: u32, comptime conf1: u32, comptime data: u32, comptime apb_conf: u32) type {
+    return struct {
+        const Channel = Rmt(conf0, conf1, data, apb_conf);
+        const src_hz: u32 = 80_000_000; // RMT source = 80 MHz APB clock
+        const divider: u8 = 4; // → 20 MHz, i.e. 50 ns per source-clock tick
+        const ticks_per_us = src_hz / divider / 1_000_000;
+        // WS2812 datasheet bit timing (ns) → ticks, folded at comptime.
+        const t0h = nsToTicks(400); // "0" bit: 0.40 µs high
+        const t0l = nsToTicks(850); //          0.85 µs low
+        const t1h = nsToTicks(800); // "1" bit: 0.80 µs high
+        const t1l = nsToTicks(450); //          0.45 µs low
+        const bit0 = Channel.symbol(1, t0h, 0, t0l);
+        const bit1 = Channel.symbol(1, t1h, 0, t1l);
+
+        inline fn nsToTicks(comptime ns: u32) u15 {
+            return @intCast(ns * ticks_per_us / 1000);
+        }
+
+        /// A 24-bit colour. The wire order is G-R-B; callers think in r/g/b.
+        pub const Color = struct { r: u8, g: u8, b: u8 };
+
+        /// Configure the RMT channel for WS2812 timing. Call once before `write`.
+        pub inline fn init() void {
+            Channel.init(divider);
+        }
+        /// Drive one pixel (G-R-B, MSB first), followed by the RMT end marker whose
+        /// idle latches the colour. `[*]` indexing keeps the symbol fill panic-free.
+        pub inline fn write(color: Color) void {
+            const channels = [_]u8{ color.g, color.r, color.b };
+            var syms: [8 * channels.len]u32 = undefined;
+            const s: [*]u32 = &syms;
+            var n: usize = 0;
+            for (channels) |byte| {
+                var bit: u8 = 0x80; // walk MSB → LSB
+                while (bit != 0) : (bit >>= 1) {
+                    s[n] = if (byte & bit != 0) bit1 else bit0;
+                    n +%= 1;
+                }
+            }
+            Channel.send(&syms);
         }
     };
 }

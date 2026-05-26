@@ -3,12 +3,8 @@
 
 const std = @import("std");
 
-// Standalone package for the 'rsa' example (ESP32) — RSA modular exponentiation.
-// **Build-only:** it exercises the accelerator's register sequence with
-// placeholder operands (the Montgomery constants m'/r are caller-supplied). The
-// Espressif QEMU does model RSA, so a value-checked run is a
-// future step once a comptime big-integer reference is wired up. Consumes the
-// workspace root (`esp32_hal`) as a local path dependency.
+// Standalone package for the 'ws2812' example (ESP32) — WS2812/NeoPixel RGB over
+// RMT. Consumes the workspace root (`esp32_hal`). Build-only: QEMU models no RMT.
 pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const core = b.dependency("esp32_hal", .{});
@@ -22,7 +18,7 @@ pub fn build(b: *std.Build) void {
     mod.addImport("regs", core.module("esp32_regs"));
     mod.strip = true;
     mod.sanitize_c = .off;
-    const exe = b.addExecutable(.{ .name = "rsa", .root_module = mod });
+    const exe = b.addExecutable(.{ .name = "ws2812", .root_module = mod });
     exe.entry = .{ .symbol_name = "Reset" };
     exe.bundle_compiler_rt = false;
     exe.setLinkerScript(core.namedLazyPath("esp32.ld"));

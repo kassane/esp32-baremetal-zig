@@ -117,6 +117,11 @@ jobs:
         shell: bash
         run: cd examples/esp32s3 && zig build demo
 
+      - name: ESP32-S3 example — system-timer uptime over UART
+        if: matrix.run_qemu
+        shell: bash
+        run: cd examples/systimer && zig build demo
+
       - name: ESP32 example — eFuse base-MAC reader over UART
         if: matrix.run_qemu
         shell: bash
@@ -149,3 +154,4 @@ jobs:
           cd ../reset_reason && zig build --summary all
           cd ../sw_reset     && zig build --summary all
           cd ../gpio_edge    && zig build --summary all
+          cd ../ws2812       && zig build --summary all

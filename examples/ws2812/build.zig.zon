@@ -1,0 +1,9 @@
+.{
+    .name = .ws2812_example,
+    .version = "0.1.0",
+    .fingerprint = 0xcbecd613837d5aaa,
+    .dependencies = .{
+        .esp32_hal = .{ .path = "../.." },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "main.zig" },
+}

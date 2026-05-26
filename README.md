@@ -1,29 +1,37 @@
 # esp32-baremetal-zig
 
-**Pure Zig on bare Xtensa silicon** — no ESP-IDF, no RTOS, no libc. Just your
-code, the registers, and the metal. It boots on ESP32, ESP32-S2 and ESP32-S3,
-each example owning a different trick: the ESP32 verifies its **hardware SHA-1/256
-and AES-128/256** against `std.crypto` live in QEMU, the ESP32-S2 runs a
-**fixed-point FFT** spectrum analyzer, and the ESP32-S3 does **SIMD** on its vector unit.
+A bare-metal hardware abstraction layer for the Xtensa ESP32 family, written in
+pure Zig — no vendor SDK, no RTOS, no libc, no C. Firmware boots directly on
+ESP32, ESP32-S2 and ESP32-S3 from a generated linker script, reaches the silicon
+through SVD-generated register definitions, and is exercised in the Espressif
+QEMU fork on every CI run.
 
-What you get:
+Three reference applications anchor the HAL: the ESP32 verifies its hardware
+SHA-1/256 and AES-128/256 engines against `std.crypto` live in QEMU, the ESP32-S2
+runs a fixed-point FFT spectrum analyzer, and the ESP32-S3 drives its PIE/SIMD
+vector unit.
 
-- **Registers from SVD, never magic numbers.** `tools/svd2zig.zig` turns vendored
-  CMSIS-SVD into `@import("regs")` at build time — `regs.GPIO.OUT_W1TS`, not `0x...`.
-- **A pocket-sized register HAL** — `Output` / `Input` / `Level`, plus a
-  cycle-accurate `Delay` read straight off the Xtensa `CCOUNT` counter.
-- **Fixed-point DSP** — saturating add, dot product, FIR, and a radix-2 Q15 FFT
-  (ported from esp-dsp). The vector kernels compile to ESP32-S3 PIE inline asm and
-  fall back to scalar elsewhere, chosen at comptime.
-- **Survives real hardware.** Watchdogs disabled at boot; a custom panic handler
-  and `std.log` route over UART without ever touching `std.fmt` (it won't link
-  freestanding).
-- **Reusable as a Zig package** — `zig fetch` it and import the modules. See
-  [Use it as a dependency](#use-it-as-a-dependency-zig-fetch).
-- **Green on every push** across a Linux + macOS + Windows CI matrix, booted in QEMU.
+### Highlights
 
-No build script to babysit and no linker scripts to hand-edit — the flash and
-QEMU `.ld` files are generated in `build.zig`.
+- **Generated register access.** `tools/svd2zig.zig` compiles vendored CMSIS-SVD
+  into a typed `@import("regs")` at build time — `regs.GPIO.OUT_W1TS`, never a
+  hardcoded address.
+- **A comptime register HAL.** Every peripheral driver is parameterized on its
+  register addresses, so each MMIO access is provably aligned and non-null and
+  emits no panic path on this backend. Bit fields are named via `src/reg.zig`,
+  not hand-shifted.
+- **Fixed-point DSP.** Saturating add, dot product, FIR and a radix-2 Q15 FFT,
+  with ESP32-S3 PIE vector kernels selected at comptime and a scalar fallback.
+- **Freestanding-safe runtime.** Watchdogs are cleared at boot; a custom panic
+  handler and a `std.log` backend render over UART without pulling in `std.fmt`
+  (whose formatter will not link on this backend).
+- **Consumable as a package.** `zig fetch` the repository and import the modules;
+  every example under `examples/` is a standalone package that does exactly that.
+- **Continuously tested.** A Linux/macOS/Windows CI matrix builds every target
+  and boots the QEMU-capable chips on each push.
+
+The flash and QEMU linker scripts are generated in `build.zig` — there are no
+`.ld` files to hand-edit.
 
 ---
 
@@ -92,14 +100,15 @@ Single-feature programs live alongside them, each its own package you build with
 `cd examples/<name> && zig build`:
 
 - `blink` (GPIO + Delay), `button` (GPIO in→out), `efuse` (factory MAC) on ESP32
-- `efuse` also runs in QEMU (`cd examples/efuse && zig build demo`)
+- **Run in QEMU** (`zig build demo`): `efuse` (ESP32 — factory MAC over UART) and
+  `systimer` (ESP32-S3 — system-timer uptime over UART)
 - **Build-only**: `pwm` (LEDC) on ESP32-S2; `i2c` (I2C master), `spi` (SPI master),
-  `rmt` (IR remote transmit), `rsa` (RSA modular exponentiation), `twai`
-  (CAN 2.0 transmit), `mcpwm` (motor-control PWM), `i2s` (I2S master TX),
-  `dac` (analog output), `adc` (analog input), `iomux` (pad pull/drive config),
-  `watchdog` (TIMG WDT), `reset_reason` (reset cause), `sw_reset` (software reset)
-  and `gpio_edge` (poll-based edge detection) on ESP32; `usb_serial` (USB CDC-ACM
-  console) and `tsens` (temperature sensor) on ESP32-S3
+  `rmt` (IR remote transmit), `ws2812` (addressable RGB over RMT), `rsa` (RSA
+  modular exponentiation), `twai` (CAN 2.0 transmit), `mcpwm` (motor-control PWM),
+  `i2s` (I2S master TX), `dac` (analog output), `adc` (analog input), `iomux` (pad
+  pull/drive config), `watchdog` (TIMG WDT), `reset_reason` (reset cause),
+  `sw_reset` (software reset) and `gpio_edge` (poll-based edge detection) on ESP32;
+  `usb_serial` (USB CDC-ACM console) and `tsens` (temperature sensor) on ESP32-S3
 
 Shared register/timing helpers live in `src/mmio.zig` (imported as `mmio`).
 
@@ -223,6 +232,10 @@ A small register driver layer over `mmio` (imported as `hal`):
 - `hal.Timer(config, update, lo)` — a Timer Group general-purpose up-counter (a
   monotonic time base independent of `CCOUNT`); `start(divider)` enables it and
   `ticks()` latches + reads the low 32 bits. The esp32 demo prints its uptime.
+- `hal.SysTimer(P)` — the ESP32-S3 system timer (`regs.SYSTIMER`), the SoC's
+  always-on 52-bit monotonic counter; `count()` returns a coherent 64-bit value
+  via the hardware UPDATE/VALUE_VALID latch handshake. QEMU emulates it, so
+  `examples/systimer` prints the advancing count under `zig build demo`.
 - `hal.Uart(fifo, status)` — full-duplex UART: TX (`writeByte`/`write`) over the
   FIFO plus RX (`readByte` → `?u8`, `rxAvailable`) gated on `STATUS.RXFIFO_CNT`.
 - `hal.Rng(data)` — reads a 32-bit hardware-RNG sample; the esp32 demo prints one.
@@ -247,13 +260,18 @@ A small register driver layer over `mmio` (imported as `hal`):
   symbols (two timed levels each) out a channel for IR remote protocols
   (NEC/RC5) or WS2812 timing (see `examples/rmt/`). **Build-only**: QEMU models no
   RMT (route the channel to an IR-LED pad, with a 38 kHz carrier, on hardware).
+- `hal.Ws2812(conf0, conf1, data, apb_conf)` — WS2812/NeoPixel addressable RGB
+  built on `Rmt`: encodes a pixel's 24 bits (G-R-B, MSB first) as RMT symbols, the
+  datasheet bit timing folded from nanoseconds to source-clock ticks at comptime
+  (see `examples/ws2812/`). **Build-only**: QEMU models no RMT (route the channel
+  to the LED's data pad on hardware).
 - `hal.Spi(P)` — SPI master, half-duplex MOSI write (≤ 64 bytes / data-buffer
   load); takes the peripheral namespace (e.g. `regs.SPI2`) (see `examples/spi/`).
   **Build-only**: QEMU models no SPI controller (route CS/CLK/MOSI to pads first).
 - `hal.Rsa(P, words)` — RSA modular exponentiation (`base^exp mod modulus`), the
-  core of RSA sign/verify, for `words`×32-bit operands (512-bit increments). Per
-  ESP-IDF/esp-hal the caller supplies the Montgomery constants (`m' = -M⁻¹ mod
-  2³²`, `r = 2^(2·bits) mod M`), so the driver computes nothing in software (see
+  core of RSA sign/verify, for `words`×32-bit operands (512-bit increments). The
+  caller supplies the Montgomery constants (`m' = -M⁻¹ mod 2³²`,
+  `r = 2^(2·bits) mod M`), so the driver computes nothing in software (see
   `examples/rsa/`). **Build-only** for now; the Espressif QEMU *does* model RSA, so
   a value-checked run against a comptime `std.math.big` reference is a natural next step.
 - `hal.Twai(P)` — TWAI (CAN 2.0) controller: transmit a standard-ID data frame on
@@ -266,9 +284,9 @@ A small register driver layer over `mmio` (imported as `hal`):
   Philips framing) on `regs.I2S0` (see `examples/i2s/`). **Build-only**: QEMU models
   no I2S; the DMA-fed streaming path is a larger future piece.
 - `hal.Dac(pad_dac_reg)` — 8-bit analog output on an RTC DAC pad (`PAD_DAC_0` =
-  DAC1/GPIO25, `PAD_DAC_1` = DAC2/GPIO26); `write(level)` drives 0..Vref the way
-  ESP-IDF's `dac_output_voltage` does (see `examples/dac/`). **Build-only**: QEMU
-  has no observable analog output.
+  DAC1/GPIO25, `PAD_DAC_1` = DAC2/GPIO26); `write(level)` drives 0..Vref over the
+  software DAC output path (see `examples/dac/`). **Build-only**: QEMU has no
+  observable analog output.
 - `hal.Adc(meas_reg)` — SAR ADC software one-shot (`SAR_MEAS_START1` = ADC1,
   `SAR_MEAS_START2` = ADC2): `read(channel)` triggers a conversion and returns the
   raw value (see `examples/adc/`). **Build-only**: QEMU has no analog input, and a
@@ -306,18 +324,24 @@ comptime helpers in `src/reg.zig` (`reg.bit(n)`, `reg.Field(lsb, width)`), so th
 drivers name each field (`divider.set(div)`, not `value << 13`) instead of
 hand-shifting magic numbers — and it all folds to the same code at comptime.
 
-### Connectivity (Wi-Fi / Bluetooth / radio)
+### Connectivity and wireless
 
-There are no Wi-Fi/Bluetooth drivers here, and there can't be a pure-bare-metal
-one: the radios are driven by Espressif's closed-source RF/PHY/MAC blobs (the
-`esp-wifi` / controller libraries), which are also why QEMU doesn't emulate them.
-What this project *can* provide is the register-level groundwork those stacks sit
-on — the factory MAC every interface derives from (`hal.Efuse`), the RNG the TLS
-layers seed from (`hal.Rng`), the wired buses peripherals hang off (`hal.I2c`,
-plus the LEDC PWM), and the one wireless protocol that *is* pure registers:
-infrared remote control via the RMT peripheral (`hal.Rmt`). Bringing up the RF
-radio itself would mean linking the vendor blobs, which is out of scope for a
-from-scratch register HAL.
+The Wi-Fi and Bluetooth radios are intentionally out of scope. Their RF, PHY and
+MAC layers are driven by closed-source vendor firmware blobs — the same reason
+the QEMU fork does not emulate them — so a from-scratch, blob-free register HAL
+cannot bring up the radio itself. Drawing that boundary explicitly is a design
+decision, not a missing feature.
+
+What the HAL does provide is the register-level groundwork a connectivity stack
+builds on, plus the wireless protocols that *are* pure registers:
+
+- the 48-bit factory MAC every radio interface derives from (`hal.Efuse`);
+- the hardware RNG a TLS layer seeds from (`hal.Rng`);
+- the wired buses that peripherals hang off (`hal.I2c`, `hal.Spi`, `hal.I2s`,
+  plus the LEDC and MCPWM timers); and
+- single-wire, line-coded protocols clocked out of the RMT peripheral —
+  infrared remote control (`hal.Rmt`) and WS2812/NeoPixel addressable RGB
+  (`hal.Ws2812`).
 
 ### DSP kernels (`src/dsp.zig`)
 
@@ -443,9 +467,10 @@ file works for both hardware and QEMU builds without conditional compilation.
 > (tens of MB) because objcopy zero-fills the gap between the DROM and IROM
 > segments. Use one of the methods below instead.
 
-Hardware flashing requires the IDF second-stage **bootloader** and **partition
-table** to be present on flash (they initialise the flash-cache MMU so the app's
-`irom_seg` becomes accessible). Extract them from any IDF build:
+Hardware flashing requires the standard second-stage **bootloader** and
+**partition table** to already be present on flash (they initialise the
+flash-cache MMU so the app's `irom_seg` becomes accessible). Take them from any
+build of the vendor SDK:
 
 ```
 bootloader.bin       → flash offset 0x0
@@ -487,13 +512,10 @@ esptool.py --chip esp32s2 elf2image --output firmware.bin zig-out/bin/esp32s2_ba
 
 ## References
 
-- [zig-espressif-bootstrap](https://github.com/kassane/zig-espressif-bootstrap)
-- [esp-rs/xtensa-lx](https://github.com/esp-rs/xtensa-lx) – linker script origin
-- [kubo39/esp32-baremetal-ldc](https://github.com/kubo39/esp32-baremetal-ldc) – inspiration
-- [georgik/swift-xtensa](https://github.com/georgik/swift-xtensa) – flashing workflow reference (espflash, --flash-mode dio)
-- [esp-rs/espflash](https://github.com/esp-rs/espflash) – Rust-based flash tool (ELF-aware, `--skip-padding`)
-- [esp-rs/esp-pacs](https://github.com/esp-rs/esp-pacs) – source of the vendored `svd/*.svd` (register access generated by `tools/svd2zig.zig`)
-- [espressif/esp-dsp](https://github.com/espressif/esp-dsp) – the fixed-point FFT/DSP algorithms ported into `src/dsp.zig`
+- [zig-espressif-bootstrap](https://github.com/kassane/zig-espressif-bootstrap) — the Zig toolchain (Espressif LLVM fork) this project builds with
+- [esp-rs/esp-pacs](https://github.com/esp-rs/esp-pacs) — upstream of the vendored `svd/*.svd`; register access is generated from these by `tools/svd2zig.zig`
+- [espressif/esp-dsp](https://github.com/espressif/esp-dsp) — reference for the fixed-point FFT/DSP algorithms ported into `src/dsp.zig`
+- [esp-rs/espflash](https://github.com/esp-rs/espflash) — ELF-aware flashing tool used in the hardware-flashing instructions above
 
 ---
 
