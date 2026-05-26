@@ -695,3 +695,24 @@ pub fn UsbSerial(comptime ep1: u32, comptime ep1_conf: u32) type {
         }
     };
 }
+
+/// On-chip temperature sensor (ESP32-S2/-S3) — `regs.SENS.SAR_TSENS_CTRL`. Powers
+/// the sensor (software-forced) and returns its raw 8-bit reading once ready; the
+/// raw value maps to °C through a per-chip calibration curve the caller applies.
+/// **Build-only:** QEMU has no thermal model. Fields from the SVD, via reg.zig.
+pub fn TempSensor(comptime ctrl_reg: u32) type {
+    return struct {
+        const out = reg.Field(0, 8); // SAR_TSENS_OUT
+        const ready = reg.bit(8); // SAR_TSENS_READY
+        const clk_div = reg.Field(14, 8); // SAR_TSENS_CLK_DIV
+        const power_up = reg.bit(22);
+        const power_up_force = reg.bit(23); // power the sensor from this register
+
+        /// Power up the sensor (clock ÷ `div`) and return the raw reading once ready.
+        pub inline fn read(comptime div: u8) u8 {
+            mmio.writeReg(ctrl_reg, power_up_force | power_up | clk_div.set(div));
+            while (mmio.readReg(ctrl_reg) & ready == 0) {} // wait for a sample
+            return @truncate(out.get(mmio.readReg(ctrl_reg)));
+        }
+    };
+}
