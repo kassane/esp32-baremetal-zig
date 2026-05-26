@@ -1,13 +1,15 @@
 // Copyright (c) 2026 Matheus C. França
 // SPDX-License-Identifier: Apache-2.0
 
-// Bare-metal Zig for ESP32 — RSA modular exponentiation (build-only). Drives the
-// RSA accelerator's modexp register sequence for a 512-bit operand (16 words).
-// The Montgomery constants `m_prime = -M⁻¹ mod 2³²` and `r = 2^(2·512) mod M` are
-// caller-supplied — here they are placeholders, so this is
-// **build-only**: it links and runs the sequence on hardware, but the result is
-// only meaningful with real constants (a comptime big-int reference is future work).
+// Bare-metal Zig for ESP32 — RSA modular exponentiation, QEMU-verified. Computes
+// Z = base^exp mod M on the RSA accelerator against a known-answer vector:
+// M = 2^512 − 1, base = 2, exp = 2, so Z must be 4. This modulus makes the two
+// Montgomery constants exact and tiny — R = 2^512 ≡ 1 (mod M) gives r = R² mod M = 1,
+// and M ≡ −1 (mod 2^32) gives m' = −M⁻¹ mod 2^32 = 1 — so the vector needs no
+// big-integer software. The Espressif QEMU esp32 machine models RSA, so
+// `zig build demo` prints OK.
 
+const std = @import("std");
 const mmio = @import("mmio");
 const hal = @import("hal");
 const init = @import("init");
@@ -19,24 +21,35 @@ fn onPanic(msg: []const u8, ret_addr: ?usize) noreturn {
 }
 pub const panic = @import("panic").Handler(onPanic);
 
+pub const std_options: std.Options = .{ .logFn = logFn };
+fn logFn(comptime level: std.log.Level, comptime _: @TypeOf(.enum_literal), comptime fmt: []const u8, args: anytype) void {
+    mmio.log(regs.UART0.FIFO, level, fmt, args);
+}
+
 const words = 16; // 512-bit operands
 const Rsa = hal.Rsa(regs.RSA, words);
 
-// Placeholder 512-bit operands (real use derives m_prime/r from the modulus).
+// Known-answer vector (see the header): M = 2^512 − 1, so m' = 1 and r = 1 exactly.
+const modulus: [words]u32 = @splat(0xFFFF_FFFF);
 const base = [_]u32{2} ++ @as([words - 1]u32, @splat(0));
-const exponent = [_]u32{0x10001} ++ @as([words - 1]u32, @splat(0)); // 65537
-const modulus = [_]u32{0xFFFF_FFFD} ++ @as([words - 1]u32, @splat(0));
-const r: [words]u32 = @splat(0);
-const m_prime: u32 = 0;
+const exponent = [_]u32{2} ++ @as([words - 1]u32, @splat(0));
+const r = [_]u32{1} ++ @as([words - 1]u32, @splat(0));
+const m_prime: u32 = 1;
+const expected: u32 = 4; // 2^2 mod (2^512 − 1)
 
 export fn main() callconv(.c) noreturn {
     init.disableWatchdogs(regs);
     while (!Rsa.ready()) {} // wait for the accelerator to come out of reset
     const z = Rsa.modExp(base, exponent, modulus, m_prime, r);
-    // Report the low word so the call isn't optimised away (build-only). `{d}`
-    // (printU32) avoids the hex table-lookup whose bounds-check won't link here.
-    mmio.log(regs.UART0.FIFO, .info, "RSA modexp done, z[0]={d}", .{z[0]});
-    while (true) mmio.delay(4_000_000);
+    // Z must be exactly `expected` in the low word and zero above it.
+    var ok = z[0] == expected;
+    inline for (1..words) |i| {
+        if (z[i] != 0) ok = false;
+    }
+    // `{d}` (printU32), not `{x}`: the hex digit-table lookup's bounds-check won't
+    // link next to the volatile MMIO writes on this backend.
+    mmio.log(regs.UART0.FIFO, .info, "RSA 2^2 mod (2^512-1) = {d}: {s}", .{ z[0], if (ok) "OK" else "MISMATCH" });
+    while (true) mmio.delay(8_000_000);
 }
 
 /// ESP32 entry: enable windowed registers + set SP before the first C-ABI call.

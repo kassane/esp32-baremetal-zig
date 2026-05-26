@@ -4,27 +4,83 @@
 const std = @import("std");
 
 // Standalone package for the 'rsa' example (ESP32) — RSA modular exponentiation.
-// **Build-only:** it exercises the accelerator's register sequence with
-// placeholder operands (the Montgomery constants m'/r are caller-supplied). The
-// Espressif QEMU does model RSA, so a value-checked run is a
-// future step once a comptime big-integer reference is wired up. Consumes the
-// workspace root (`esp32_hal`) as a local path dependency.
+// The Espressif QEMU esp32 machine models RSA, so this is QEMU-runnable: it wires
+// `run` / `smoke` / `demo` (a known-answer modexp checked over UART) on top of the
+// workspace root (`esp32_hal`).
+const machine = "esp32";
+
 pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
+    const qemu_bin = b.option([]const u8, "qemu", "Path to qemu-system-xtensa (default: found on PATH)") orelse
+        (b.findProgram(&.{"qemu-system-xtensa"}, &.{}) catch "qemu-system-xtensa");
+    const smoke_seconds = b.option(u32, "smoke-seconds", "Seconds to run during `zig build smoke`") orelse 5;
+
     const core = b.dependency("esp32_hal", .{});
     const target = b.resolveTargetQuery(.{
         .cpu_arch = .xtensa,
         .os_tag = .esp32,
         .abi = .none,
     });
-    const mod = b.createModule(.{ .root_source_file = b.path("main.zig"), .target = target, .optimize = optimize });
+
+    // Flash firmware: .elf + raw .bin, using the root's flash linker script.
+    const hw = firmware(b, core, target, optimize, "rsa");
+    hw.setLinkerScript(core.namedLazyPath("esp32.ld"));
+    b.installArtifact(hw);
+    const bin = b.addObjCopy(hw.getEmittedBin(), .{ .format = .bin, .basename = "rsa.bin" });
+    b.getInstallStep().dependOn(&b.addInstallBinFile(bin.getOutput(), "rsa.bin").step);
+
+    // QEMU firmware: all code in IRAM (root's qemu linker), with run + smoke + demo.
+    const qemu_exe = firmware(b, core, target, optimize, "rsa_qemu");
+    qemu_exe.setLinkerScript(core.namedLazyPath("esp32-qemu.ld"));
+
+    const run = b.addSystemCommand(&.{ qemu_bin, "-nographic", "-machine", machine, "-kernel" });
+    run.addFileArg(qemu_exe.getEmittedBin());
+    run.has_side_effects = true;
+    b.step("run", "Build + run the rsa example in QEMU").dependOn(&run.step);
+
+    const smoke_tool = b.addExecutable(.{
+        .name = "qemu_smoke",
+        .root_module = b.createModule(.{
+            .root_source_file = core.path("tools/qemu_smoke.zig"),
+            .target = b.graph.host,
+            .optimize = .Debug,
+        }),
+    });
+    const run_smoke = b.addRunArtifact(smoke_tool);
+    run_smoke.addArg(qemu_bin);
+    run_smoke.addArg(machine);
+    run_smoke.addFileArg(qemu_exe.getEmittedBin());
+    run_smoke.addArg(b.fmt("{d}", .{smoke_seconds}));
+    b.step("smoke", "Boot the rsa example in QEMU and assert no CPU faults").dependOn(&run_smoke.step);
+
+    const run_demo = b.addRunArtifact(smoke_tool);
+    run_demo.addArg(qemu_bin);
+    run_demo.addArg(machine);
+    run_demo.addFileArg(qemu_exe.getEmittedBin());
+    run_demo.addArg(b.fmt("{d}", .{smoke_seconds}));
+    _ = run_demo.addOutputFileArg("esp32-uart.txt");
+    run_demo.stdio = .inherit;
+    b.step("demo", "Run the rsa example in QEMU and print its UART output").dependOn(&run_demo.step);
+}
+
+fn firmware(
+    b: *std.Build,
+    core: *std.Build.Dependency,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+    name: []const u8,
+) *std.Build.Step.Compile {
+    const mod = b.createModule(.{
+        .root_source_file = b.path("main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
     inline for (.{ "mmio", "hal", "init", "panic", "startup" }) |m| mod.addImport(m, core.module(m));
     mod.addImport("regs", core.module("esp32_regs"));
     mod.strip = true;
     mod.sanitize_c = .off;
-    const exe = b.addExecutable(.{ .name = "rsa", .root_module = mod });
+    const exe = b.addExecutable(.{ .name = name, .root_module = mod });
     exe.entry = .{ .symbol_name = "Reset" };
     exe.bundle_compiler_rt = false;
-    exe.setLinkerScript(core.namedLazyPath("esp32.ld"));
-    b.installArtifact(exe);
+    return exe;
 }
