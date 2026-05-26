@@ -127,7 +127,7 @@ jobs:
         shell: bash
         run: cd examples/esp32s2 && zig build --summary all
 
-      - name: Additional examples — build-only (blink, button, pwm, i2c, rmt, spi, rsa, twai, mcpwm)
+      - name: Additional examples — build-only (i2c, spi, rmt, rsa, twai, mcpwm, i2s, …)
         shell: bash
         run: |
           cd examples/blink  && zig build --summary all
@@ -139,3 +139,4 @@ jobs:
           cd ../rsa          && zig build --summary all
           cd ../twai         && zig build --summary all
           cd ../mcpwm        && zig build --summary all
+          cd ../i2s          && zig build --summary all

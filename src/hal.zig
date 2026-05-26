@@ -573,3 +573,46 @@ pub fn Mcpwm(comptime P: type) type {
         }
     };
 }
+
+/// I2S master transmitter in *single-data* mode — drives BCK/WS and shifts out a
+/// constant 32-bit sample continuously, no DMA descriptor chain required (the
+/// streaming/DMA path is a larger future piece). Takes the peripheral namespace
+/// (`regs.I2S0`). Philips (MSB-shift) framing. **Build-only:** QEMU models no I2S,
+/// and BCK/WS/DATA still need routing to pads via the GPIO matrix.
+pub fn I2s(comptime P: type) type {
+    return struct {
+        // CONF
+        const tx_reset = reg.bit(0);
+        const tx_fifo_reset = reg.bit(2);
+        const tx_start = reg.bit(4);
+        const tx_msb_shift = reg.bit(10); // Philips I2S framing
+        const conf_master_philips = tx_msb_shift; // TX_SLAVE_MOD = 0 ⇒ master
+        // CLKM_CONF
+        const clkm_div = reg.Field(0, 8);
+        const clk_en = reg.bit(20);
+        // SAMPLE_RATE_CONF
+        const tx_bck_div = reg.Field(0, 6);
+        const tx_bits_mod = reg.Field(12, 6);
+        // CONF_CHAN / FIFO_CONF
+        const tx_chan_mod = reg.Field(0, 3);
+        const tx_fifo_mod = reg.Field(13, 3); // DSCR_EN (bit 12) left 0 ⇒ no DMA
+
+        /// Master TX: I2S_CLK = source ÷ `clkm`, BCK = I2S_CLK ÷ `bck`, `bits`-per-
+        /// sample, Philips framing. Call once before `writeConstant`.
+        pub inline fn init(comptime clkm: u8, comptime bck: u6, comptime bits: u6) void {
+            mmio.writeReg(P.CONF, tx_reset | tx_fifo_reset); // reset the TX path
+            mmio.writeReg(P.CONF, 0);
+            mmio.writeReg(P.CLKM_CONF, clkm_div.set(clkm) | clk_en);
+            mmio.writeReg(P.SAMPLE_RATE_CONF, tx_bck_div.set(bck) | tx_bits_mod.set(bits));
+            mmio.writeReg(P.CONF_CHAN, tx_chan_mod.set(0)); // both channels = same data
+            mmio.writeReg(P.FIFO_CONF, tx_fifo_mod.set(1)); // 16-bit single-channel FIFO
+            mmio.writeReg(P.CONF, conf_master_philips);
+        }
+
+        /// Continuously transmit the constant 32-bit `sample` (single-data mode).
+        pub inline fn writeConstant(sample: u32) void {
+            mmio.writeReg(P.CONF_SIGLE_DATA, sample);
+            mmio.writeReg(P.CONF, conf_master_philips | tx_start);
+        }
+    };
+}

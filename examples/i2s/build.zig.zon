@@ -1,0 +1,9 @@
+.{
+    .name = .i2s_example,
+    .version = "0.1.0",
+    .fingerprint = 0x9ab011cff672fb79,
+    .dependencies = .{
+        .esp32_hal = .{ .path = "../.." },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "main.zig" },
+}
