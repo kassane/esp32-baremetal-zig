@@ -5,8 +5,13 @@
 //! Emits one `pub const <PERIPHERAL> = struct { … }` per peripheral, with
 //! `base` and a `pub const <REG>: u32 = base + offset;` for every register —
 //! absolute MMIO addresses, data only (no functions), so the generated module
-//! is safe to import on the prebuilt xtensa backend. Register `<dim>` arrays are
-//! expanded; `derivedFrom` peripherals get their base address only.
+//! is safe to import on the prebuilt xtensa backend.
+//!
+//! Handles the full esp-pacs SVDs (any esp32* target, Xtensa or RISC-V):
+//! `<dim>` arrays are expanded, nested `<cluster>`s flatten to prefixed names
+//! with accumulated offsets, `derivedFrom` peripherals reuse the parent's
+//! registers, and any residual name collision is suffixed so the output always
+//! compiles.
 
 const std = @import("std");
 const Io = std.Io;
@@ -87,31 +92,124 @@ fn attrValue(tag: []const u8, comptime attr: []const u8) ?[]const u8 {
 
 fn emitRegisters(gpa: std.mem.Allocator, out: *ArrayList, periph: []const u8) !void {
     const regs = sliceBetween(periph, "<registers>", "</registers>", 0) orelse return;
-    var cur = regs.from;
-    while (std.mem.indexOfPos(u8, periph, cur, "<register>")) |open| {
-        if (open >= regs.to) break;
-        const close = std.mem.indexOfPos(u8, periph, open, "</register>") orelse break;
-        const block = periph[open..close];
-        cur = close + "</register>".len;
+    var used = std.StringHashMap(void).init(gpa);
+    try emitContainer(gpa, out, periph[regs.from..regs.to], "", 0, &used);
+}
 
-        const name = tagText(block, "name") orelse continue;
-        const off = parseInt(tagText(block, "addressOffset") orelse continue) orelse continue;
+/// Walk the immediate `<register>` / `<cluster>` children of `content`, emitting
+/// one `pub const` per register. Recurses into clusters, accumulating an
+/// identifier `prefix` and an address `base_off` and expanding `<dim>` at every
+/// level — so nested/array register groups flatten to unique, correctly-addressed
+/// names instead of colliding bare ones.
+fn emitContainer(gpa: std.mem.Allocator, out: *ArrayList, content: []const u8, prefix: []const u8, base_off: u64, used: *std.StringHashMap(void)) std.mem.Allocator.Error!void {
+    var cur: usize = 0;
+    while (cur < content.len) {
+        const ro = std.mem.indexOfPos(u8, content, cur, "<register>");
+        const co = std.mem.indexOfPos(u8, content, cur, "<cluster>");
+        if (co != null and (ro == null or co.? < ro.?)) {
+            const inner = co.? + "<cluster>".len;
+            const close = matchClusterClose(content, inner) orelse break;
+            try emitCluster(gpa, out, content[inner..close], prefix, base_off, used);
+            cur = close + "</cluster>".len;
+        } else if (ro) |open| {
+            const close = std.mem.indexOfPos(u8, content, open, "</register>") orelse break;
+            try emitRegister(gpa, out, content[open + "<register>".len .. close], prefix, base_off, used);
+            cur = close + "</register>".len;
+        } else break;
+    }
+}
 
-        const dim = if (tagText(block, "dim")) |d| (parseInt(d) orelse 0) else 0;
-        const inc = if (tagText(block, "dimIncrement")) |d| (parseInt(d) orelse 0) else 0;
-        if (dim > 0) {
-            var k: u64 = 0;
-            while (k < dim) : (k += 1) try emitReg(gpa, out, name, k, off + k * inc);
+fn emitCluster(gpa: std.mem.Allocator, out: *ArrayList, block: []const u8, prefix: []const u8, base_off: u64, used: *std.StringHashMap(void)) std.mem.Allocator.Error!void {
+    const name = tagText(block, "name") orelse return;
+    const off = parseInt(tagText(block, "addressOffset") orelse "0x0") orelse 0;
+    const d = Dim.parse(block);
+    var k: u64 = 0;
+    while (k < d.count) : (k += 1) {
+        const id = try identStr(gpa, name, d.indexOf(k));
+        const child_prefix = try std.fmt.allocPrint(gpa, "{s}{s}_", .{ prefix, id });
+        try emitContainer(gpa, out, block, child_prefix, base_off + off + k * d.inc, used);
+    }
+}
+
+fn emitRegister(gpa: std.mem.Allocator, out: *ArrayList, block: []const u8, prefix: []const u8, base_off: u64, used: *std.StringHashMap(void)) !void {
+    const name = tagText(block, "name") orelse return;
+    const off = parseInt(tagText(block, "addressOffset") orelse return) orelse return;
+    const d = Dim.parse(block);
+    var k: u64 = 0;
+    while (k < d.count) : (k += 1)
+        try emitConst(gpa, out, prefix, try identStr(gpa, name, d.indexOf(k)), base_off + off + k * d.inc, used);
+}
+
+/// A register/cluster's `<dim>`/`<dimIncrement>`. A non-array element parses as
+/// one repetition with no index, so callers iterate `0..count` uniformly.
+const Dim = struct {
+    count: u64,
+    inc: u64,
+    array: bool,
+
+    fn parse(block: []const u8) Dim {
+        const d = tagText(block, "dim") orelse return .{ .count = 1, .inc = 0, .array = false };
+        return .{
+            .count = parseInt(d) orelse 1,
+            .inc = if (tagText(block, "dimIncrement")) |i| parseInt(i) orelse 0 else 0,
+            .array = true,
+        };
+    }
+
+    /// Index suffix for element `k` — `null` (no suffix) unless this is an array.
+    fn indexOf(self: Dim, k: u64) ?u64 {
+        return if (self.array) k else null;
+    }
+};
+
+fn emitConst(gpa: std.mem.Allocator, out: *ArrayList, prefix: []const u8, id: []const u8, addr: u64, used: *std.StringHashMap(void)) !void {
+    const ident = if (prefix.len == 0) id else try std.fmt.allocPrint(gpa, "{s}{s}", .{ prefix, id });
+    try out.print(gpa, "    pub const {s}: u32 = base + 0x{X};\n", .{ try uniqueName(gpa, used, ident), addr });
+}
+
+/// Find the `</cluster>` that closes the cluster opened just before `from`,
+/// balancing nested `<cluster>` … `</cluster>` pairs.
+fn matchClusterClose(h: []const u8, from: usize) ?usize {
+    var depth: usize = 1;
+    var i = from;
+    while (true) {
+        const close = std.mem.indexOfPos(u8, h, i, "</cluster>") orelse return null;
+        const open = std.mem.indexOfPos(u8, h, i, "<cluster>");
+        if (open != null and open.? < close) {
+            depth += 1;
+            i = open.? + "<cluster>".len;
         } else {
-            try emitReg(gpa, out, name, null, off);
+            depth -= 1;
+            if (depth == 0) return close;
+            i = close + "</cluster>".len;
         }
     }
 }
 
-fn emitReg(gpa: std.mem.Allocator, out: *ArrayList, name: []const u8, dim: ?u64, addr: u64) !void {
-    try out.appendSlice(gpa, "    pub const ");
-    try appendIdent(gpa, out, name, dim);
-    try out.print(gpa, ": u32 = base + 0x{X};\n", .{addr});
+/// Return `ident` if unused, else the first `ident_N` (N≥2) that is free, so a
+/// peripheral never emits two `pub const`s with the same name (which won't
+/// compile). Defensive — proper cluster prefixes already make most names unique.
+fn uniqueName(gpa: std.mem.Allocator, used: *std.StringHashMap(void), ident: []const u8) ![]const u8 {
+    if (!used.contains(ident)) {
+        try used.put(ident, {});
+        return ident;
+    }
+    var n: u32 = 2;
+    while (true) : (n += 1) {
+        const cand = try std.fmt.allocPrint(gpa, "{s}_{d}", .{ ident, n });
+        if (!used.contains(cand)) {
+            try used.put(cand, {});
+            return cand;
+        }
+    }
+}
+
+/// Sanitize `name` into a Zig identifier (see `appendIdent`) and return it as an
+/// owned slice, appending `_<dim>` for `<dim>` array elements.
+fn identStr(gpa: std.mem.Allocator, name: []const u8, dim: ?u64) ![]const u8 {
+    var buf: ArrayList = .empty;
+    try appendIdent(gpa, &buf, name, dim);
+    return buf.items;
 }
 
 // ── tiny XML helpers ──────────────────────────────────────────────────────────
