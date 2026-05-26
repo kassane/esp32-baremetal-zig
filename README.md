@@ -108,9 +108,10 @@ Single-feature programs live alongside them, each its own package you build with
   modular exponentiation), `twai` (CAN 2.0 transmit), `mcpwm` (motor-control PWM),
   `i2s` (I2S master TX), `dac` (analog output), `adc` (analog input), `iomux` (pad
   pull/drive config), `watchdog` (TIMG WDT), `reset_reason` (reset cause),
-  `sw_reset` (software reset), `gpio_edge` (poll-based edge detection) and
-  `clock_gate` (peripheral clock gating) on ESP32; `usb_serial` (USB CDC-ACM
-  console) and `tsens` (temperature sensor) on ESP32-S3
+  `sw_reset` (software reset), `gpio_edge` (poll-based edge detection),
+  `clock_gate` (peripheral clock gating) and `brownout` (supply brownout detector)
+  on ESP32; `usb_serial` (USB CDC-ACM console) and `tsens` (temperature sensor) on
+  ESP32-S3
 
 Shared register/timing helpers live in `src/mmio.zig` (imported as `mmio`).
 

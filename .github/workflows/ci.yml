@@ -161,3 +161,4 @@ jobs:
           cd ../gpio_edge    && zig build --summary all
           cd ../ws2812       && zig build --summary all
           cd ../clock_gate   && zig build --summary all
+          cd ../brownout     && zig build --summary all
