@@ -285,11 +285,11 @@ pub fn Pwm(comptime timer_conf: u32, comptime ch_conf0: u32, comptime ch_conf1: 
     };
 }
 
-/// I2C master (single-shot blocking write). **Build-only:** the Espressif QEMU
-/// machines do not model an I2C controller, so this programs the controller per
-/// the TRM register/field layout but has no emulator-observable bus activity —
-/// it links and is correct against the SVD, but is exercised only on real
-/// hardware (you must also route SCL/SDA to pads via the GPIO matrix first).
+/// I2C master, single-shot blocking `write` and `read`. **Build-only:** the
+/// Espressif QEMU machines do not model an I2C controller, so this programs the
+/// controller per the TRM register/field layout but has no emulator-observable bus
+/// activity — it links and is correct against the SVD, but is exercised only on
+/// real hardware (you must also route SCL/SDA to pads via the GPIO matrix first).
 ///
 /// Unlike the single-register drivers above, I2C touches ~13 registers, so this
 /// takes the generated peripheral namespace itself (e.g. `regs.I2C0`) and reads
@@ -301,8 +301,10 @@ pub fn I2c(comptime P: type) type {
         const opcode = reg.Field(11, 3);
         const op_rstart = opcode.set(0);
         const op_write = opcode.set(1);
+        const op_read = opcode.set(2);
         const op_stop = opcode.set(3);
-        const ack_check_en = reg.bit(8);
+        const ack_check_en = reg.bit(8); // WRITE: check the slave's ACK
+        const ack_value = reg.bit(10); // READ: ACK level the master drives (1 = NAK)
         // I2C_CTR fields
         const sda_force_out = reg.bit(0);
         const scl_force_out = reg.bit(1);
@@ -313,8 +315,9 @@ pub fn I2c(comptime P: type) type {
         // I2C_FIFO_CONF fields
         const rx_fifo_rst = reg.bit(12);
         const tx_fifo_rst = reg.bit(13);
-        // I2C_COMD byte_num field [7:0] (bytes the WRITE command transfers).
+        // I2C_COMD byte_num field [7:0] (bytes a WRITE/READ command transfers).
         const byte_count = reg.Field(0, 8);
+        const trans_complete = reg.bit(7); // I2C_INT_RAW.TRANS_COMPLETE
 
         /// Configure the controller as a master and set standard-mode (~100 kHz
         /// at an 80 MHz APB) SCL timing. Call once before `write`.
@@ -351,6 +354,32 @@ pub fn I2c(comptime P: type) type {
             mmio.writeReg(P.COMD_2, op_stop);
 
             mmio.writeReg(P.CTR, ctr_cfg | trans_start);
+        }
+
+        /// Blocking read of `buf.len` bytes from the 7-bit address `addr`: [START]
+        /// [WRITE addr|R, ack-checked][READ … ACK][READ last, NAK][STOP], then pops
+        /// the RX FIFO. A runtime branch only picks the one- vs many-byte command
+        /// layout — every command-register address stays comptime — and `[*]`
+        /// indexing + wrapping arithmetic keep it bounds-/overflow-check-free.
+        pub inline fn read(addr: u7, buf: []u8) void {
+            mmio.writeReg(P.DATA, (@as(u32, addr) << 1) | 1); // address byte, read = LSB 1
+            mmio.writeReg(P.COMD_0, op_rstart);
+            mmio.writeReg(P.COMD_1, op_write | ack_check_en | byte_count.set(1)); // send the address
+            if (buf.len > 1) {
+                // ACK all but the last byte, then NAK the last so the slave releases SDA.
+                mmio.writeReg(P.COMD_2, op_read | byte_count.set(@truncate(buf.len -% 1)));
+                mmio.writeReg(P.COMD_3, op_read | ack_value | byte_count.set(1));
+                mmio.writeReg(P.COMD_4, op_stop);
+            } else {
+                mmio.writeReg(P.COMD_2, op_read | ack_value | byte_count.set(1));
+                mmio.writeReg(P.COMD_3, op_stop);
+            }
+            mmio.writeReg(P.CTR, ctr_cfg | trans_start);
+
+            while (mmio.readReg(P.INT_RAW) & trans_complete == 0) {} // await the bus transfer
+            const p = buf.ptr;
+            var i: usize = 0;
+            while (i < buf.len) : (i +%= 1) p[i] = @truncate(mmio.readReg(P.DATA)); // pop the RX FIFO
         }
     };
 }
