@@ -194,7 +194,7 @@ pub fn Efuse(comptime lo_reg: u32, comptime hi_reg: u32) type {
 pub fn Sha(comptime digest_words: u32, comptime text_reg: u32, comptime start_reg: u32, comptime load_reg: u32, comptime busy_reg: u32) type {
     return struct {
         pub inline fn hash(msg: []const u8) [digest_words]u32 {
-            var block = [_]u32{0} ** 16;
+            var block: [16]u32 = @splat(0);
             const b: [*]u32 = &block;
             const p = msg.ptr;
             // pack big-endian message words

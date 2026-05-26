@@ -96,7 +96,7 @@ export fn main() callconv(.c) noreturn {
     // Hardware AES-128 and AES-256 ECB of an all-zero key+block, each checked
     // against std.crypto's comptime reference (one driver, comptime key length).
     const ct128 = Cipher128.encryptBlock(.{ 0, 0, 0, 0 }, .{ 0, 0, 0, 0 });
-    const ref128 = comptime aesRef(std.crypto.core.aes.Aes128, [_]u8{0} ** 16, [_]u8{0} ** 16);
+    const ref128 = comptime aesRef(std.crypto.core.aes.Aes128, @splat(0), @splat(0));
     var aes128_ok = true;
     inline for (0..4) |w| {
         if (ct128[w] != ref128[w]) aes128_ok = false;
@@ -104,7 +104,7 @@ export fn main() callconv(.c) noreturn {
     mmio.log(regs.UART0.FIFO, .info, "AES-128-ECB HW vs std.crypto: {s}", .{if (aes128_ok) "OK" else "MISMATCH"});
 
     const ct256 = Cipher256.encryptBlock(.{ 0, 0, 0, 0, 0, 0, 0, 0 }, .{ 0, 0, 0, 0 });
-    const ref256 = comptime aesRef(std.crypto.core.aes.Aes256, [_]u8{0} ** 32, [_]u8{0} ** 16);
+    const ref256 = comptime aesRef(std.crypto.core.aes.Aes256, @splat(0), @splat(0));
     var aes256_ok = true;
     inline for (0..4) |w| {
         if (ct256[w] != ref256[w]) aes256_ok = false;
