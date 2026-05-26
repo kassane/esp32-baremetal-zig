@@ -11,19 +11,21 @@ pub fn build(b: *std.Build) void {
     const smoke_seconds = b.option(u32, "smoke-seconds", "Seconds to run each chip during `zig build smoke`") orelse 5;
 
     // Shared bare-metal helpers, imported by every chip as `@import(\"mmio\")`.
-    const mmio = b.createModule(.{ .root_source_file = b.path("src/mmio.zig") });
+    // `addModule` (not `createModule`) so the per-example packages can consume
+    // them via `b.dependency(\"esp32_baremetal_zig\", …).module(\"mmio\")`.
+    const mmio = b.addModule("mmio", .{ .root_source_file = b.path("src/mmio.zig") });
 
     // Portable DSP kernels (SIMD on esp32s3, scalar fallback elsewhere),
     // imported as `@import(\"dsp\")`.
-    const dsp = b.createModule(.{ .root_source_file = b.path("src/dsp.zig") });
+    const dsp = b.addModule("dsp", .{ .root_source_file = b.path("src/dsp.zig") });
 
     // Startup helpers (watchdog disable, …), imported as `@import(\"init\")`.
-    const init_mod = b.createModule(.{ .root_source_file = b.path("src/init.zig") });
+    const init_mod = b.addModule("init", .{ .root_source_file = b.path("src/init.zig") });
     init_mod.addImport("mmio", mmio);
 
     // Custom panic namespace, imported as `@import(\"panic\")`. The root binds it
     // with its own `call` (forwarding to mmio.panic) — see src/panic.zig.
-    const panic_mod = b.createModule(.{ .root_source_file = b.path("src/panic.zig") });
+    const panic_mod = b.addModule("panic", .{ .root_source_file = b.path("src/panic.zig") });
 
     // All generated linker scripts live in a single WriteFiles step — no *.ld
     // files on disk.
@@ -67,12 +69,16 @@ pub fn build(b: *std.Build) void {
         const gen = b.addRunArtifact(svd2zig);
         gen.addFileArg(b.path("svd/" ++ chip.name ++ ".svd"));
         const regs_src = gen.addOutputFileArg(chip.name ++ "_regs.zig");
-        const regs = b.createModule(.{ .root_source_file = regs_src });
+        // Exposed as `<chip>_regs` so example packages can import it directly.
+        const regs = b.addModule(chip.name ++ "_regs", .{ .root_source_file = regs_src });
         regs_step.dependOn(&b.addInstallFileWithDir(regs_src, .prefix, "gen/" ++ chip.name ++ "_regs.zig").step);
 
         // ── Hardware/flash firmware (.elf + raw .bin) ────────────────────────
         const hw_exe = addFirmware(b, mmio, dsp, regs, init_mod, panic_mod, chip, target, optimize, chip.name ++ "_baremetal_zig");
-        hw_exe.setLinkerScript(ld.add(chip.name ++ ".ld", flashLinker(b, chip)));
+        // Expose the generated linker scripts so example packages can reuse them.
+        const flash_ld = ld.add(chip.name ++ ".ld", flashLinker(b, chip));
+        hw_exe.setLinkerScript(flash_ld);
+        b.addNamedLazyPath(chip.name ++ ".ld", flash_ld);
 
         const bin = b.addObjCopy(hw_exe.getEmittedBin(), .{
             .format = .bin,
@@ -88,7 +94,9 @@ pub fn build(b: *std.Build) void {
         if (chip.qemu) |q| {
             const machine = q.machine;
             const qemu_exe = addFirmware(b, mmio, dsp, regs, init_mod, panic_mod, chip, target, optimize, chip.name ++ "_qemu");
-            qemu_exe.setLinkerScript(ld.add(chip.name ++ "-qemu.ld", qemuLinker(b, chip.entry, q)));
+            const qemu_ld = ld.add(chip.name ++ "-qemu.ld", qemuLinker(b, chip.entry, q));
+            qemu_exe.setLinkerScript(qemu_ld);
+            b.addNamedLazyPath(chip.name ++ "-qemu.ld", qemu_ld);
 
             const qemu_chip_step = b.step("qemu-" ++ chip.name, "Build " ++ chip.name ++ " QEMU firmware");
             qemu_chip_step.dependOn(&b.addInstallArtifact(qemu_exe, .{}).step);

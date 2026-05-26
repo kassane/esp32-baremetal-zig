@@ -49,6 +49,16 @@ zig build -Doptimize=ReleaseSmall
 Per chip this installs an `<chip>_baremetal_zig` ELF plus a raw
 `<chip>_baremetal_zig.bin` (see the flashing note below about its size).
 
+Each `esp32*/` is also a standalone package: its `build.zig` consumes the repo
+root (`esp32_baremetal_zig`) as a local path dependency for the shared modules,
+generated registers and linker scripts, so you can build one example on its own:
+
+```bash
+cd esp32 && zig build           # → zig-out/bin/esp32_baremetal_zig(.bin)
+cd esp32 && zig build run       # launch it in QEMU (esp32, esp32s3)
+cd esp32 && zig build smoke     # non-interactive boot test (esp32, esp32s3)
+```
+
 | Source | Chip | CPU | Onboard LED |
 |---|---|---|---|
 | `esp32/main.zig`   | ESP32    | Xtensa LX6 | GPIO2  |

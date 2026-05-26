@@ -1,0 +1,13 @@
+.{
+    .name = .esp32s2_example,
+    .version = "0.1.0",
+    .fingerprint = 0xfb1e77f8606e46f3,
+    .dependencies = .{
+        .esp32_baremetal_zig = .{ .path = ".." },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "main.zig",
+    },
+}
