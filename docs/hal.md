@@ -65,6 +65,11 @@ A small register driver layer over `mmio` (imported as `hal`):
   `r = 2^(2·bits) mod M`), so the driver computes nothing in software.
   **QEMU-verified**: `examples/rsa` runs a known-answer vector — 2² mod (2⁵¹²−1) = 4,
   a modulus for which both constants reduce to 1 — live under `zig build demo`.
+- `hal.Hmac(P)` — HMAC-SHA256 accelerator (ESP32-S2/-S3) keyed from an eFuse block
+  (the key never leaves the chip): `configure(purpose, key_block)` selects the key,
+  `hashBlock` feeds a 512-bit message block and reads the 256-bit MAC (see
+  `examples/hmac/`, which cross-checks it against `std.crypto` on hardware).
+  **Build-only**: the key lives in eFuse, which QEMU leaves blank.
 - `hal.Twai(P)` — TWAI (CAN 2.0) controller: transmit a standard-ID data frame on
   the SJA1000-compatible peripheral (`regs.TWAI0`) (see `examples/twai/`).
   **Build-only**: a live bus needs TX/RX routed to pads + an external CAN transceiver.

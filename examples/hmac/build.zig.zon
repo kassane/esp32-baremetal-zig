@@ -1,0 +1,9 @@
+.{
+    .name = .hmac_example,
+    .version = "0.1.0",
+    .fingerprint = 0xea8670027270b644,
+    .dependencies = .{
+        .esp32_hal = .{ .path = "../.." },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "main.zig" },
+}
