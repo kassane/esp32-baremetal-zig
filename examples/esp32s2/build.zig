@@ -17,8 +17,7 @@ pub fn build(b: *std.Build) void {
     const core = b.dependency("esp32_hal", .{});
     const target = b.resolveTargetQuery(.{
         .cpu_arch = .xtensa,
-        .cpu_model = .{ .explicit = &std.Target.xtensa.cpu.esp32s2 },
-        .os_tag = .freestanding,
+        .os_tag = .esp32s2, // Espressif fork: xtensa-esp32s2-none selects the CPU
         .abi = .none,
     });
 

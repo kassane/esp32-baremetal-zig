@@ -69,10 +69,13 @@ pub fn build(b: *std.Build) void {
     var prev_smoke: ?*std.Build.Step = null;
 
     inline for (chips) |chip| {
+        // The Espressif Zig fork exposes each chip as its own OS tag, so the
+        // triple `xtensa-<chip>-none` selects the CPU model + features on its
+        // own — no `.freestanding` OS or explicit `.cpu_model` needed. The tag
+        // name matches `chip.name` (esp32/esp32s2/esp32s3).
         const target = b.resolveTargetQuery(.{
             .cpu_arch = .xtensa,
-            .cpu_model = .{ .explicit = chip.cpu },
-            .os_tag = .freestanding,
+            .os_tag = @field(std.Target.Os.Tag, chip.name),
             .abi = .none,
         });
 
@@ -290,8 +293,8 @@ const Region = struct { org: u64, len: u64 };
 const Qemu = struct { machine: []const u8, iram: Region, dram: Region };
 
 const Chip = struct {
+    // Also the Espressif-fork OS tag: `xtensa-<name>-none` resolves the CPU.
     name: []const u8,
-    cpu: *const std.Target.Cpu.Model,
     entry: []const u8,
     // Hardware/flash regions.
     iram: Region,
@@ -305,7 +308,6 @@ const Chip = struct {
 const chips = [_]Chip{
     .{
         .name = "esp32",
-        .cpu = &std.Target.xtensa.cpu.esp32,
         .entry = "Reset",
         .iram = .{ .org = 0x40080000, .len = 0x20000 },
         .dram = .{ .org = 0x3FFB0000, .len = 0x2C200 },
@@ -321,7 +323,6 @@ const chips = [_]Chip{
         // ESP32-S2 has no QEMU machine in the Espressif build, so it is
         // build-only (flash image); no qemu/run/smoke targets are generated.
         .name = "esp32s2",
-        .cpu = &std.Target.xtensa.cpu.esp32s2,
         .entry = "call_start_cpu0",
         .iram = .{ .org = 0x40024000, .len = 0x2A000 },
         .dram = .{ .org = 0x3FFB4000, .len = 0x2A000 },
@@ -330,7 +331,6 @@ const chips = [_]Chip{
     },
     .{
         .name = "esp32s3",
-        .cpu = &std.Target.xtensa.cpu.esp32s3,
         .entry = "call_start_cpu0",
         .iram = .{ .org = 0x40370000, .len = 0x10000 },
         .dram = .{ .org = 0x3FC88000, .len = 0x78000 },
