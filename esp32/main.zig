@@ -1,6 +1,7 @@
 // Bare-metal Zig for ESP32 (Xtensa LX6). FFT spectral-analysis demo: FFTs a
 // two-tone signal and prints the magnitude spectrum over UART0 (the LX6 has no
-// PIE unit, so dsp.fft runs as portable scalar code). Blinks GPIO2.
+// PIE unit, so dsp.fft runs as portable scalar code), reports the GPIO0 input
+// level, and blinks GPIO2 at a cycle-accurate rate set by the peak bin.
 
 const std = @import("std");
 const mmio = @import("mmio");
@@ -82,6 +83,7 @@ inline fn printSpectrum(fifo: u32, spectrum: *const [fft_n]dsp.Cplx) void {
 // ── Application entry ─────────────────────────────────────────────────────────
 
 const Led = hal.Output(gpio.ENABLE_W1TS, gpio.OUT_W1TS, gpio.OUT_W1TC, led_mask);
+const Button = hal.Input(gpio.IN, @as(u32, 1) << 0); // GPIO0 (boot button), bank 0
 
 export fn main() callconv(.c) noreturn {
     init.disableWatchdogs(regs); // or the chip resets within seconds on real HW
@@ -97,9 +99,10 @@ export fn main() callconv(.c) noreturn {
 
     const peak: u32 = @truncate(peakBin(&spectrum));
     const half_ms = peak *% blink_ms_per_bin;
+    const lvl: []const u8 = if (Button.isHigh()) "high" else "low";
     // Same routine `std_options.logFn` installs; `std.log.*` can't be called
     // directly (its non-inline helpers need far calls this backend can't emit).
-    mmio.log(regs.UART0.FIFO, .info, "peak bin {d}, blink half-period {d} ms", .{ peak, half_ms });
+    mmio.log(regs.UART0.FIFO, .info, "peak bin {d}, half-period {d} ms, GPIO0 {s}", .{ peak, half_ms, lvl });
 
     // Blink at a cycle-accurate rate set by the peak bin (esp-hal-style Delay).
     const delay = hal.Delay(cpu_hz);

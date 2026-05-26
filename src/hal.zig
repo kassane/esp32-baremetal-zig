@@ -40,12 +40,27 @@ pub const Level = enum {
     low,
     high,
     pub inline fn not(self: Level) Level {
-        return switch (self) {
-            .low => .high,
-            .high => .low,
-        };
+        // `if`, not `switch`: a switch on the enum emits a corrupt-value safety
+        // check whose panic path doesn't link here.
+        return if (self == .low) .high else .low;
     }
 };
+
+/// A read-only input pin: reports the level latched in the GPIO bank's IN
+/// register. Comptime register/mask for the same panic-free reason as `Output`.
+pub fn Input(comptime in_reg: u32, comptime mask: u32) type {
+    return struct {
+        pub inline fn isHigh() bool {
+            return mmio.readReg(in_reg) & mask != 0;
+        }
+        pub inline fn isLow() bool {
+            return !isHigh();
+        }
+        pub inline fn level() Level {
+            return if (isHigh()) .high else .low;
+        }
+    };
+}
 
 /// A push-pull output pin driven through atomic W1TS/W1TC registers, so a
 /// set/clear is a single store (no read-modify-write). The register addresses
@@ -64,10 +79,7 @@ pub fn Output(comptime enable_reg: u32, comptime set_reg: u32, comptime clr_reg:
             mmio.writeReg(clr_reg, mask);
         }
         pub inline fn setLevel(level: Level) void {
-            mmio.writeReg(switch (level) {
-                .high => set_reg,
-                .low => clr_reg,
-            }, mask);
+            mmio.writeReg(if (level == .high) set_reg else clr_reg, mask);
         }
     };
 }

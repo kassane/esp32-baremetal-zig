@@ -123,6 +123,11 @@ A small esp-hal-shaped driver layer over `mmio` (imported as `hal`):
   **comptime-parameterized** on the register addresses so the stores keep fixed,
   aligned, non-null targets and emit no alignment/null panic (which wouldn't
   link). `hal.Level` is the `.low`/`.high` enum (with `not`).
+- `hal.Input(in_reg, mask)` — a read-only pin reporting the level latched in the
+  GPIO bank's IN register (`isHigh`/`isLow`/`level`). The esp32 example reports
+  GPIO0's level over UART; esp32s2 mirrors the GPIO0 button onto its LED.
+  (In hot read loops use the boolean `isHigh`, not the `Level` enum — a `switch`
+  on it emits a corrupt-value safety check that doesn't link.)
 - `hal.Delay(cpu_hz)` — a cycle-accurate blocking delay (`cycles`/`micros`/
   `millis`) built on the Xtensa core cycle counter (`rsr.ccount`), the same
   mechanism xtensa-lx uses. `rsr.ccount` is an optimization barrier (like the

@@ -1,6 +1,6 @@
-// Minimal bare-metal Zig for ESP32-S2 (Xtensa LX7, single core)
-// Blinks GPIO18 (RGB LED data pin on common ESP32-S2 DevKits, e.g. Saola-1).
-// No std lib, no OS, no IDF.
+// Minimal bare-metal Zig for ESP32-S2 (Xtensa LX7, single core).
+// GPIO input→output example: mirrors the GPIO0 boot button onto the GPIO18 LED
+// (RGB LED data pin on common ESP32-S2 DevKits, e.g. Saola-1). No std/OS/IDF.
 
 const std = @import("std");
 const mmio = @import("mmio");
@@ -26,22 +26,25 @@ fn logFn(comptime level: std.log.Level, comptime _: @TypeOf(.enum_literal), comp
 const led_pin: u5 = 18;
 const led_mask: u32 = @as(u32, 1) << led_pin;
 const cpu_hz = 240_000_000; // Xtensa default; sets the cycle-accurate Delay scale
-const blink_half_ms: u32 = 500;
+const poll_ms: u32 = 20; // how often to sample the button
 const Led = hal.Output(gpio.ENABLE_W1TS, gpio.OUT_W1TS, gpio.OUT_W1TC, led_mask);
+const Button = hal.Input(gpio.IN, @as(u32, 1) << 0); // GPIO0 (boot button), bank 0
 
 // ── Application entry ─────────────────────────────────────────────────────────
 
 export fn app_main() callconv(.c) noreturn {
     init.disableWatchdogs(regs); // or the chip resets within seconds on real HW
-    mmio.log(regs.UART0.FIFO, .info, "ESP32-S2 baremetal Zig up; blinking GPIO{d}", .{led_pin});
+    mmio.log(regs.UART0.FIFO, .info, "ESP32-S2 up; mirroring GPIO0 -> GPIO{d}", .{led_pin});
     Led.init(); // GPIO18 as output
 
+    // Drive the LED from the button each poll (esp-hal input→output). The bool
+    // `isHigh` form keeps the in-loop read panic-free under the cycle-delay
+    // barrier; routing the Level enum through the loop re-adds checks that don't
+    // link here.
     const delay = hal.Delay(cpu_hz);
     while (true) {
-        Led.setHigh();
-        delay.millis(blink_half_ms);
-        Led.setLow();
-        delay.millis(blink_half_ms);
+        if (Button.isHigh()) Led.setHigh() else Led.setLow();
+        delay.millis(poll_ms);
     }
 }
 
