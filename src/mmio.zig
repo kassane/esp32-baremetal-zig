@@ -150,18 +150,21 @@ pub inline fn format(fifo: u32, comptime fmt: []const u8, args: anytype) void {
     }
 }
 
-/// The build-time `-Dlog-level` (see root build.zig), for a `std_options` that
-/// uses `logFn` directly rather than `hal.Console.options`.
+/// The build-time `-Dlog-level` (see root build.zig). Also the threshold `log`
+/// itself enforces, so a direct `mmio.log` call is filtered the same as one that
+/// arrives via `std.log` / `hal.Console.options`.
 pub const log_level: std.log.Level = @enumFromInt(config.log_level);
 
 /// `std.options.logFn` backend: `[level] message` per line over UART. Wire it in
 /// the root module with `pub const std_options: std.Options = .{ .logFn = … }`.
+/// Messages below the build-time `log_level` are dropped at comptime.
 pub inline fn log(
     fifo: u32,
     comptime level: std.log.Level,
     comptime fmt: []const u8,
     args: anytype,
 ) void {
+    if (comptime @intFromEnum(level) > @intFromEnum(log_level)) return;
     puts(fifo, "[" ++ comptime level.asText() ++ "] ");
     format(fifo, fmt, args);
     puts(fifo, "\r\n");
