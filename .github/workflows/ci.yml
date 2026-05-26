@@ -19,19 +19,22 @@ jobs:
           - os: ubuntu-latest
             zig_asset: zig-relsafe-x86_64-linux-musl-baseline.tar.xz
             zig_dir: zig-relsafe-x86_64-linux-musl-baseline
+            qemu_asset: qemu-xtensa-softmmu-esp_develop_9.2.2_20250817-x86_64-linux-gnu.tar.xz
+            run_qemu: true
           - os: macos-latest
             zig_asset: zig-relsafe-aarch64-macos-baseline.tar.xz
             zig_dir: zig-relsafe-aarch64-macos-baseline
+            qemu_asset: qemu-xtensa-softmmu-esp_develop_9.2.2_20250817-aarch64-apple-darwin.tar.xz
+            run_qemu: true
           - os: windows-latest
             zig_asset: zig-relsafe-x86_64-windows-baseline.zip
             zig_dir: zig-relsafe-x86_64-windows-baseline
+            run_qemu: false
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Espressif QEMU (xtensa) only ships for and is exercised on Linux here;
-      # macOS and Windows are build-only (toolchain + `zig build` coverage).
       - name: Setup zig-espressif-bootstrap (${{ env.ZIG_VERSION }}) — Unix
         if: runner.os != 'Windows'
         run: |
@@ -57,33 +60,40 @@ jobs:
       - name: Build firmware for ESP32 + ESP32-S2 + ESP32-S3 (ReleaseSmall)
         run: zig build --summary all -Doptimize=ReleaseSmall
 
-      - name: Setup Espressif QEMU (xtensa) + runtime libs
+      - name: Install QEMU runtime libs (Linux)
         if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libsdl2-2.0-0 libslirp0
+
+      - name: Install QEMU runtime libs (macOS)
+        if: runner.os == 'macOS'
+        run: brew install sdl2 libslirp
+
+      - name: Setup Espressif QEMU (xtensa)
+        if: matrix.run_qemu
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libsdl2-2.0-0 libslirp0
           QEMU_DIR="$HOME/.espressif/tools/qemu-xtensa/${QEMU_BUILD}"
           mkdir -p "$QEMU_DIR"
           curl --fail -L -o /tmp/qemu.tar.xz \
-            https://github.com/espressif/qemu/releases/download/${QEMU_RELEASE}/qemu-xtensa-softmmu-${QEMU_BUILD}-x86_64-linux-gnu.tar.xz
+            "https://github.com/espressif/qemu/releases/download/${QEMU_RELEASE}/${{ matrix.qemu_asset }}"
           tar -xJf /tmp/qemu.tar.xz -C "$QEMU_DIR"
-          echo "$QEMU_DIR/qemu/bin" >> $GITHUB_PATH
+          [ "$RUNNER_OS" = "macOS" ] && xattr -dr com.apple.quarantine "$QEMU_DIR" || true
+          echo "$QEMU_DIR/qemu/bin" >> "$GITHUB_PATH"
           rm /tmp/qemu.tar.xz
 
       - name: Boot-test firmware in QEMU (ESP32 + ESP32-S3)
-        if: runner.os == 'Linux'
+        if: matrix.run_qemu
         run: zig build smoke --summary all
 
       # Each example is a standalone package (depends on the repo root locally);
       # run them on their own and print each one's output.
       - name: ESP32 example — FFT spectrum + std.log over UART
-        if: runner.os == 'Linux'
+        if: matrix.run_qemu
         run: cd esp32 && zig build demo
 
       - name: ESP32-S3 example — PIE/SIMD blink (boots, no UART by design)
-        if: runner.os == 'Linux'
+        if: matrix.run_qemu
         run: cd esp32s3 && zig build demo
 
       - name: ESP32-S2 example — build-only (no Espressif QEMU machine)
-        if: runner.os == 'Linux'
+        if: matrix.run_qemu
         run: cd esp32s2 && zig build --summary all
