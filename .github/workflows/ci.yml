@@ -122,6 +122,11 @@ jobs:
         shell: bash
         run: cd examples/systimer && zig build demo
 
+      - name: ESP32 example — RTC scratch-register round-trip over UART
+        if: matrix.run_qemu
+        shell: bash
+        run: cd examples/rtc_store && zig build demo
+
       - name: ESP32 example — eFuse base-MAC reader over UART
         if: matrix.run_qemu
         shell: bash
@@ -155,3 +160,4 @@ jobs:
           cd ../sw_reset     && zig build --summary all
           cd ../gpio_edge    && zig build --summary all
           cd ../ws2812       && zig build --summary all
+          cd ../clock_gate   && zig build --summary all

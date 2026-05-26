@@ -907,3 +907,46 @@ pub fn Ws2812(comptime conf0: u32, comptime conf1: u32, comptime data: u32, comp
         }
     };
 }
+
+/// Peripheral clock + reset control on the system bus — the gate a peripheral sits
+/// behind before its registers respond. `enable()` ungates the peripheral's bus
+/// clock; `reset()` pulses its reset line (assert, then release). Pass the
+/// clock-enable and reset-enable registers plus the peripheral's bit `mask` — on
+/// ESP32 `regs.DPORT.PERIP_CLK_EN` / `PERIP_RST_EN`, on the S2/S3 the `SYSTEM`
+/// peripheral's `PERIP_CLK_EN*` / `PERIP_RST_EN*`. Read-modify-write, so it leaves
+/// the sibling peripherals sharing the register untouched. The other drivers here
+/// assume the boot ROM left their clock running; this is the explicit control for
+/// the ones it doesn't.
+pub fn ClockGate(comptime clk_en_reg: u32, comptime rst_en_reg: u32, comptime mask: u32) type {
+    return struct {
+        /// Ungate the peripheral's bus clock.
+        pub inline fn enable() void {
+            mmio.writeReg(clk_en_reg, mmio.readReg(clk_en_reg) | mask);
+        }
+        /// Gate (stop) the peripheral's bus clock.
+        pub inline fn disable() void {
+            mmio.writeReg(clk_en_reg, mmio.readReg(clk_en_reg) & ~mask);
+        }
+        /// Pulse the peripheral's reset line: assert, then release.
+        pub inline fn reset() void {
+            mmio.writeReg(rst_en_reg, mmio.readReg(rst_en_reg) | mask);
+            mmio.writeReg(rst_en_reg, mmio.readReg(rst_en_reg) & ~mask);
+        }
+    };
+}
+
+/// RTC retention scratch register (`regs.RTC_CNTL.STORE0` … `STORE3`) — a 32-bit
+/// word in the always-on RTC power domain that keeps its value across deep sleep
+/// and every reset except a power-on, where main RAM is lost. Firmware uses these
+/// words for boot counters and to hand state across a sleep/reset cycle; pairs with
+/// `ResetReason` and `softwareReset`. A plain read/write of the chosen word.
+pub fn RtcStore(comptime store_reg: u32) type {
+    return struct {
+        pub inline fn read() u32 {
+            return mmio.readReg(store_reg);
+        }
+        pub inline fn write(value: u32) void {
+            mmio.writeReg(store_reg, value);
+        }
+    };
+}
