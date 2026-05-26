@@ -1138,3 +1138,46 @@ pub fn DeepSleep(comptime P: type) type {
         }
     };
 }
+
+/// HMAC-SHA256 accelerator (ESP32-S2/-S3) — keyed from an eFuse key block (the key
+/// never leaves the chip). `configure(purpose, key_block)` selects the key and
+/// purpose and returns `false` on a key-purpose mismatch; `hashBlock` feeds one
+/// caller-prepared 512-bit message block and reads the 256-bit MAC. Takes the
+/// peripheral namespace (`regs.HMAC`). **Build-only:** the key comes from eFuse,
+/// which QEMU leaves blank (so a live run reports a key error) — this programs the
+/// documented register sequence and runs on real silicon with a programmed key.
+/// `[*]` indexing keeps the result read panic-free.
+pub fn Hmac(comptime P: type) type {
+    return struct {
+        /// `SET_PARA_PURPOSE` = "to user": supply a message and read the MAC.
+        pub const to_user = 8;
+        const busy = reg.bit(0); // QUERY_BUSY.BUSY_STATE
+        const key_err = reg.bit(0); // QUERY_ERROR.QUERY_CHECK (key-purpose mismatch)
+
+        inline fn waitIdle() void {
+            while (mmio.readReg(P.QUERY_BUSY) & busy != 0) {}
+        }
+        /// Select eFuse `key_block` (0..5) for `purpose` (e.g. `to_user`). Returns
+        /// `false` if the key's programmed eFuse purpose doesn't match.
+        pub inline fn configure(purpose: u8, key_block: u8) bool {
+            mmio.writeReg(P.SET_START, 1);
+            waitIdle();
+            mmio.writeReg(P.SET_PARA_PURPOSE, purpose);
+            mmio.writeReg(P.SET_PARA_KEY, key_block);
+            mmio.writeReg(P.SET_PARA_FINISH, 1);
+            return mmio.readReg(P.QUERY_ERROR) & key_err == 0;
+        }
+        /// Feed one 512-bit message block (the only/last block) and return the
+        /// 256-bit HMAC as 8 words. Call after a successful `configure`.
+        pub inline fn hashBlock(block: [16]u32) [8]u32 {
+            inline for (0..16) |i| mmio.writeReg(P.WR_MESSAGE_MEM_0 + i * 4, block[i]);
+            mmio.writeReg(P.SET_MESSAGE_ONE, 1);
+            waitIdle();
+            var out: [8]u32 = undefined;
+            const o: [*]u32 = &out;
+            inline for (0..8) |i| o[i] = mmio.readReg(P.RD_RESULT_MEM_0 + i * 4);
+            mmio.writeReg(P.SET_RESULT_FINISH, 1);
+            return out;
+        }
+    };
+}
