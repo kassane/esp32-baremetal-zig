@@ -184,15 +184,16 @@ pub fn Efuse(comptime lo_reg: u32, comptime hi_reg: u32) type {
     };
 }
 
-/// Single-block SHA-256 on the first-generation SHA accelerator: one 512-bit
-/// block, i.e. messages ≤ 55 bytes. Pass the SHA `TEXT_0` register plus the
-/// SHA-256 START/LOAD/BUSY control registers. Returns the digest as 8 big-endian
-/// words — cross-check it against `std.crypto`'s comptime reference (the esp32
-/// example does exactly that). All indexing uses `[*]`/`@truncate` and the
-/// register writes unroll to comptime addresses, so no safety-check path links.
-pub fn Sha256(comptime text_reg: u32, comptime start_reg: u32, comptime load_reg: u32, comptime busy_reg: u32) type {
+/// Single-block SHA on the first-generation SHA accelerator: one 512-bit block,
+/// i.e. messages ≤ 55 bytes, big-endian packing. `digest_words` picks the
+/// algorithm's output length — 5 for SHA-1, 8 for SHA-256 — and you pass that
+/// algorithm's `TEXT_0` plus its START/LOAD/BUSY control registers. Returns the
+/// digest as big-endian words; the esp32 demo cross-checks both SHA-1 and SHA-256
+/// against `std.crypto`. All indexing uses `[*]`/`@truncate` and the register
+/// writes unroll to comptime addresses, so no safety-check path links.
+pub fn Sha(comptime digest_words: u32, comptime text_reg: u32, comptime start_reg: u32, comptime load_reg: u32, comptime busy_reg: u32) type {
     return struct {
-        pub inline fn hash(msg: []const u8) [8]u32 {
+        pub inline fn hash(msg: []const u8) [digest_words]u32 {
             var block = [_]u32{0} ** 16;
             const b: [*]u32 = &block;
             const p = msg.ptr;
@@ -209,9 +210,9 @@ pub fn Sha256(comptime text_reg: u32, comptime start_reg: u32, comptime load_reg
             mmio.writeReg(load_reg, 1);
             while (mmio.readReg(busy_reg) != 0) {}
 
-            var out: [8]u32 = undefined;
+            var out: [digest_words]u32 = undefined;
             const o: [*]u32 = &out;
-            inline for (0..8) |w| o[w] = mmio.readReg(text_reg + w * 4);
+            inline for (0..digest_words) |w| o[w] = mmio.readReg(text_reg + w * 4);
             return out;
         }
 
