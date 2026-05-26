@@ -100,15 +100,17 @@ Single-feature programs live alongside them, each its own package you build with
 `cd examples/<name> && zig build`:
 
 - `blink` (GPIO + Delay), `button` (GPIO in→out), `efuse` (factory MAC) on ESP32
-- **Run in QEMU** (`zig build demo`): `efuse` (ESP32 — factory MAC over UART) and
-  `systimer` (ESP32-S3 — system-timer uptime over UART)
+- **Run in QEMU** (`zig build demo`): `efuse` (ESP32 — factory MAC over UART),
+  `rtc_store` (ESP32 — RTC scratch-register round-trip) and `systimer` (ESP32-S3 —
+  system-timer uptime over UART)
 - **Build-only**: `pwm` (LEDC) on ESP32-S2; `i2c` (I2C master), `spi` (SPI master),
   `rmt` (IR remote transmit), `ws2812` (addressable RGB over RMT), `rsa` (RSA
   modular exponentiation), `twai` (CAN 2.0 transmit), `mcpwm` (motor-control PWM),
   `i2s` (I2S master TX), `dac` (analog output), `adc` (analog input), `iomux` (pad
   pull/drive config), `watchdog` (TIMG WDT), `reset_reason` (reset cause),
-  `sw_reset` (software reset) and `gpio_edge` (poll-based edge detection) on ESP32;
-  `usb_serial` (USB CDC-ACM console) and `tsens` (temperature sensor) on ESP32-S3
+  `sw_reset` (software reset), `gpio_edge` (poll-based edge detection) and
+  `clock_gate` (peripheral clock gating) on ESP32; `usb_serial` (USB CDC-ACM
+  console) and `tsens` (temperature sensor) on ESP32-S3
 
 Shared register/timing helpers live in `src/mmio.zig` (imported as `mmio`).
 
@@ -312,10 +314,20 @@ A small register driver layer over `mmio` (imported as `hal`):
 - `hal.softwareReset(options0_reg)` — triggers an immediate full software reset via
   `regs.RTC_CNTL.OPTIONS0` (does not return); pairs with `ResetReason` (see
   `examples/sw_reset/`). **Build-only**: a live reset restarts the chip.
+- `hal.RtcStore(store_reg)` — read/write an RTC retention scratch word
+  (`regs.RTC_CNTL.STORE0` … `STORE3`) that survives deep sleep and every reset bar
+  power-on; pairs with `ResetReason`/`softwareReset` for boot counters and sleep
+  state (see `examples/rtc_store/`). QEMU backs the register, so the round-trip runs
+  under `zig build demo`.
 - `hal.GpioEdge(pin_reg, mask, status_reg, clr_reg)` — poll-based edge detection:
   latches rising/falling edges in the GPIO event-status register so a loop catches
   transitions without interrupts (`takeEdge`), complementing `Input` (see
   `examples/gpio_edge/`).
+- `hal.ClockGate(clk_en_reg, rst_en_reg, mask)` — ungate (`enable`) and reset
+  (`reset`) a peripheral's bus clock through the system clock-control registers
+  (`regs.DPORT.PERIP_CLK_EN` / `PERIP_RST_EN` on ESP32), the explicit form of the
+  clock bring-up the boot ROM performs for the peripherals the other drivers assume
+  are already running (see `examples/clock_gate/`). **Build-only**.
 
 Every driver is **comptime-parameterized on its register addresses** (the I2C
 driver on the peripheral namespace), so the MMIO accesses stay provably
