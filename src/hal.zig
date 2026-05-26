@@ -402,3 +402,53 @@ pub fn Rmt(comptime conf0: u32, comptime conf1: u32, comptime data: u32, comptim
         }
     };
 }
+
+/// SPI master, half-duplex MOSI-only single transfer (≤ 64 bytes / one data-buffer
+/// load). Takes the generated peripheral namespace (e.g. `regs.SPI2`). **Build-only:**
+/// the Espressif QEMU machines model no SPI controller, so this programs the
+/// controller per the TRM/SVD field layout and runs on hardware (route the CS/CLK/
+/// MOSI signals to pads via the GPIO matrix first) but has no emulator activity.
+pub fn Spi(comptime P: type) type {
+    return struct {
+        // SPI_CMD
+        const usr = reg.bit(18); // start a user-defined transaction (self-clears)
+        // SPI_USER
+        const usr_mosi = reg.bit(27); // enable the MOSI (write) phase
+        const ck_out_edge = reg.bit(7); // CPHA for SPI mode 0
+        // SPI_CLOCK
+        const clkcnt_l = reg.Field(0, 6);
+        const clkcnt_h = reg.Field(6, 6);
+        const clkcnt_n = reg.Field(12, 6);
+        const clkdiv_pre = reg.Field(18, 13);
+        // SPI_MOSI_DLEN
+        const mosi_dbitlen = reg.Field(0, 24); // transfer length in bits − 1
+
+        /// Configure as a MOSI-only master clocked at f_apb / ((pre+1)·(n+1)).
+        /// `n` sets the bit period (n+1 source ticks); `h = n/2` gives ~50% duty.
+        pub inline fn init(comptime pre: u13, comptime n: u6) void {
+            mmio.writeReg(P.CLOCK, clkdiv_pre.set(pre) | clkcnt_n.set(n) | clkcnt_h.set(n / 2) | clkcnt_l.set(n));
+            mmio.writeReg(P.USER, usr_mosi | ck_out_edge);
+            mmio.writeReg(P.USER1, 0);
+            mmio.writeReg(P.USER2, 0);
+        }
+
+        /// Blocking write of `data` (≤ 64 bytes) out MOSI, LSB-word-packed into the
+        /// data buffer. The data-buffer writes unroll over comptime indices so each
+        /// MMIO address is a compile-time constant (no runtime `@ptrFromInt`, hence
+        /// no alignment/null panic path); `[*]` indexing avoids bounds checks.
+        pub inline fn write(data: []const u8) void {
+            const p = data.ptr;
+            inline for (0..16) |w| {
+                var word: u32 = 0;
+                inline for (0..4) |b| {
+                    const idx = w * 4 + b; // comptime
+                    if (idx < data.len) word |= @as(u32, p[idx]) << (b * 8);
+                }
+                mmio.writeReg(P.W_0 + w * 4, word);
+            }
+            mmio.writeReg(P.MOSI_DLEN, mosi_dbitlen.set(@truncate(data.len *% 8 -% 1)));
+            mmio.writeReg(P.CMD, usr);
+            while (mmio.readReg(P.CMD) & usr != 0) {} // wait for the transfer to finish
+        }
+    };
+}

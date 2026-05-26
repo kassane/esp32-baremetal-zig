@@ -93,8 +93,8 @@ Single-feature programs live alongside them, each its own package you build with
 
 - `blink` (GPIO + Delay), `button` (GPIO in→out), `efuse` (factory MAC) on ESP32
 - `efuse` also runs in QEMU (`cd examples/efuse && zig build demo`)
-- **Build-only** (no QEMU model): `pwm` (LEDC) on ESP32-S2, `i2c` (I2C master) and
-  `rmt` (IR remote transmit) on ESP32
+- **Build-only** (no QEMU model): `pwm` (LEDC) on ESP32-S2, `i2c` (I2C master),
+  `spi` (SPI master) and `rmt` (IR remote transmit) on ESP32
 
 Shared register/timing helpers live in `src/mmio.zig` (imported as `mmio`).
 
@@ -241,6 +241,9 @@ A small register driver layer over `mmio` (imported as `hal`):
   symbols (two timed levels each) out a channel for IR remote protocols
   (NEC/RC5) or WS2812 timing (see `examples/rmt/`). **Build-only**: QEMU models no
   RMT (route the channel to an IR-LED pad, with a 38 kHz carrier, on hardware).
+- `hal.Spi(P)` — SPI master, half-duplex MOSI write (≤ 64 bytes / data-buffer
+  load); takes the peripheral namespace (e.g. `regs.SPI2`) (see `examples/spi/`).
+  **Build-only**: QEMU models no SPI controller (route CS/CLK/MOSI to pads first).
 
 Every driver is **comptime-parameterized on its register addresses** (the I2C
 driver on the peripheral namespace), so the MMIO accesses stay provably

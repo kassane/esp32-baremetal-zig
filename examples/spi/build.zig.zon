@@ -1,0 +1,9 @@
+.{
+    .name = .spi_example,
+    .version = "0.1.0",
+    .fingerprint = 0x754892f294b679ec,
+    .dependencies = .{
+        .esp32_hal = .{ .path = "../.." },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "main.zig" },
+}
