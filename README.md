@@ -267,9 +267,10 @@ A small register driver layer over `mmio` (imported as `hal`):
   datasheet bit timing folded from nanoseconds to source-clock ticks at comptime
   (see `examples/ws2812/`). **Build-only**: QEMU models no RMT (route the channel
   to the LED's data pad on hardware).
-- `hal.Spi(P)` — SPI master, half-duplex MOSI write (≤ 64 bytes / data-buffer
-  load); takes the peripheral namespace (e.g. `regs.SPI2`) (see `examples/spi/`).
-  **Build-only**: QEMU models no SPI controller (route CS/CLK/MOSI to pads first).
+- `hal.Spi(P)` — SPI master, half-duplex single transfer (≤ 64 bytes / data-buffer
+  load): `write` clocks bytes out MOSI, `read` clocks them in over MISO; takes the
+  peripheral namespace (e.g. `regs.SPI2`) (see `examples/spi/`). **Build-only**:
+  QEMU models no SPI controller (route CS/CLK/MOSI/MISO to pads first).
 - `hal.Rsa(P, words)` — RSA modular exponentiation (`base^exp mod modulus`), the
   core of RSA sign/verify, for `words`×32-bit operands (512-bit increments). The
   caller supplies the Montgomery constants (`m' = -M⁻¹ mod 2³²`,
