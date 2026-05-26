@@ -1036,3 +1036,51 @@ pub fn Brownout(comptime brown_out_reg: u32) type {
         }
     };
 }
+
+/// Capacitive touch sensor (ESP32) — software-forced single read of a pad's raw
+/// capacitance count (a *lower* count means higher capacitance, i.e. a touch).
+/// Pads share result registers two-up: pad 2n/2n+1 → `SAR_TOUCH_OUT_n`, the even
+/// pad in the low half and the odd pad in the high. Pass the SENS namespace `P`,
+/// the pad's `RTC_IO.TOUCH_PADn` config register, its touch number `nr` (0..9) and
+/// the matching `SAR_TOUCH_OUT_*` register. **Build-only:** QEMU has no touch model,
+/// and a real reading also needs the RTC touch FSM timing tuned for the board.
+/// Field bits from the SVD, via reg.zig.
+pub fn Touch(comptime P: type, comptime pad_reg: u32, comptime nr: u4, comptime out_reg: u32) type {
+    return struct {
+        const meas_duration = 0x7FFF; // SAR_TOUCH_CTRL1.TOUCH_MEAS_DELAY (max window)
+        const xpd_wait_cycles = 0xFF; // TOUCH_XPD_WAIT — pad power-up settle time
+        // RTC_IO.TOUCH_PADn — route the pad to the touch mux and power it.
+        const to_gpio = reg.bit(12);
+        const mux_sel = reg.bit(19);
+        const xpd = reg.bit(20);
+        const start = reg.bit(22);
+        // SENS.SAR_TOUCH_CTRL1
+        const meas_delay = reg.Field(0, 16);
+        const xpd_wait = reg.Field(16, 8);
+        const out_1en = reg.bit(25);
+        // SENS.SAR_TOUCH_CTRL2
+        const meas_done = reg.bit(10);
+        const start_en = reg.bit(12); // software trigger one measurement
+        const start_force = reg.bit(13); // software (not FSM) control
+        const worken = reg.bit(nr); // SAR_TOUCH_ENABLE.TOUCH_PAD_WORKEN[nr]
+        // SAR_TOUCH_OUT_n packs the even pad in [15:0] and the odd pad in [31:16].
+        const count = if (nr & 1 == 0) reg.Field(0, 16) else reg.Field(16, 16);
+
+        /// Configure the pad for touch sensing and select software-forced
+        /// measurement. Call once before `read`.
+        pub inline fn init() void {
+            mmio.writeReg(P.SAR_TOUCH_CTRL1, meas_delay.set(meas_duration) | xpd_wait.set(xpd_wait_cycles) | out_1en);
+            mmio.writeReg(pad_reg, start | xpd | mux_sel | to_gpio); // route + power the pad
+            mmio.writeReg(P.SAR_TOUCH_ENABLE, mmio.readReg(P.SAR_TOUCH_ENABLE) | worken);
+            mmio.writeReg(P.SAR_TOUCH_CTRL2, start_force); // software, not the FSM
+        }
+        /// Software-forced single measurement: pulse the start bit, wait for the
+        /// done flag, and return the pad's raw count.
+        pub inline fn read() u16 {
+            mmio.writeReg(P.SAR_TOUCH_CTRL2, start_force); // clear start_en
+            mmio.writeReg(P.SAR_TOUCH_CTRL2, start_force | start_en); // pulse → trigger
+            while (mmio.readReg(P.SAR_TOUCH_CTRL2) & meas_done == 0) {} // await the sample
+            return @truncate(count.get(mmio.readReg(out_reg)));
+        }
+    };
+}
