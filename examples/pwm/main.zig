@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // LEDC PWM example (ESP32-S2). Configures a LEDC low-speed timer + channel and
-// holds GPIO18's LED at 50 % brightness. Build-only: the Espressif QEMU does not
-// model LEDC, so this writes the registers per the TRM layout but produces no
-// emulator-observable waveform; on real hardware, route LEDC channel 0 to GPIO18
-// through the GPIO matrix (a chip-specific output-signal index).
+// hardware-fades GPIO18's LED brightness up — the LEDC ramps the duty itself, with
+// no CPU loop. Build-only: the Espressif QEMU does not model LEDC, so this writes
+// the registers per the TRM layout but produces no emulator-observable waveform; on
+// real hardware, route LEDC channel 0 to GPIO18 through the GPIO matrix (see the
+// gpio_matrix example).
 
 const std = @import("std");
 const mmio = @import("mmio");
@@ -26,15 +27,18 @@ fn logFn(comptime level: std.log.Level, comptime _: @TypeOf(.enum_literal), comp
 
 const led_pin: u5 = 18; // RGB LED data pin on common S2 DevKits
 const duty_res_bits = 13; // 8192 PWM steps
-const half_duty = (1 << duty_res_bits) / 2; // 50 %
+const fade_scale = 16; // duty increment per fade cycle
+const fade_cycle = 4; // PWM periods between steps
+const fade_steps = 256; // number of steps (0 → 4096 over 1024 PWM periods)
 
 const Backlight = hal.Pwm(regs.LEDC.TIMER_0_CONF, regs.LEDC.CH_0_CONF0, regs.LEDC.CH_0_CONF1, regs.LEDC.CH_0_HPOINT, regs.LEDC.CH_0_DUTY);
 
 export fn main() callconv(.c) noreturn {
     init.disableWatchdogs(regs); // or the chip resets within seconds on real HW
     Backlight.startTimer(duty_res_bits, 256); // 13-bit resolution, APB ÷ 256
-    Backlight.setDuty(0, half_duty); // channel 0, bound to timer 0
-    mmio.log(regs.UART0.FIFO, .info, "LEDC: GPIO{d} PWM at {d}/{d} (50%)", .{ led_pin, half_duty, @as(u32, 1) << duty_res_bits });
+    // Channel 0, bound to timer 0: hardware fade up from 0, the LEDC ramping on its own.
+    Backlight.fade(0, 0, fade_scale, fade_cycle, fade_steps, true);
+    mmio.log(regs.UART0.FIFO, .info, "LEDC: GPIO{d} hardware fade up ({d}/step, {d} steps)", .{ led_pin, fade_scale, fade_steps });
     while (true) {} // the LEDC channel drives the LED autonomously
 }
 
