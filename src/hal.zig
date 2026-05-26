@@ -626,3 +626,22 @@ pub fn I2s(comptime P: type) type {
         }
     };
 }
+
+/// DAC — 8-bit analog output on an RTC DAC pad (`regs.RTC_IO.PAD_DAC_0` = DAC1 on
+/// GPIO25, `PAD_DAC_1` = DAC2 on GPIO26). Writing forces the pad's DAC power-up
+/// control to this register and drives `level` (0..255 ≈ 0..Vref) — the same path
+/// ESP-IDF's `dac_output_voltage` takes. **Build-only:** QEMU has no observable
+/// analog output (the cosine-wave generator is left disabled, its reset default).
+pub fn Dac(comptime pad_dac_reg: u32) type {
+    return struct {
+        const dac_xpd_force = reg.bit(10); // power the DAC from this register
+        const mux_sel = reg.bit(17); // route the RTC pad to the DAC
+        const xpd_dac = reg.bit(18); // DAC powered on
+        const value = reg.Field(19, 8); // 8-bit output level
+
+        /// Drive `level` (0 = 0 V … 255 ≈ Vref) on the DAC pad.
+        pub inline fn write(level: u8) void {
+            mmio.writeReg(pad_dac_reg, dac_xpd_force | xpd_dac | mux_sel | value.set(level));
+        }
+    };
+}

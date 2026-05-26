@@ -95,7 +95,8 @@ Single-feature programs live alongside them, each its own package you build with
 - `efuse` also runs in QEMU (`cd examples/efuse && zig build demo`)
 - **Build-only**: `pwm` (LEDC) on ESP32-S2; `i2c` (I2C master), `spi` (SPI master),
   `rmt` (IR remote transmit), `rsa` (RSA modular exponentiation), `twai`
-  (CAN 2.0 transmit), `mcpwm` (motor-control PWM) and `i2s` (I2S master TX) on ESP32
+  (CAN 2.0 transmit), `mcpwm` (motor-control PWM), `i2s` (I2S master TX) and
+  `dac` (analog output) on ESP32
 
 Shared register/timing helpers live in `src/mmio.zig` (imported as `mmio`).
 
@@ -261,6 +262,10 @@ A small register driver layer over `mmio` (imported as `hal`):
 - `hal.I2s(P)` — I2S master TX in single-data mode (constant sample, no DMA;
   Philips framing) on `regs.I2S0` (see `examples/i2s/`). **Build-only**: QEMU models
   no I2S; the DMA-fed streaming path is a larger future piece.
+- `hal.Dac(pad_dac_reg)` — 8-bit analog output on an RTC DAC pad (`PAD_DAC_0` =
+  DAC1/GPIO25, `PAD_DAC_1` = DAC2/GPIO26); `write(level)` drives 0..Vref the way
+  ESP-IDF's `dac_output_voltage` does (see `examples/dac/`). **Build-only**: QEMU
+  has no observable analog output.
 
 Every driver is **comptime-parameterized on its register addresses** (the I2C
 driver on the peripheral namespace), so the MMIO accesses stay provably

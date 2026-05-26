@@ -140,3 +140,4 @@ jobs:
           cd ../twai         && zig build --summary all
           cd ../mcpwm        && zig build --summary all
           cd ../i2s          && zig build --summary all
+          cd ../dac          && zig build --summary all
