@@ -1,0 +1,9 @@
+.{
+    .name = .rsa_example,
+    .version = "0.1.0",
+    .fingerprint = 0xe4295429ed9cd314,
+    .dependencies = .{
+        .esp32_hal = .{ .path = "../.." },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "main.zig" },
+}

@@ -452,3 +452,49 @@ pub fn Spi(comptime P: type) type {
         }
     };
 }
+
+/// RSA accelerator — modular exponentiation `Z = base^exponent mod modulus`, the
+/// core of RSA sign/verify. Takes the peripheral namespace (`regs.RSA`) and the
+/// operand length in 32-bit `words` (a multiple of 16, i.e. 512-bit increments).
+/// Following ESP-IDF / esp-hal, the caller supplies the two Montgomery constants
+/// the hardware needs — `m_prime = -M⁻¹ mod 2³²` and `r = 2^(2·words·32) mod M` —
+/// so this driver computes nothing in software (it would not link freestanding).
+/// The memory-block writes unroll over comptime indices, keeping every MMIO
+/// address a compile-time constant (no `@ptrFromInt` panic path).
+///
+/// **Build-only here:** the demo example just exercises the register sequence;
+/// the Espressif QEMU *does* model RSA, so a value-checked run is a natural future
+/// step once a comptime big-integer reference (`std.math.big`) is wired up.
+pub fn Rsa(comptime P: type, comptime words: u32) type {
+    if (words == 0 or words % 16 != 0) @compileError("RSA words must be a positive multiple of 16");
+    return struct {
+        const mode = words / 16 - 1; // MODEXP_MODE: length in 512-bit steps − 1
+
+        /// True once the accelerator has finished its post-reset initialisation.
+        pub inline fn ready() bool {
+            return mmio.readReg(P.CLEAN) & 1 != 0;
+        }
+
+        /// Blocking `base^exponent mod modulus`. All operands are `words` little-
+        /// endian 32-bit limbs; `m_prime`/`r` are the caller-computed Montgomery
+        /// constants (see above).
+        pub inline fn modExp(base: [words]u32, exponent: [words]u32, modulus: [words]u32, m_prime: u32, r: [words]u32) [words]u32 {
+            inline for (0..words) |i| {
+                mmio.writeReg(P.Y_MEM_0 + i * 4, exponent[i]);
+                mmio.writeReg(P.M_MEM_0 + i * 4, modulus[i]);
+                mmio.writeReg(P.X_MEM_0 + i * 4, base[i]);
+                mmio.writeReg(P.Z_MEM_0 + i * 4, r[i]);
+            }
+            mmio.writeReg(P.M_PRIME, m_prime);
+            mmio.writeReg(P.MODEXP_MODE, mode);
+            mmio.writeReg(P.MODEXP_START, 1);
+            while (mmio.readReg(P.INTERRUPT) & 1 == 0) {} // wait for completion
+
+            var out: [words]u32 = undefined;
+            const o: [*]u32 = &out;
+            inline for (0..words) |i| o[i] = mmio.readReg(P.Z_MEM_0 + i * 4);
+            mmio.writeReg(P.INTERRUPT, 1); // clear the done flag
+            return out;
+        }
+    };
+}
