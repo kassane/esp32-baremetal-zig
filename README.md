@@ -102,8 +102,9 @@ Single-feature programs live alongside them, each its own package you build with
 - `blink` (GPIO + Delay), `button` (GPIO in→out), `efuse` (factory MAC) on ESP32
 - **Run in QEMU** (`zig build demo`): `efuse` (ESP32 — factory MAC over UART),
   `rtc_store` (ESP32 — RTC scratch round-trip), `rsa` (ESP32 — known-answer modexp
-  on the RSA accelerator), `heap` (ESP32 — typed bump-arena allocation) and
-  `systimer` (ESP32-S3 — system-timer uptime over UART)
+  on the RSA accelerator), `heap` (ESP32 — typed bump-arena allocation),
+  `rtc_time` (ESP32 — RTC main-timer uptime) and `systimer` (ESP32-S3 —
+  system-timer uptime over UART)
 - **Build-only**: `pwm` (LEDC) on ESP32-S2; `i2c` (I2C master), `spi` (SPI master),
   `rmt` (IR remote transmit), `ws2812` (addressable RGB over RMT), `twai`
   (CAN 2.0 transmit), `mcpwm` (motor-control PWM),

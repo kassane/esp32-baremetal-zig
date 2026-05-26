@@ -140,6 +140,11 @@ jobs:
         shell: bash
         run: cd examples/heap && zig build demo
 
+      - name: ESP32 example — RTC main-timer uptime over UART
+        if: matrix.run_qemu
+        shell: bash
+        run: cd examples/rtc_time && zig build demo
+
       - name: ESP32 example — eFuse base-MAC reader over UART
         if: matrix.run_qemu
         shell: bash
