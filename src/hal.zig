@@ -671,3 +671,48 @@ pub fn Adc(comptime meas_reg: u32) type {
         }
     };
 }
+
+/// USB Serial/JTAG CDC-ACM console transmitter (ESP32-S3/-C3, the default USB
+/// console). Pass the peripheral's `EP1` FIFO byte register and `EP1_CONF`
+/// (e.g. `regs.USB_DEVICE.EP1`, `EP1_CONF`). `write` pushes bytes into the IN FIFO
+/// — gating on `SERIAL_IN_EP_DATA_FREE` — then sets `WR_DONE` to flush the packet
+/// to the host. `[*]` indexing keeps it bounds-check-free. **Build-only:** needs a
+/// USB host attached, which the Espressif QEMU does not provide.
+pub fn UsbSerial(comptime ep1: u32, comptime ep1_conf: u32) type {
+    return struct {
+        const wr_done = reg.bit(0); // EP1_CONF.WR_DONE — flush IN FIFO to host
+        const in_free = reg.bit(1); // EP1_CONF.SERIAL_IN_EP_DATA_FREE
+
+        pub inline fn writeByte(byte: u8) void {
+            while (mmio.readReg(ep1_conf) & in_free == 0) {} // wait for FIFO space
+            mmio.writeReg(ep1, byte);
+        }
+        pub inline fn write(bytes: []const u8) void {
+            const p = bytes.ptr;
+            var i: usize = 0;
+            while (i < bytes.len) : (i +%= 1) writeByte(p[i]);
+            mmio.writeReg(ep1_conf, wr_done); // flush the packet to the host
+        }
+    };
+}
+
+/// On-chip temperature sensor (ESP32-S2/-S3) — `regs.SENS.SAR_TSENS_CTRL`. Powers
+/// the sensor (software-forced) and returns its raw 8-bit reading once ready; the
+/// raw value maps to °C through a per-chip calibration curve the caller applies.
+/// **Build-only:** QEMU has no thermal model. Fields from the SVD, via reg.zig.
+pub fn TempSensor(comptime ctrl_reg: u32) type {
+    return struct {
+        const out = reg.Field(0, 8); // SAR_TSENS_OUT
+        const ready = reg.bit(8); // SAR_TSENS_READY
+        const clk_div = reg.Field(14, 8); // SAR_TSENS_CLK_DIV
+        const power_up = reg.bit(22);
+        const power_up_force = reg.bit(23); // power the sensor from this register
+
+        /// Power up the sensor (clock ÷ `div`) and return the raw reading once ready.
+        pub inline fn read(comptime div: u8) u8 {
+            mmio.writeReg(ctrl_reg, power_up_force | power_up | clk_div.set(div));
+            while (mmio.readReg(ctrl_reg) & ready == 0) {} // wait for a sample
+            return @truncate(out.get(mmio.readReg(ctrl_reg)));
+        }
+    };
+}

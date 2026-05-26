@@ -142,3 +142,5 @@ jobs:
           cd ../i2s          && zig build --summary all
           cd ../dac          && zig build --summary all
           cd ../adc          && zig build --summary all
+          cd ../usb_serial   && zig build --summary all
+          cd ../tsens        && zig build --summary all

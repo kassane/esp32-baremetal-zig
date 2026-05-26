@@ -1,0 +1,9 @@
+.{
+    .name = .usb_serial_example,
+    .version = "0.1.0",
+    .fingerprint = 0x8499d02e0ed97794,
+    .dependencies = .{
+        .esp32_hal = .{ .path = "../.." },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "main.zig" },
+}
