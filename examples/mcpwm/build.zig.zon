@@ -1,0 +1,9 @@
+.{
+    .name = .mcpwm_example,
+    .version = "0.1.0",
+    .fingerprint = 0x217a4d304acacfae,
+    .dependencies = .{
+        .esp32_hal = .{ .path = "../.." },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "main.zig" },
+}
