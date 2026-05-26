@@ -64,7 +64,7 @@ export fn main() callconv(.c) noreturn {
 
 // ── Startup ───────────────────────────────────────────────────────────────────
 
-/// Entry point (symbol expected by the IDF boot flow). Enables windowed
+/// Entry point (the symbol the second-stage bootloader jumps to). Enables windowed
 /// registers and sets SP (top of DRAM) before the first C-ABI call.
 export fn call_start_cpu0() callconv(.naked) noreturn {
     asm volatile (startup.vector());

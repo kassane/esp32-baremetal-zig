@@ -1,0 +1,9 @@
+.{
+    .name = .systimer_example,
+    .version = "0.1.0",
+    .fingerprint = 0x3ede0dbb3ff3981e,
+    .dependencies = .{
+        .esp32_hal = .{ .path = "../.." },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "main.zig" },
+}

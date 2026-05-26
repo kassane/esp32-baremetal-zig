@@ -4,7 +4,7 @@
 // Bare-metal Zig for ESP32 — RSA modular exponentiation (build-only). Drives the
 // RSA accelerator's modexp register sequence for a 512-bit operand (16 words).
 // The Montgomery constants `m_prime = -M⁻¹ mod 2³²` and `r = 2^(2·512) mod M` are
-// caller-supplied (as in ESP-IDF/esp-hal) — here they are placeholders, so this is
+// caller-supplied — here they are placeholders, so this is
 // **build-only**: it links and runs the sequence on hardware, but the result is
 // only meaningful with real constants (a comptime big-int reference is future work).
 
