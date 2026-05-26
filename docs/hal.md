@@ -75,6 +75,11 @@ A small register driver layer over `mmio` (imported as `hal`):
   frequency/event counting); `count()` reads it (see `examples/pcnt/`). **Build-only**:
   QEMU models no PCNT. CONF0's count-mode field and CTRL's per-unit reset/pause bits
   are from the chip register map (the vendored SVD omits them).
+- `hal.StackMonitor(P)` — CPU stack-overflow monitor via ASSIST_DEBUG (ESP32-S3):
+  `watchStack(low, high)` arms the SP-spill monitor so the hardware records a
+  violation (and the PC) if the stack pointer leaves the range; `tripped()` /
+  `faultPc()` / `clear()` read and reset it (see `examples/stack_monitor/`).
+  **Build-only**: QEMU doesn't model ASSIST_DEBUG.
 - `hal.Twai(P)` — TWAI (CAN 2.0) controller: transmit a standard-ID data frame on
   the SJA1000-compatible peripheral (`regs.TWAI0`) (see `examples/twai/`).
   **Build-only**: a live bus needs TX/RX routed to pads + an external CAN transceiver.

@@ -1210,3 +1210,34 @@ pub fn Pcnt(comptime conf0_reg: u32, comptime ctrl_reg: u32, comptime cnt_reg: u
         }
     };
 }
+
+/// CPU stack-overflow monitor via the ASSIST_DEBUG peripheral (ESP32-S3, core 0).
+/// `watchStack(low, high)` arms the SP-spill monitor: the hardware records a
+/// violation (and the offending PC) if the stack pointer leaves `[low, high]` — a
+/// stack overflow or underflow — which `tripped()` reports. Takes the peripheral
+/// namespace (`regs.ASSIST_DEBUG`). **Build-only:** QEMU doesn't model ASSIST_DEBUG.
+/// Field bits from the SVD, via reg.zig.
+pub fn StackMonitor(comptime P: type) type {
+    return struct {
+        const spill = reg.bit(8) | reg.bit(9); // SP_SPILL_MIN | SP_SPILL_MAX
+
+        /// Arm the SP monitor against `[low, high]` (a spill outside flags a fault).
+        pub inline fn watchStack(low: u32, high: u32) void {
+            mmio.writeReg(P.CPU_0_SP_MIN, low);
+            mmio.writeReg(P.CPU_0_SP_MAX, high);
+            mmio.writeReg(P.CPU_0_MONTR_ENA, mmio.readReg(P.CPU_0_MONTR_ENA) | spill);
+        }
+        /// True if the SP has spilled out of the watched range since the last clear.
+        pub inline fn tripped() bool {
+            return mmio.readReg(P.CPU_0_INTR_RAW) & spill != 0;
+        }
+        /// The PC recorded at the violation (valid once `tripped`).
+        pub inline fn faultPc() u32 {
+            return mmio.readReg(P.CPU_0_SP_PC);
+        }
+        /// Clear a recorded violation.
+        pub inline fn clear() void {
+            mmio.writeReg(P.CPU_0_INTR_CLR, spill);
+        }
+    };
+}
