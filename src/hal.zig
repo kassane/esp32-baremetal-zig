@@ -413,28 +413,30 @@ pub fn Rmt(comptime conf0: u32, comptime conf1: u32, comptime data: u32, comptim
     };
 }
 
-/// SPI master, half-duplex MOSI-only single transfer (≤ 64 bytes / one data-buffer
-/// load). Takes the generated peripheral namespace (e.g. `regs.SPI2`). **Build-only:**
-/// the Espressif QEMU machines model no SPI controller, so this programs the
-/// controller per the TRM/SVD field layout and runs on hardware (route the CS/CLK/
-/// MOSI signals to pads via the GPIO matrix first) but has no emulator activity.
+/// SPI master, half-duplex single transfer (≤ 64 bytes / one data-buffer load):
+/// `write` clocks bytes out MOSI, `read` clocks them in over MISO. Takes the
+/// generated peripheral namespace (e.g. `regs.SPI2`). **Build-only:** the Espressif
+/// QEMU machines model no SPI controller, so this programs the controller per the
+/// TRM/SVD field layout and runs on hardware (route the CS/CLK/MOSI/MISO signals to
+/// pads via the GPIO matrix first) but has no emulator activity.
 pub fn Spi(comptime P: type) type {
     return struct {
         // SPI_CMD
         const usr = reg.bit(18); // start a user-defined transaction (self-clears)
         // SPI_USER
         const usr_mosi = reg.bit(27); // enable the MOSI (write) phase
+        const usr_miso = reg.bit(28); // enable the MISO (read) phase
         const ck_out_edge = reg.bit(7); // CPHA for SPI mode 0
         // SPI_CLOCK
         const clkcnt_l = reg.Field(0, 6);
         const clkcnt_h = reg.Field(6, 6);
         const clkcnt_n = reg.Field(12, 6);
         const clkdiv_pre = reg.Field(18, 13);
-        // SPI_MOSI_DLEN
-        const mosi_dbitlen = reg.Field(0, 24); // transfer length in bits − 1
+        // SPI_MOSI_DLEN / SPI_MISO_DLEN share this field layout.
+        const dbitlen = reg.Field(0, 24); // transfer length in bits − 1
 
-        /// Configure as a MOSI-only master clocked at f_apb / ((pre+1)·(n+1)).
-        /// `n` sets the bit period (n+1 source ticks); `h = n/2` gives ~50% duty.
+        /// Configure as a master clocked at f_apb / ((pre+1)·(n+1)). `n` sets the
+        /// bit period (n+1 source ticks); `h = n/2` gives a ~50% duty cycle.
         pub inline fn init(comptime pre: u13, comptime n: u6) void {
             mmio.writeReg(P.CLOCK, clkdiv_pre.set(pre) | clkcnt_n.set(n) | clkcnt_h.set(n / 2) | clkcnt_l.set(n));
             mmio.writeReg(P.USER, usr_mosi | ck_out_edge);
@@ -447,6 +449,7 @@ pub fn Spi(comptime P: type) type {
         /// MMIO address is a compile-time constant (no runtime `@ptrFromInt`, hence
         /// no alignment/null panic path); `[*]` indexing avoids bounds checks.
         pub inline fn write(data: []const u8) void {
+            mmio.writeReg(P.USER, usr_mosi | ck_out_edge); // select the MOSI (write) phase
             const p = data.ptr;
             inline for (0..16) |w| {
                 var word: u32 = 0;
@@ -456,9 +459,28 @@ pub fn Spi(comptime P: type) type {
                 }
                 mmio.writeReg(P.W_0 + w * 4, word);
             }
-            mmio.writeReg(P.MOSI_DLEN, mosi_dbitlen.set(@truncate(data.len *% 8 -% 1)));
+            mmio.writeReg(P.MOSI_DLEN, dbitlen.set(@truncate(data.len *% 8 -% 1)));
             mmio.writeReg(P.CMD, usr);
             while (mmio.readReg(P.CMD) & usr != 0) {} // wait for the transfer to finish
+        }
+
+        /// Blocking read of `buf.len` bytes (≤ 64) clocked in over MISO. The
+        /// controller fills the same data buffer (`W_0`…) the write path drives;
+        /// the unrolled comptime indices keep every MMIO address constant and the
+        /// `[*]` writes bounds-check-free.
+        pub inline fn read(buf: []u8) void {
+            mmio.writeReg(P.USER, usr_miso | ck_out_edge); // select the MISO (read) phase
+            mmio.writeReg(P.MISO_DLEN, dbitlen.set(@truncate(buf.len *% 8 -% 1)));
+            mmio.writeReg(P.CMD, usr);
+            while (mmio.readReg(P.CMD) & usr != 0) {} // wait for the transfer to finish
+            const p = buf.ptr;
+            inline for (0..16) |w| {
+                const word = mmio.readReg(P.W_0 + w * 4);
+                inline for (0..4) |b| {
+                    const idx = w * 4 + b; // comptime
+                    if (idx < buf.len) p[idx] = @truncate(word >> (b * 8));
+                }
+            }
         }
     };
 }
