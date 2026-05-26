@@ -16,10 +16,16 @@ SVDs, patched with that project's `xtask` (clone esp-pacs, `cargo xtask patch
 `<dim>` arrays, flattens nested `<cluster>`s to prefixed names
 (`CH_0_IN_INT_RAW`) with accumulated offsets, follows `derivedFrom` (TIMG1
 inherits TIMG0), and suffixes any residual name clash — so it generates valid
-Zig for **every** esp32* target (Xtensa *and* RISC-V), verified by `ast-check`.
+Zig for **every** esp32* target.
+
+To prove that breadth, the vendored set includes the RISC-V **ULP-coprocessor**
+SVDs (`svd/esp32s2-ulp.svd`, `svd/esp32s3-ulp.svd`) alongside the three Xtensa
+chips. The ULP cores aren't firmware targets here (this is an Xtensa project), but
+`zig build regs` generates their register modules too and runs `zig ast-check` on
+each — so svd2zig's output is verified valid Zig across both architectures, in CI.
 
 ```bash
-zig build regs    # emit the generated modules into zig-out/gen/ to inspect
+zig build regs    # emit every module into zig-out/gen/ and ast-check it
 ```
 
 Using the SVD also surfaces the `*_W1TS` / `*_W1TC` (write-1-to-set / -clear)

@@ -67,6 +67,9 @@ jobs:
       - name: Build firmware for ESP32 + ESP32-S2 + ESP32-S3 (ReleaseSmall)
         run: zig build --summary all -Doptimize=ReleaseSmall
 
+      - name: Generate + ast-check register modules (incl. ULP SVDs)
+        run: zig build regs --summary all
+
       - name: Install QEMU runtime libs (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libsdl2-2.0-0 libslirp0
