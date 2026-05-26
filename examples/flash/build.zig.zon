@@ -1,0 +1,9 @@
+.{
+    .name = .flash_example,
+    .version = "0.1.0",
+    .fingerprint = 0x982393dcddc8241c,
+    .dependencies = .{
+        .esp32_hal = .{ .path = "../.." },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "main.zig" },
+}

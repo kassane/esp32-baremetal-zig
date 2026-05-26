@@ -80,6 +80,11 @@ A small register driver layer over `mmio` (imported as `hal`):
   violation (and the PC) if the stack pointer leaves the range; `tripped()` /
   `faultPc()` / `clear()` read and reset it (see `examples/stack_monitor/`).
   **Build-only**: QEMU doesn't model ASSIST_DEBUG.
+- `hal.FlashRom(read_addr)` — SPI-flash read through the chip ROM
+  (`esp_rom_spiflash_read`, e.g. `0x4006_2ED8` on ESP32): `read(src, words)` copies
+  words from a flash offset — the entry the storage stacks use, so no flash-controller
+  driver is needed (see `examples/flash/`). Read-only (erase/write can brick a running
+  image). **Build-only**: the ROM address is fixed per chip/ROM revision.
 - `hal.Twai(P)` — TWAI (CAN 2.0) controller: transmit a standard-ID data frame on
   the SJA1000-compatible peripheral (`regs.TWAI0`) (see `examples/twai/`).
   **Build-only**: a live bus needs TX/RX routed to pads + an external CAN transceiver.

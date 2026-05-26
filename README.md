@@ -128,7 +128,8 @@ Single-feature programs live alongside them, each its own package you build with
   `sw_reset` (software reset), `gpio_edge` (poll-based edge detection),
   `clock_gate` (peripheral clock gating), `brownout` (supply brownout detector) and
   `touch` (capacitive touch sensor), `deep_sleep` (timer-wakeup deep sleep) and
-  `pcnt` (pulse counter) on ESP32; `usb_serial` (USB CDC-ACM console), `tsens`
+  `pcnt` (pulse counter) and `flash` (SPI-flash read via ROM) on ESP32; `usb_serial`
+  (USB CDC-ACM console), `tsens`
   (temperature sensor),
   `hmac` (HMAC-SHA256 accelerator) and `stack_monitor` (ASSIST_DEBUG
   stack-overflow monitor) on ESP32-S3
