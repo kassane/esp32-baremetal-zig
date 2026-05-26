@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
 
+# Cancel a previous in-progress run for the same ref when a new commit lands
+# (a hung QEMU job otherwise ties up a runner until the job timeout).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   ZIG_VERSION: 0.16.0-xtensa
   QEMU_RELEASE: esp-develop-9.2.2-20250817
@@ -29,7 +35,8 @@ jobs:
           - os: windows-latest
             zig_asset: zig-relsafe-x86_64-windows-baseline.zip
             zig_dir: zig-relsafe-x86_64-windows-baseline
-            run_qemu: false
+            qemu_asset: qemu-xtensa-softmmu-esp_develop_9.2.2_20250817-x86_64-w64-mingw32.tar.xz
+            run_qemu: true
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code
@@ -68,8 +75,8 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install sdl2 libslirp
 
-      - name: Setup Espressif QEMU (xtensa)
-        if: matrix.run_qemu
+      - name: Setup Espressif QEMU (xtensa) — Unix
+        if: matrix.run_qemu && runner.os != 'Windows'
         run: |
           QEMU_DIR="$HOME/.espressif/tools/qemu-xtensa/${QEMU_BUILD}"
           mkdir -p "$QEMU_DIR"
@@ -80,20 +87,37 @@ jobs:
           echo "$QEMU_DIR/qemu/bin" >> "$GITHUB_PATH"
           rm /tmp/qemu.tar.xz
 
+      - name: Setup Espressif QEMU (xtensa) — Windows
+        if: matrix.run_qemu && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $dir = "$HOME\.espressif\tools\qemu-xtensa\$env:QEMU_BUILD"
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          Invoke-WebRequest -Uri "https://github.com/espressif/qemu/releases/download/$env:QEMU_RELEASE/${{ matrix.qemu_asset }}" -OutFile "$env:TEMP\qemu.tar.xz"
+          # The mingw build is statically linked (no bundled DLLs); 7z reliably
+          # handles the .xz → .tar → files extraction on the runner image.
+          7z x "$env:TEMP\qemu.tar.xz" -o"$env:TEMP" -y | Out-Null
+          7z x "$env:TEMP\qemu.tar" -o"$dir" -y | Out-Null
+          "$dir\qemu\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+
       - name: Boot-test firmware in QEMU (ESP32 + ESP32-S3)
         if: matrix.run_qemu
         run: zig build smoke --summary all
 
       # Each example is a standalone package (depends on the repo root locally);
-      # run them on their own and print each one's output.
+      # run them on their own and print each one's output. `shell: bash` so the
+      # `cd … && …` works the same on Windows (Git Bash) as on Unix.
       - name: ESP32 example — FFT spectrum + std.log over UART
         if: matrix.run_qemu
+        shell: bash
         run: cd esp32 && zig build demo
 
       - name: ESP32-S3 example — PIE/SIMD blink (boots, no UART by design)
         if: matrix.run_qemu
+        shell: bash
         run: cd esp32s3 && zig build demo
 
       - name: ESP32-S2 example — build-only (no Espressif QEMU machine)
         if: matrix.run_qemu
+        shell: bash
         run: cd esp32s2 && zig build --summary all
