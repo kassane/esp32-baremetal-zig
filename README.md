@@ -89,8 +89,12 @@ cd examples/esp32 && zig build smoke     # non-interactive boot test (esp32, esp
 | `examples/esp32s3/main.zig` | ESP32-S3 | Xtensa LX7 | GPIO48 | PIE/SIMD vector kernels |
 
 Single-feature programs live alongside them, each its own package you build with
-`cd examples/<name> && zig build`: `blink` (GPIO + Delay) and `button` (GPIO
-in→out) on ESP32, `pwm` (LEDC) on ESP32-S2.
+`cd examples/<name> && zig build`:
+
+- `blink` (GPIO + Delay), `button` (GPIO in→out), `efuse` (factory MAC) on ESP32
+- `efuse` also runs in QEMU (`cd examples/efuse && zig build demo`)
+- **Build-only** (no QEMU model): `pwm` (LEDC) on ESP32-S2, `i2c` (I2C master) and
+  `rmt` (IR remote transmit) on ESP32
 
 Shared register/timing helpers live in `src/mmio.zig` (imported as `mmio`).
 
@@ -220,12 +224,39 @@ A small register driver layer over `mmio` (imported as `hal`):
 - `hal.Sha256(...)` / `hal.Aes128(...)` — single-block SHA-256 / AES-128-ECB on
   the hardware accelerators; the esp32 demo checks both against `std.crypto`'s
   comptime reference (verified live in QEMU).
+- `hal.Efuse(lo, hi)` — reads the 48-bit factory base MAC from eFuse (the
+  identity Wi-Fi/Bluetooth/Ethernet derive from), assembled big-endian. eFuse is
+  one of the blocks the Espressif QEMU fork emulates, so the `examples/efuse`
+  reader runs under `zig build demo` — though QEMU's eFuse is unprogrammed, so it
+  reads back all-zero there; real silicon returns the unique factory address.
 - `hal.Pwm(timer, conf0, conf1, hpoint, duty)` — LEDC PWM timer + channel
   (see `examples/pwm/`). **Build-only**: QEMU doesn't model LEDC, and routing
   the channel to a pad via the GPIO matrix is left to the application.
+- `hal.I2c(P)` — I2C master (single-shot blocking `write`); takes the generated
+  peripheral namespace (e.g. `regs.I2C0`) since it spans ~13 registers (see
+  `examples/i2c/`). **Build-only**: QEMU models no I2C controller, so it links and
+  runs on hardware but has no emulator activity (route SCL/SDA to pads first).
+- `hal.Rmt(conf0, conf1, data, apb_conf)` — RMT transmitter: streams 32-bit
+  symbols (two timed levels each) out a channel for IR remote protocols
+  (NEC/RC5) or WS2812 timing (see `examples/rmt/`). **Build-only**: QEMU models no
+  RMT (route the channel to an IR-LED pad, with a 38 kHz carrier, on hardware).
 
-Every driver is **comptime-parameterized on its register addresses**, so the
-MMIO accesses stay provably aligned/non-null and emit no panic path.
+Every driver is **comptime-parameterized on its register addresses** (the I2C
+driver on the peripheral namespace), so the MMIO accesses stay provably
+aligned/non-null and emit no panic path.
+
+### Connectivity (Wi-Fi / Bluetooth / radio)
+
+There are no Wi-Fi/Bluetooth drivers here, and there can't be a pure-bare-metal
+one: the radios are driven by Espressif's closed-source RF/PHY/MAC blobs (the
+`esp-wifi` / controller libraries), which are also why QEMU doesn't emulate them.
+What this project *can* provide is the register-level groundwork those stacks sit
+on — the factory MAC every interface derives from (`hal.Efuse`), the RNG the TLS
+layers seed from (`hal.Rng`), the wired buses peripherals hang off (`hal.I2c`,
+plus the LEDC PWM), and the one wireless protocol that *is* pure registers:
+infrared remote control via the RMT peripheral (`hal.Rmt`). Bringing up the RF
+radio itself would mean linking the vendor blobs, which is out of scope for a
+from-scratch register HAL.
 
 ### DSP kernels (`src/dsp.zig`)
 

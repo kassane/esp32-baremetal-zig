@@ -122,13 +122,18 @@ pub fn Output(comptime enable_reg: u32, comptime out_reg: u32, comptime set_reg:
 /// UART transmitter over a TX FIFO register (e.g. `regs.UART0.FIFO`) — the
 /// QEMU-safe subset of a UART driver (the emulated chardev drains instantly;
 /// real hardware would also gate on the TX-FIFO status). Comptime `fifo` address.
+/// This is just an address-bound convenience over the `mmio` primitives
+/// (`writeReg`/`puts`); `write` forwards to `mmio.puts` so the byte loop lives in
+/// one place. Reach for `Console.write("…")` when a module already holds a `Uart`;
+/// call `mmio.puts(fifo, …)` directly when you only have the raw FIFO address (as
+/// the `mmio.log`/panic formatters do internally).
 pub fn Uart(comptime fifo: u32) type {
     return struct {
         pub inline fn writeByte(byte: u8) void {
             mmio.writeReg(fifo, byte);
         }
         pub inline fn write(bytes: []const u8) void {
-            for (bytes) |b| writeByte(b);
+            mmio.puts(fifo, bytes);
         }
     };
 }
@@ -140,6 +145,31 @@ pub fn Rng(comptime data: u32) type {
     return struct {
         pub inline fn read() u32 {
             return mmio.readReg(data);
+        }
+    };
+}
+
+/// Factory base MAC address read from eFuse — the 48-bit identity each chip is
+/// programmed with at manufacturing, from which every radio interface (Wi-Fi
+/// STA/AP, Bluetooth, Ethernet) derives its address. Pass the two read-only
+/// eFuse words holding it: `lo_reg` (low 32 bits) and `hi_reg` (high 16 bits in
+/// bits [15:0]). On ESP32 these are `EFUSE.BLK0_RDATA2`/`BLK0_RDATA1`; on the S2
+/// /S3 they are `EFUSE.RD_MAC_SPI_SYS_0`/`_1`. The value is stored big-endian
+/// across {hi[15:0], lo[31:0]}, so byte 0 (most significant) comes from the top
+/// of `hi`. `@truncate` casts keep the assembly panic-free (no safety path).
+pub fn Efuse(comptime lo_reg: u32, comptime hi_reg: u32) type {
+    return struct {
+        pub inline fn baseMac() [6]u8 {
+            const lo = mmio.readReg(lo_reg);
+            const hi = mmio.readReg(hi_reg);
+            return .{
+                @truncate(hi >> 8),
+                @truncate(hi),
+                @truncate(lo >> 24),
+                @truncate(lo >> 16),
+                @truncate(lo >> 8),
+                @truncate(lo),
+            };
         }
     };
 }
@@ -233,6 +263,126 @@ pub fn Pwm(comptime timer_conf: u32, comptime ch_conf0: u32, comptime ch_conf1: 
             mmio.writeReg(ch_duty, duty << duty_frac_bits);
             mmio.writeReg(ch_conf1, duty_start);
             mmio.writeReg(ch_conf0, @as(u32, timer) | sig_out_en | ch_latch);
+        }
+    };
+}
+
+/// I2C master (single-shot blocking write). **Build-only:** the Espressif QEMU
+/// machines do not model an I2C controller, so this programs the controller per
+/// the TRM register/field layout but has no emulator-observable bus activity —
+/// it links and is correct against the SVD, but is exercised only on real
+/// hardware (you must also route SCL/SDA to pads via the GPIO matrix first).
+///
+/// Unlike the single-register drivers above, I2C touches ~13 registers, so this
+/// takes the generated peripheral namespace itself (e.g. `regs.I2C0`) and reads
+/// the addresses from it — every field is still a comptime constant, so the MMIO
+/// stays provably aligned/non-null and emits no panic path.
+pub fn I2c(comptime P: type) type {
+    return struct {
+        // I2C_COMD opcodes (COMMAND field [13:11]).
+        const op_rstart: u32 = 0 << 11;
+        const op_write: u32 = 1 << 11;
+        const op_stop: u32 = 3 << 11;
+        // COMD flags
+        const ack_check_en: u32 = 1 << 8;
+        // I2C_CTR fields
+        const sda_force_out: u32 = 1 << 0;
+        const scl_force_out: u32 = 1 << 1;
+        const ms_mode: u32 = 1 << 4; // master
+        const trans_start: u32 = 1 << 5;
+        const clk_en: u32 = 1 << 8;
+        const ctr_cfg: u32 = ms_mode | sda_force_out | scl_force_out | clk_en;
+        // I2C_FIFO_CONF fields
+        const rx_fifo_rst: u32 = 1 << 12;
+        const tx_fifo_rst: u32 = 1 << 13;
+
+        /// Configure the controller as a master and set standard-mode (~100 kHz
+        /// at an 80 MHz APB) SCL timing. Call once before `write`.
+        pub inline fn init() void {
+            // Pulse the FIFO resets, then run in FIFO (not non-FIFO) mode.
+            mmio.writeReg(P.FIFO_CONF, tx_fifo_rst | rx_fifo_rst);
+            mmio.writeReg(P.FIFO_CONF, 0);
+            // SCL ~100 kHz: half-period ≈ 400 APB ticks; sane setup/hold around it.
+            mmio.writeReg(P.SCL_LOW_PERIOD, 400);
+            mmio.writeReg(P.SCL_HIGH_PERIOD, 400);
+            mmio.writeReg(P.SDA_HOLD, 40);
+            mmio.writeReg(P.SDA_SAMPLE, 40);
+            mmio.writeReg(P.SCL_START_HOLD, 200);
+            mmio.writeReg(P.SCL_RSTART_SETUP, 200);
+            mmio.writeReg(P.SCL_STOP_HOLD, 200);
+            mmio.writeReg(P.SCL_STOP_SETUP, 200);
+            mmio.writeReg(P.CTR, ctr_cfg);
+        }
+
+        /// Blocking write of `data` to the 7-bit address `addr`: [START][WRITE
+        /// addr+data, ack-checked][STOP]. Pushes the address + payload into the TX
+        /// FIFO, scripts the three commands, then triggers the transfer.
+        pub inline fn write(addr: u7, data: []const u8) void {
+            // FIFO: address byte (write = LSB 0) followed by the payload. `[*]`
+            // indexing + wrapping loop keep this bounds-/overflow-check-free.
+            mmio.writeReg(P.DATA, (@as(u32, addr) << 1));
+            const p = data.ptr;
+            var i: usize = 0;
+            while (i < data.len) : (i +%= 1) mmio.writeReg(P.DATA, p[i]);
+
+            const byte_num: u32 = @truncate(1 +% data.len); // addr + payload
+            mmio.writeReg(P.COMD_0, op_rstart);
+            mmio.writeReg(P.COMD_1, op_write | ack_check_en | byte_num);
+            mmio.writeReg(P.COMD_2, op_stop);
+
+            mmio.writeReg(P.CTR, ctr_cfg | trans_start);
+        }
+    };
+}
+
+/// RMT (Remote Control) transmitter — the chips' register-only path to wireless
+/// IR signalling (the NEC/RC5 remote protocols, also WS2812 LED timing). Each
+/// channel streams 32-bit *symbols* (two timed logic levels) from its RAM block
+/// out a pad. This is the honest "radio" a from-scratch HAL can drive: the Wi-Fi
+/// /Bluetooth radios need Espressif's closed RF blobs, but IR is pure registers.
+///
+/// Pass one channel's CONF0/CONF1/DATA registers plus the shared APB_CONF (e.g.
+/// `regs.RMT.CH0CONF0`, `CH0CONF1`, `CH0DATA`, `RMT.APB_CONF`). **Build-only:** no
+/// Espressif QEMU machine models RMT, so this links and runs on hardware but has
+/// no emulator output (and the channel still needs routing to a pad + a 38 kHz
+/// carrier — `CARRIER_EN`/`CHnCARRIER_DUTY` — for a real IR LED). Field layout per
+/// the SVD; `[*]` indexing keeps the symbol push bounds-check-free.
+pub fn Rmt(comptime conf0: u32, comptime conf1: u32, comptime data: u32, comptime apb_conf: u32) type {
+    return struct {
+        // CH%sCONF0
+        const mem_size_1: u32 = 1 << 24; // MEM_SIZE = 1 (one 64-symbol RAM block)
+        const clk_en: u32 = 1 << 31;
+        const idle_thres: u32 = 0x8000 << 8; // IDLE_THRES: counter value marking end
+        // CH%sCONF1
+        const tx_start: u32 = 1 << 0;
+        const mem_wr_rst: u32 = 1 << 2;
+        const mem_rd_rst: u32 = 1 << 3;
+        const ref_always_on: u32 = 1 << 17; // keep the channel clock running
+        // APB_CONF
+        const fifo_mask: u32 = 1 << 0; // CHnDATA writes address the RAM directly
+
+        /// Build one RMT symbol: level `l0` held for `d0` source-clock ticks, then
+        /// level `l1` for `d1`. A symbol with `d0 == 0` is the end-of-stream mark.
+        pub inline fn symbol(l0: u1, d0: u15, l1: u1, d1: u15) u32 {
+            return @as(u32, d0) | (@as(u32, l0) << 15) | (@as(u32, d1) << 16) | (@as(u32, l1) << 31);
+        }
+
+        /// Configure the channel: source clock ÷ `div`, one RAM block, direct RAM
+        /// writes. Call once before `send`.
+        pub inline fn init(comptime div: u8) void {
+            mmio.writeReg(apb_conf, fifo_mask);
+            mmio.writeReg(conf0, @as(u32, div) | mem_size_1 | idle_thres | clk_en);
+        }
+
+        /// Transmit `items` (RMT symbols, see `symbol`) followed by an end marker.
+        pub inline fn send(items: []const u32) void {
+            mmio.writeReg(conf1, mem_rd_rst | mem_wr_rst); // rewind the RAM pointers
+            mmio.writeReg(conf1, 0);
+            const p = items.ptr;
+            var i: usize = 0;
+            while (i < items.len) : (i +%= 1) mmio.writeReg(data, p[i]);
+            mmio.writeReg(data, 0); // duration-0 entry stops the transfer
+            mmio.writeReg(conf1, ref_always_on | tx_start);
         }
     };
 }
