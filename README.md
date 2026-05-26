@@ -186,8 +186,10 @@ root over a local `.path` dependency, so copy one as a working starting point.
 
 ## Documentation
 
-Implementation notes live under [`docs/`](docs/):
+Guides and implementation notes live under [`docs/`](docs/):
 
+- **[docs/getting-started.md](docs/getting-started.md)** — from a fresh checkout to
+  firmware running in QEMU and on hardware, plus a minimal-firmware skeleton.
 - **[docs/hal.md](docs/hal.md)** — the `hal` driver reference: every peripheral
   driver, what it does, and which run in QEMU vs. are build-only — plus the
   connectivity / wireless boundary.
