@@ -20,6 +20,7 @@ pub fn build(b: *std.Build) void {
     const log_level = b.option(std.log.Level, "log-level", "Minimum std.log level compiled in (err|warn|info|debug)") orelse .info;
     const panic_trace = b.option(bool, "panic-trace", "Print a UART stack backtrace from the panic handler") orelse true;
     const core = b.dependency("esp32_hal", .{
+        .optimize = optimize,
         .@"log-level" = log_level,
         .@"panic-trace" = panic_trace,
     });
