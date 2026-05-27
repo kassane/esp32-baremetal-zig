@@ -148,13 +148,16 @@ layer we control:
 - not the Zig frontend — a **C** function compiled by `zig cc` (clang on the same
   `espressif/llvm` backend) recursing 40 deep crashes too.
 
-So it's the shared LLVM-xtensa backend's windowed-ABI frame/spill setup, or QEMU's
-window-overflow emulation under this minimal `-kernel` boot. Since esp-rs/rust
-uses that same backend on real silicon for deep calls, QEMU (or the difference
-between our minimal reset/stack setup and a full bootloader's) is the prime
-suspect — i.e. it may not reproduce on hardware. The inline examples never nest
-that deep, so it stays latent for the current HAL; confirming it needs a board or
-a known-good reference firmware in the same QEMU.
+The deciding clue: QEMU's own default `-bios` (the ESP32 ROM) recurses deeply
+without trouble, so QEMU emulates window overflow *correctly*. The crash is
+therefore specific to our **minimal `-kernel` boot**, which jumps straight to the
+app reset vector without the ROM/second-stage-bootloader's full CPU + stack
+initialisation. On real hardware the flashed image boots *through* that bootloader
+(as esp-rs/esp-idf do — same `espressif/llvm` backend, deep calls everywhere), so
+the deep-call path very likely works there; it's a QEMU-direct-boot artifact, not
+a believed hardware limitation. The inline examples never nest that deep, so it
+stays latent for the current HAL. Confirming on silicon (or replicating the
+bootloader's init for a QEMU flash-boot) is the way to close it out.
 
 Honest picture, then:
 
