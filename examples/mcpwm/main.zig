@@ -19,6 +19,7 @@ const Motor = hal.Mcpwm(regs.MCPWM0);
 const period: u16 = 1000; // PWM resolution / top value
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     Motor.init(0, 9, period); // ~edge-aligned PWM; duty set below
     var duty: u16 = 0;

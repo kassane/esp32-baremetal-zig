@@ -18,6 +18,7 @@ pub const panic = con.panic;
 const Wdt = hal.Watchdog(regs.TIMG0);
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs); // clear the boot watchdog first
     Wdt.start(40000, 2_000); // TIMG/40000 ticks; reset if not fed for ~the timeout
     while (true) {

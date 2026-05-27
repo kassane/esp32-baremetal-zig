@@ -26,6 +26,7 @@ const rtc_hz = 150_000; // ESP32 RTC slow clock ≈ 150 kHz (default RC oscillat
 const wake_ticks = 2 * rtc_hz; // ~2 seconds
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     mmio.log(regs.UART0.FIFO, .info, "boot (reset cause {d}); deep-sleeping ~2 s", .{ResetInfo.cause()});
     Sleep.timerWakeup(wake_ticks); // does not return — powers down, resets on wake

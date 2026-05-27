@@ -18,6 +18,7 @@ pub const panic = con.panic;
 const Adc1 = hal.Adc(regs.SENS.SAR_MEAS_START1);
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     while (true) {
         const raw = Adc1.read(0); // ADC1 channel 0 → GPIO36

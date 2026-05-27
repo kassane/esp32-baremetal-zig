@@ -34,6 +34,7 @@ const frame = [_]u32{
 };
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     Ir.init(clk_div);
     while (true) {

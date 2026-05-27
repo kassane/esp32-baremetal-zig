@@ -30,6 +30,7 @@ const palette = [_]Led.Color{
 };
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     Led.init();
     // `inline for` over the comptime palette: fully unrolled, so no runtime index

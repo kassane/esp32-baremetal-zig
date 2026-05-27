@@ -29,6 +29,7 @@ const Led = hal.Output(gpio.ENABLE_W1TS, gpio.OUT, gpio.OUT_W1TS, gpio.OUT_W1TC,
 const Mac = hal.Efuse(regs.EFUSE.BLK0_RDATA2, regs.EFUSE.BLK0_RDATA1);
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     Led.init();
     mmio.puts(regs.UART0.FIFO, "\r\nESP32 bare-metal Zig — eFuse base-MAC reader\r\n");

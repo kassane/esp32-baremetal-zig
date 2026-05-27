@@ -24,6 +24,7 @@ const scratch = regs.RTC_CNTL.STORE0; // a register to read-modify-write
 const iterations = 5;
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     mmio.writeReg(scratch, 0);
     var n: u32 = 0;

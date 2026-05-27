@@ -29,6 +29,7 @@ const Pool = heap.Arena(u32, 1024);
 const n = 8;
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     const xs = Pool.alloc(n) orelse {
         mmio.puts(regs.UART0.FIFO, "[error] arena full\r\n");

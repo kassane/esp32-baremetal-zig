@@ -23,6 +23,7 @@ const scl_pad: u6 = 22;
 const sda_pad: u6 = 21;
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     // SCL on GPIO22: drive the I2C0 SCL output out the pad and feed the pad back in
     // (I2C is open-drain, so the controller senses the line it drives).

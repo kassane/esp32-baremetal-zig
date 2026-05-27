@@ -20,6 +20,7 @@ const Power = hal.Brownout(regs.RTC_CNTL.BROWN_OUT);
 const trip_level: u3 = 4; // mid-range threshold (0..7, higher = higher trip voltage)
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     Power.arm(trip_level); // reset the chip if the supply browns out
     while (true) {

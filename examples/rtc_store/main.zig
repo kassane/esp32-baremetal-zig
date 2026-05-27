@@ -24,6 +24,7 @@ const Scratch = hal.RtcStore(regs.RTC_CNTL.STORE0);
 const magic: u32 = 0xC0FFEE42;
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     mmio.puts(regs.UART0.FIFO, "\r\nESP32 bare-metal Zig — RTC scratch register\r\n");
     Scratch.write(magic);

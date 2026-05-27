@@ -19,6 +19,7 @@ const Button = hal.Input(gpio.IN, @as(u32, 1) << 0); // GPIO0 (boot button)
 const Led = hal.Output(gpio.ENABLE_W1TS, gpio.OUT, gpio.OUT_W1TS, gpio.OUT_W1TC, @as(u32, 1) << 2); // GPIO2
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs); // or the chip resets within seconds on real HW
     Led.init();
     // Drive the LED from the button each poll. The boolean `isHigh` form keeps

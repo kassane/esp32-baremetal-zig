@@ -20,6 +20,7 @@ pub const panic = con.panic;
 const Pad = hal.Touch(regs.SENS, regs.RTC_IO.TOUCH_PAD0, 0, regs.SENS.SAR_TOUCH_OUT_0);
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     Pad.init();
     while (true) {

@@ -29,6 +29,7 @@ const fade_steps = 256; // number of steps (0 → 4096 over 1024 PWM periods)
 const Backlight = hal.Pwm(regs.LEDC.TIMER_0_CONF, regs.LEDC.CH_0_CONF0, regs.LEDC.CH_0_CONF1, regs.LEDC.CH_0_HPOINT, regs.LEDC.CH_0_DUTY);
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs); // or the chip resets within seconds on real HW
     Backlight.startTimer(duty_res_bits, 256); // 13-bit resolution, APB ÷ 256
     // Channel 0, bound to timer 0: hardware fade up from 0, the LEDC ramping on its own.

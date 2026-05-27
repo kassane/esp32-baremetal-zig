@@ -19,6 +19,7 @@ const Button = hal.GpioEdge(gpio.PIN_0, @as(u32, 1) << 0, gpio.STATUS, gpio.STAT
 const Led = hal.Output(gpio.ENABLE_W1TS, gpio.OUT, gpio.OUT_W1TS, gpio.OUT_W1TC, @as(u32, 1) << 2); // GPIO2
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     Led.init();
     Button.configure(.falling); // latch button-press (high→low) edges

@@ -310,6 +310,7 @@ fn qemuLinker(b: *std.Build, comptime entry: []const u8, comptime q: Qemu) []con
         \\    *(.data .data.*)
         \\    _data_end = ABSOLUTE(.);
         \\  }} > dram_seg
+        \\  _sidata = LOADADDR(.data);
         \\  .bss (NOLOAD) : ALIGN(4) {{
         \\    _bss_start = ABSOLUTE(.);
         \\    *(.bss .bss.* COMMON)

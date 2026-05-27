@@ -20,6 +20,7 @@ const ResetInfo = hal.ResetReason(regs.RTC_CNTL.RESET_STATE);
 const power_on_cause = 1; // RTC_SW_CPU_RESET differs; 1 = power-on
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     const cause = ResetInfo.cause();
     mmio.log(regs.UART0.FIFO, .info, "boot, reset cause {d}", .{cause});

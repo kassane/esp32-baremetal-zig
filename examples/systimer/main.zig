@@ -27,6 +27,7 @@ const led_mask: u32 = @as(u32, 1) << (48 - 32);
 const Led = hal.Output(gpio.ENABLE1_W1TS, gpio.OUT1, gpio.OUT1_W1TS, gpio.OUT1_W1TC, led_mask);
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     Led.init();
     Timer.init();

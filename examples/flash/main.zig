@@ -21,6 +21,7 @@ pub const std_options = con.options;
 const Flash = hal.FlashRom(0x4006_2ED8); // ESP32 ROM esp_rom_spiflash_read
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     var hdr: [4]u32 = undefined; // first 16 bytes of flash (the image header)
     const ok = Flash.read(0, &hdr);

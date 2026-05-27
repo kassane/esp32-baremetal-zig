@@ -17,6 +17,7 @@ pub const panic = con.panic;
 const Temp = hal.TempSensor(regs.SENS.SAR_TSENS_CTRL);
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     while (true) {
         const raw = Temp.read(6); // clock ÷ 6

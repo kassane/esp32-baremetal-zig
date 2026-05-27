@@ -49,6 +49,9 @@ const sp_load = switch (chip) {
 
 /// Reset prologue for the target chip: enable windowed registers, set SP to the
 /// top of DRAM, then `call8 main`. Use inside the example's naked entry vector.
+/// `main` must call `init.runtimeInit()` first to set up `.bss`/`.data` (a
+/// near-callable literal pool for the segment bounds is easier to get right in
+/// Zig than in this naked asm).
 pub fn vector() []const u8 {
     return window_init ++
         "movi a1, 1\n slli a1, a1, 30\n" ++ // a1 = 0x40000000

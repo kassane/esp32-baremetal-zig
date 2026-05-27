@@ -19,6 +19,7 @@ pub const panic = con.panic;
 const Can = hal.Twai(regs.TWAI0);
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     // timing0 = BAUD_PRESC|SJW, timing1 = TSEG1|TSEG2|SAMP (placeholders).
     Can.init(0x09, 0x1c);

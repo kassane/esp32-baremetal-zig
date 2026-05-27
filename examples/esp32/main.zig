@@ -63,6 +63,7 @@ fn aesRef(comptime Cipher: type, comptime key: [Cipher.key_bits / 8]u8, comptime
 }
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs); // or the chip resets within seconds on real HW
     Led.init();
     Console.write("\r\nESP32 bare-metal Zig — hardware crypto demo\r\n");

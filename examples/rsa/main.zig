@@ -33,6 +33,7 @@ const m_prime: u32 = 1;
 const expected: u32 = 4; // 2^2 mod (2^512 − 1)
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     while (!Rsa.ready()) {} // wait for the accelerator to come out of reset
     const z = Rsa.modExp(base, exponent, modulus, m_prime, r);

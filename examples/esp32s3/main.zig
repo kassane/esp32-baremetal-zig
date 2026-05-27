@@ -38,6 +38,7 @@ var sig_b: [8]i16 align(16) = .{ 1, 2, 3, 4, 5, 6, 7, 8 };
 var mixed: [8]i16 align(16) = undefined;
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs); // or the chip resets within seconds on real HW
     Led.init(); // GPIO48 as output
 

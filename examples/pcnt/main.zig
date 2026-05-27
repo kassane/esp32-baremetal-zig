@@ -20,6 +20,7 @@ pub const panic = con.panic;
 const Counter = hal.Pcnt(regs.PCNT.UNIT_0_CONF0_0, regs.PCNT.CTRL_0, regs.PCNT.U_CNT_0, 0);
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     Counter.init();
     while (true) {

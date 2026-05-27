@@ -18,6 +18,7 @@ pub const panic = con.panic;
 const Audio = hal.I2s(regs.I2S0);
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     Audio.init(10, 8, 16); // I2S_CLK = src/10, BCK = I2S_CLK/8, 16-bit samples
     Audio.writeConstant(0x7fff_8000); // a fixed left/right level

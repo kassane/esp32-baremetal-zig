@@ -21,6 +21,7 @@ pub const std_options = con.options;
 const Clock = hal.RtcTime(regs.RTC_CNTL);
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     mmio.puts(regs.UART0.FIFO, "\r\nESP32 bare-metal Zig — RTC main-timer uptime\r\n");
     while (true) {

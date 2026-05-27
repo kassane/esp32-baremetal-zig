@@ -17,6 +17,7 @@ pub const panic = con.panic;
 const Dac1 = hal.Dac(regs.RTC_IO.PAD_DAC_0); // DAC1 → GPIO25
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     var level: u8 = 0;
     while (true) {

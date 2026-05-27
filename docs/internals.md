@@ -37,12 +37,28 @@ registers, so set/clear GPIO is a single atomic store — no read-modify-write.
 
 ## Startup
 
-`src/init.zig` `disableWatchdogs()` clears the TIMG0/TIMG1 (and RTC) watchdogs
-at boot via the generated register addresses — a second-stage bootloader leaves
-the TIMG0 flash-boot watchdog running, so an app that neither feeds nor disables
-it is reset within seconds on real hardware. The RTC watchdog is only touched on
-chips whose `regs` expose the unlock register under the expected name (resolved
-with `comptime @hasDecl`), so one routine is correct for every target.
+The naked `Reset` entry runs `startup.vector()`: it enables the windowed-register
+ABI, points the stack at the top of DRAM, and `call8 main` (a same-module near
+call — this backend emits no far calls). `main`'s first two statements complete
+the boot:
+
+- **`init.runtimeInit()`** is the C runtime init — it zeroes `.bss` and copies
+  `.data` from its load address (in flash, reached through the DROM cache) to its
+  run address in DRAM, using the bounds the linker scripts export
+  (`_bss_start`/`_bss_end`, `_sidata`/`_data_start`/`_data_end`). On real hardware
+  SRAM powers up with garbage, so globals are undefined until this runs; QEMU
+  loads segments directly into already-zeroed RAM (`_sidata == _data_start`), so
+  it's a no-op there. The word-wide loops are `volatile` so the compiler can't
+  fold them into a `memset`/`memcpy` call (a far call that wouldn't link), and the
+  routine sets `@setRuntimeSafety(false)` — the linker addresses are `ALIGN(4)`,
+  but the per-iteration alignment/bounds checks would otherwise pull in a panic
+  path that doesn't link.
+- **`init.disableWatchdogs()`** clears the TIMG0/TIMG1 (and RTC) watchdogs via the
+  generated register addresses — a second-stage bootloader leaves the TIMG0
+  flash-boot watchdog running, so an app that neither feeds nor disables it is
+  reset within seconds on real hardware. The RTC watchdog is only touched on chips
+  whose `regs` expose the unlock register under the expected name (resolved with
+  `comptime @hasDecl`), so one routine is correct for every target.
 
 ## Panic handler & `std.log`
 

@@ -294,6 +294,14 @@ bootloader.bin       → flash offset 0x0
 partition-table.bin  → flash offset 0x8000
 ```
 
+At reset the app sets up the windowed-register ABI and stack, then `main` runs
+`init.runtimeInit()` (zeroes `.bss`, copies `.data` from flash to DRAM — required
+on real silicon, where SRAM powers up uninitialised) and `init.disableWatchdogs()`
+before your code. One caveat: examples that take a clock with `hal.Delay(cpu_hz)`
+assume the CPU frequency the second-stage bootloader configured — pass the
+`cpu_hz` that matches your bootloader's `sdkconfig` (e.g. 240 MHz) or the delays
+will be scaled accordingly.
+
 ### espflash (alternative 1)
 
 [espflash](https://github.com/esp-rs/espflash) is a Rust CLI that works

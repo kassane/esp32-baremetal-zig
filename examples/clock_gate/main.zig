@@ -22,6 +22,7 @@ const i2c0_bit: u32 = @as(u32, 1) << 7;
 const I2c0Clock = hal.ClockGate(regs.DPORT.PERIP_CLK_EN, regs.DPORT.PERIP_RST_EN, i2c0_bit);
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     I2c0Clock.reset(); // pulse the controller's reset line
     I2c0Clock.enable(); // ungate its bus clock — its registers now respond

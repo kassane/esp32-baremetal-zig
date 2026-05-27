@@ -90,6 +90,7 @@ const led: u32 = @as(u32, 1) << 2; // GPIO2
 const Led = hal.Output(regs.GPIO.ENABLE_W1TS, regs.GPIO.OUT, regs.GPIO.OUT_W1TS, regs.GPIO.OUT_W1TC, led);
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data — first, before any global is used
     init.disableWatchdogs(regs); // or the chip resets within seconds on real hardware
     Led.init();
     mmio.blink(regs.GPIO.OUT_W1TS, regs.GPIO.OUT_W1TC, led, 480_000);

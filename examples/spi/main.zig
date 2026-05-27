@@ -19,6 +19,7 @@ pub const panic = con.panic;
 const Spi = hal.Spi(regs.SPI2);
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     Spi.init(4, 8); // f_apb / (5·9) ≈ a slow, scope-friendly SPI clock
     var id: [3]u8 = undefined;

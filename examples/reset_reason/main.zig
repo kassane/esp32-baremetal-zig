@@ -17,6 +17,7 @@ pub const panic = con.panic;
 const ResetInfo = hal.ResetReason(regs.RTC_CNTL.RESET_STATE);
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     mmio.log(regs.UART0.FIFO, .info, "PRO-CPU reset cause {d}", .{ResetInfo.cause()});
     while (true) mmio.delay(8_000_000);

@@ -25,6 +25,7 @@ const stack_low: u32 = 0x3FCC_0000;
 const stack_high: u32 = 0x3FCD_3000;
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     Stack.watchStack(stack_low, stack_high);
     while (true) {

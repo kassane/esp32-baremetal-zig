@@ -21,6 +21,7 @@ const dev_addr: u7 = 0x3c; // SSD1306 OLED (7-bit)
 const I2c = hal.I2c(regs.I2C0);
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     I2c.init();
     var status: [1]u8 = undefined;

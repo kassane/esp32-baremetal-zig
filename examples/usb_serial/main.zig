@@ -18,6 +18,7 @@ pub const panic = con.panic;
 const Usb = hal.UsbSerial(regs.USB_DEVICE.EP1, regs.USB_DEVICE.EP1_CONF);
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     while (true) {
         Usb.write("ESP32-S3 USB Serial/JTAG console\r\n");

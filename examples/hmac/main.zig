@@ -53,6 +53,7 @@ fn messageBlock() [16]u32 {
 }
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs);
     mmio.puts(regs.UART0.FIFO, "\r\nESP32-S3 bare-metal Zig — HMAC-SHA256\r\n");
     if (!Hmac.configure(Hmac.to_user, key_block)) {

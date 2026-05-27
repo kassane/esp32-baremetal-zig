@@ -19,6 +19,7 @@ const led_mask: u32 = @as(u32, 1) << 2; // GPIO2 (onboard LED), bank 0
 const Led = hal.Output(gpio.ENABLE_W1TS, gpio.OUT, gpio.OUT_W1TS, gpio.OUT_W1TC, led_mask);
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs); // or the chip resets within seconds on real HW
     Led.init();
     const delay = hal.Delay(cpu_hz);

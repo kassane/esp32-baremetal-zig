@@ -86,6 +86,7 @@ inline fn printSpectrum(fifo: u32, spectrum: *const [fft_n]dsp.Cplx) void {
 // ── Application entry ─────────────────────────────────────────────────────────
 
 export fn main() callconv(.c) noreturn {
+    init.runtimeInit(); // zero .bss + copy .data (real-HW C runtime)
     init.disableWatchdogs(regs); // or the chip resets within seconds on real HW
     Led.init(); // GPIO18 as output
     Uptime.start(2); // TIMG0 timer 0 as a monotonic tick source
