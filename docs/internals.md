@@ -139,13 +139,22 @@ without it.
 That fixes the *linking* side. But a separate **runtime** limit then surfaces: a
 deep non-inline call chain crashes. Measured in QEMU, a chain *or* recursion
 deeper than ~5 nested `call8`s — i.e. the first windowed-ABI **register-window
-overflow** — faults, regardless of the linker script or whether `VECBASE` points
-at the ROM table or an app-owned table with correct (xtensa-lx-rt-identical)
-overflow/underflow handlers. The inline examples never nest that deep, so it
-stayed latent until a deliberate deep-recursion test. Root cause is unconfirmed —
-likely the windowed-ABI frame/spill-area setup in this Zig fork's codegen, or
-QEMU's window-overflow emulation; esp-idf/esp-hal run deep calls on real silicon,
-so it may not reproduce on hardware. Telling them apart needs a board.
+overflow** — faults. It was narrowed by elimination, and is independent of every
+layer we control:
+
+- not the vector table — crashes identically with the ROM `VECBASE` and an
+  app-owned table whose handlers are byte-identical to xtensa-lx-rt;
+- not the linker script, and not `PS` (`WOE` vs `WOE|UM` both crash);
+- not the Zig frontend — a **C** function compiled by `zig cc` (clang on the same
+  `espressif/llvm` backend) recursing 40 deep crashes too.
+
+So it's the shared LLVM-xtensa backend's windowed-ABI frame/spill setup, or QEMU's
+window-overflow emulation under this minimal `-kernel` boot. Since esp-rs/rust
+uses that same backend on real silicon for deep calls, QEMU (or the difference
+between our minimal reset/stack setup and a full bootloader's) is the prime
+suspect — i.e. it may not reproduce on hardware. The inline examples never nest
+that deep, so it stays latent for the current HAL; confirming it needs a board or
+a known-good reference firmware in the same QEMU.
 
 Honest picture, then:
 
