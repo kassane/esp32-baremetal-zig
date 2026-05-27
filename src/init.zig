@@ -60,12 +60,14 @@ pub inline fn disableWatchdogs(comptime R: type) void {
 }
 
 // ── ESP-IDF application descriptor ──────────────────────────────────────────
-// The ESP-IDF image format expects a 256-byte `esp_app_desc_t` at the start of
-// the DROM mapping (image offset 0x20, right after the image + first-segment
+// The ESP-IDF image format expects a 256-byte `esp_app_desc_t` at the very start
+// of the DROM mapping (image offset 0x20, right after the image + first-segment
 // headers). It isn't needed to boot — the second-stage bootloader checks the
 // image header — but emitting it makes the firmware introspectable by the
 // vendor tooling (`esptool image_info`, `espflash`, idf-monitor) and OTA-ready.
-// The linker scripts place `.rodata_desc` first in `drom_seg` and `KEEP` it.
+// The linker scripts give `.flash.appdesc` its own section, `KEEP`-ed first in
+// `drom_seg` (matching esp-hal/esp-idf) so its alignment can't be perturbed by
+// the rest of `.rodata`.
 
 const EspAppDesc = extern struct {
     magic_word: u32, // ESP_APP_DESC_MAGIC_WORD
@@ -93,7 +95,7 @@ fn cField(comptime n: usize, comptime s: []const u8) [n]u8 {
 
 /// Emitted into every flash firmware (kept by the linker's `KEEP`). `export` so
 /// the tooling can find it by name as well as by offset.
-pub export const esp_app_desc: EspAppDesc linksection(".rodata_desc") = .{
+pub export const esp_app_desc: EspAppDesc linksection(".flash.appdesc") = .{
     .magic_word = 0xABCD_5432,
     .secure_version = 0,
     .reserv1 = .{ 0, 0 },

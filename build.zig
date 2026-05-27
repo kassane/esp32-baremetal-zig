@@ -250,9 +250,16 @@ fn flashLinker(b: *std.Build, comptime chip: Chip) []const u8 {
         \\    *(.literal .text .literal.* .text.*)
         \\    _etext = .;
         \\  }} > irom_seg
+        \\  .flash.appdesc : ALIGN(4) {{
+        \\    KEEP(*(.flash.appdesc))
+        \\  }} > drom_seg
+        \\  /* Fill the gap to .rodata's alignment so DROM stays one contiguous
+        \\     flash-cache segment (the app descriptor must remain at offset 0x20). */
+        \\  .rodata_merge : ALIGN(4) {{
+        \\    . = ALIGN(ALIGNOF(.rodata));
+        \\  }} > drom_seg
         \\  .rodata : ALIGN(4) {{
         \\    _rodata_start = ABSOLUTE(.);
-        \\    KEEP(*(.rodata_desc))
         \\    *(.rodata .rodata.*)
         \\    _rodata_end = ABSOLUTE(.);
         \\  }} > drom_seg
@@ -301,9 +308,11 @@ fn qemuLinker(b: *std.Build, comptime entry: []const u8, comptime q: Qemu) []con
         \\    *(.literal .text .literal.* .text.*)
         \\    _etext = .;
         \\  }} > iram_seg
+        \\  .flash.appdesc : ALIGN(4) {{
+        \\    KEEP(*(.flash.appdesc))
+        \\  }} > dram_seg
         \\  .rodata : ALIGN(4) {{
         \\    _rodata_start = ABSOLUTE(.);
-        \\    KEEP(*(.rodata_desc))
         \\    *(.rodata .rodata.*)
         \\    _rodata_end = ABSOLUTE(.);
         \\  }} > dram_seg
