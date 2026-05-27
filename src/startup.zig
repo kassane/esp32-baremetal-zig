@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 //! Shared Xtensa reset vector. The naked `export fn` entry still lives in each
-//! example, because its `call8 main` must be a same-module near call (this
-//! backend emits no far calls) — but the windowed-ABI setup and the per-chip
+//! example, because its `call8 main` targets that example's own `main` (and
+//! `call8` has limited range) — but the windowed-ABI setup and the per-chip
 //! stack pointer are identical everywhere, so they're built here once as a
 //! comptime asm string. An example's entry is then just:
 //!

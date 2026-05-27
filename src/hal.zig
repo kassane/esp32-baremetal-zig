@@ -77,13 +77,12 @@ pub fn Delay(comptime hz: u32) type {
 
 /// Cooperative super-loop scheduler: run each task when its `interval` ticks of
 /// `now` have elapsed, round-robin, forever. This adapts the RTOS "set of periodic
-/// tasks" idea to the backend's limits — it's comptime-composed and `inline`, so
-/// the task calls fold into the caller and stay in-module (no far calls), with no
-/// preemption or interrupts. Tasks must be short and non-blocking (cooperative).
-/// `now` is a tick source (e.g. `hal.cycleCount`, which is `inline` — hence
-/// `anytype`); `tasks` is a tuple of `.{ .run = <inline fn () void>, .interval =
-/// <ticks> }` — the task fns must be `inline` so they fold into the loop (this
-/// backend emits no callable body for a plain `fn`):
+/// tasks" idea: it's comptime-composed and `inline`, so the tasks fold into the
+/// loop with no preemption or interrupts. Tasks must be short and non-blocking
+/// (cooperative). `now` is a tick source (e.g. `hal.cycleCount`, which is `inline`
+/// — hence `anytype`); `tasks` is a tuple of `.{ .run = <inline fn () void>,
+/// .interval = <ticks> }` — `inline` task fns so they fold in with no call
+/// overhead:
 ///     hal.runTasks(hal.cycleCount, .{
 ///         .{ .run = blink, .interval = 12_000_000 },
 ///         .{ .run = heartbeat, .interval = 4_000_000 },

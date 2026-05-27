@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Matheus C. França
 // SPDX-License-Identifier: Apache-2.0
 
-//! Bare-metal startup helpers. `inline` for the same reason as `mmio`: the
-//! prebuilt xtensa backend can't emit cross-module far calls.
+//! Bare-metal startup helpers. `inline` for the same reason as `mmio` — folds
+//! into the caller and stays panic-free; see docs/internals.md.
 
 const mmio = @import("mmio");
 const reg = @import("reg");
@@ -11,10 +11,10 @@ const reg = @import("reg");
 /// address. Call it as the first statement of `main` — on real hardware SRAM
 /// powers up with garbage, so globals are undefined until this runs (the reset
 /// vector only sets up the window ABI + stack). The linker scripts export the
-/// segment bounds. The loops are word-wide and `volatile`, both so they stay
-/// panic-free and so the compiler can't fold them into a `memset`/`memcpy` call
-/// (a cross-module far call this backend can't emit). Idempotent in QEMU, where
-/// segments load directly into already-zeroed RAM and `_sidata == _data_start`.
+/// segment bounds. The loops are word-wide and `volatile` so they stay panic-free
+/// and self-contained — not lowered to a `memcpy`/`memset` call before the runtime
+/// is even up. Idempotent in QEMU, where segments load directly into already-zeroed
+/// RAM and `_sidata == _data_start`.
 pub inline fn runtimeInit() void {
     // Runtime pointers from linker addresses would emit alignment/null checks
     // whose panic path doesn't link here; the bounds are `ALIGN(4)`, so skip them.

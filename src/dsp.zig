@@ -4,8 +4,8 @@
 //! int16 DSP kernels for the ESP32 family. The vector kernels run on the
 //! ESP32-S3 PIE unit via inline asm (`ee.*`) when the `esp32s3ops` feature is
 //! present, and fall back to Zig's native `@Vector` on chips without it — the
-//! branch is comptime-selected. Kernels are `inline` (the prebuilt xtensa
-//! backend can't emit cross-module far calls).
+//! branch is comptime-selected. Kernels are `inline` — folded into the caller
+//! (see docs/internals.md).
 
 const std = @import("std");
 const builtin = @import("builtin");

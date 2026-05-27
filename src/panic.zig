@@ -7,10 +7,11 @@
 //! routing every safety check to the root-supplied `call`, which forwards to
 //! `mmio.panic` (UART message + best-effort backtrace, no std.fmt).
 //!
-//! Note: this prebuilt xtensa backend emits no non-inline (far) calls, so the
-//! firmware elides all safety checks and never lets the compiler *dispatch* a
-//! panic; faults are reported by calling `mmio.panic` directly (works in Release,
-//! verified in QEMU). The namespace keeps the std interface correct meanwhile.
+//! Note: with the build no longer `-fstrip`-ing (see docs/internals.md), these
+//! non-inline handlers link, so a compiler-dispatched safety check can resolve
+//! here. The HAL still avoids tripping them — `inline` + comptime-known args
+//! elide the checks — for panic-free, zero-overhead operation; explicit faults
+//! call `mmio.panic` directly (verified in QEMU).
 
 /// Build the namespace from a root-side `call` forwarding to `mmio.panic`:
 /// `pub const panic = @import("panic").Handler(onPanic);`
