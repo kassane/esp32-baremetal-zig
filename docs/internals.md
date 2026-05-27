@@ -115,31 +115,38 @@ path that doesn't link here. A tiny comptime formatter in `src/mmio.zig`
   is shallow since every call is inlined, and is dropped entirely with
   `-Dpanic-trace=false`.
 
-## Why everything is `inline` — and the WiFi/RTOS ceiling
+## Why everything is `inline` — and what that means for WiFi/RTOS
 
-The prebuilt `zig-espressif-bootstrap` Xtensa backend emits **no callable body for
-a normal Zig function call**. This was verified exhaustively: a plain `fn`, a
-`pub fn`, and even an `export fn`, when called from Zig, all fail to link with
-`undefined symbol: <name>`. Only three things work — `inline` functions (folded
-into the caller), the compiler-runtime builtins (`memcpy`/`memset`/`memmove`,
-which compiler-generated code references), and `main`/`Reset` reached through the
-hand-written `call8` in `startup.vector()`. That is why the entire HAL is
-`inline`, drivers are comptime-parameterised on their register addresses, and
-`hal.runTasks` requires its tasks to be `inline`.
+Calling a non-inline Zig function in a firmware build fails to link with
+`undefined symbol: <name>`, which is why the HAL is `inline`, drivers are
+comptime-parameterised on their register addresses, and `hal.runTasks` requires
+`inline` tasks. The cause is **not** the Xtensa backend: `zig-espressif-bootstrap`
+and esp-rs/rust share the same `espressif/llvm` backend, and it emits ordinary
+calls fine — confirmed two ways: a clean `zig build-obj -target xtensa-esp32-none`
+keeps the function body, and `zig cc` (the clang frontend on the same LLVM
+backend) emits it too.
 
-This sets a hard ceiling on what can be ported from esp-hal / esp-idf / microzig:
+The trigger is `-fstrip` (the examples set `mod.strip = true`). Zig emits each
+function as a *local* symbol; `-fstrip` strips the local symbol table while the
+call site still carries a relocation against that name, so the link can't resolve
+it. Verified by toggling one flag: `-ODebug` keeps `t.helper` defined, `-ODebug
+-fstrip` turns it `U`. Stripping the *final* binary instead (post-link, when
+relocations are already resolved — via `llvm-strip`/`objcopy`, or just letting
+`ReleaseSmall` shrink it) sidesteps it. So the inline-only design is a workaround
+for compile-time `-fstrip`, not a backend ceiling — non-inline Zig links on Xtensa
+without it.
 
-- **WiFi** needs to *call into* precompiled blob libraries and hand them callbacks
-  — i.e. ordinary (non-inline) cross-module calls, which don't link here. It also
-  needs a general heap (`std.mem.Allocator` dispatches through a vtable — an
-  indirect call) and a preemptive scheduler. None are reachable.
-- **A preemptive RTOS** needs a tick-interrupt-driven context switch through an
-  app-owned vector table; the project instead relies on the ROM `VECBASE` (which
-  carries the windowed-ABI window handlers), and a forced context switch would be
-  a non-inline call besides.
+That reframes WiFi/RTOS: the function-call blocker is a fixable config choice, not
+a wall. The remaining obstacles are real but ordinary embedded work, not
+toolchain impossibilities:
 
-So the feasible adaptation of the RTOS idea is the *cooperative* `hal.runTasks`
-super-loop (inline tasks, no preemption). Full WiFi/RTOS in Zig is demonstrated by
-**microzig — but only on the RISC-V esp32 chips** (e.g. esp32-c3), whose standard
-LLVM backend emits ordinary far calls; reaching parity here would require those
-chips or a far-call-capable Xtensa backend, not this fork.
+- **WiFi** still needs to link the closed RF blob libraries, a general heap
+  (`std.mem.Allocator` via an indirect/vtable call — to be re-verified without
+  `-fstrip`), an interrupt-driven scheduler, and real-silicon validation.
+- **A preemptive RTOS** still needs a tick-interrupt context switch through an
+  app-owned vector table (the project currently relies on the ROM `VECBASE`, which
+  carries the windowed-ABI window handlers).
+
+The shipped `hal.runTasks` cooperative super-loop remains the right *inline*
+adaptation; a fuller port would start by dropping compile-time `-fstrip` (strip
+post-link) and building up from there, the same shape esp-hal/microzig use.
