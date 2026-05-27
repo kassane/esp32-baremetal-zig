@@ -75,6 +75,35 @@ pub fn Delay(comptime hz: u32) type {
     };
 }
 
+/// Cooperative super-loop scheduler: run each task when its `interval` ticks of
+/// `now` have elapsed, round-robin, forever. This adapts the RTOS "set of periodic
+/// tasks" idea to the backend's limits — it's comptime-composed and `inline`, so
+/// the task calls fold into the caller and stay in-module (no far calls), with no
+/// preemption or interrupts. Tasks must be short and non-blocking (cooperative).
+/// `now` is a tick source (e.g. `hal.cycleCount`, which is `inline` — hence
+/// `anytype`); `tasks` is a tuple of `.{ .run = <inline fn () void>, .interval =
+/// <ticks> }` — the task fns must be `inline` so they fold into the loop (this
+/// backend emits no callable body for a plain `fn`):
+///     hal.runTasks(hal.cycleCount, .{
+///         .{ .run = blink, .interval = 12_000_000 },
+///         .{ .run = heartbeat, .interval = 4_000_000 },
+///     });
+pub inline fn runTasks(comptime now: anytype, comptime tasks: anytype) noreturn {
+    const Tick = @TypeOf(now());
+    var due: [tasks.len]Tick = undefined;
+    const start = now();
+    inline for (&due) |*d| d.* = start;
+    while (true) {
+        const t = now();
+        inline for (tasks, 0..) |task, i| {
+            if (t -% due[i] >= task.interval) {
+                due[i] +%= task.interval; // catch up by whole periods
+                task.run();
+            }
+        }
+    }
+}
+
 /// A Timer Group general-purpose timer (TIMGn Tx) as a free-running up-counter,
 /// independent of the CPU `CCOUNT`. Comptime register addresses (config/update/
 /// lo): `start` enables the counter with a 16-bit prescaler, `ticks` latches the

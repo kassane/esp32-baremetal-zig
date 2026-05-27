@@ -9,6 +9,7 @@ A small register driver layer over `mmio` (imported as `hal`):
 | `IoMux(pad)` | pad pull / input-enable / drive-strength config | any | build-only |
 | `GpioMatrix` | route a peripheral signal to / from any pad | any | build-only |
 | `Delay(cpu_hz)` | cycle-accurate busy delay (Xtensa `CCOUNT` / RISC-V `cycle`) | any | QEMU-verified |
+| `runTasks(now, tasks)` | cooperative super-loop scheduler — periodic `inline` tasks, no preemption | any | QEMU-verified |
 | `Timer(cfg, upd, lo)` | Timer-Group free-running up-counter | any | QEMU-verified |
 | `SysTimer(P)` | always-on 52-bit system timer | ESP32-S3 | QEMU-verified |
 | `RtcTime(P)` | always-on 48-bit RTC main timer (survives sleep) | ESP32 | QEMU-verified |

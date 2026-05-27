@@ -159,6 +159,11 @@ jobs:
         shell: bash
         run: cd examples/efuse && zig build demo
 
+      - name: ESP32 example — cooperative super-loop scheduler over UART
+        if: matrix.run_qemu
+        shell: bash
+        run: cd examples/tasks && zig build demo
+
       - name: ESP32-S2 example — FFT spectrum, build-only (no Espressif QEMU machine)
         if: matrix.run_qemu
         shell: bash

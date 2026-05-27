@@ -1,0 +1,9 @@
+.{
+    .name = .tasks_example,
+    .version = "0.1.0",
+    .fingerprint = 0x3ea1e11977f2bf54,
+    .dependencies = .{
+        .esp32_hal = .{ .path = "../.." },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "main.zig" },
+}
