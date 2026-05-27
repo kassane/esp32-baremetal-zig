@@ -114,3 +114,32 @@ path that doesn't link here. A tiny comptime formatter in `src/mmio.zig`
   `mmio.panic` directly — verified in QEMU on a ReleaseSmall build. The backtrace
   is shallow since every call is inlined, and is dropped entirely with
   `-Dpanic-trace=false`.
+
+## Why everything is `inline` — and the WiFi/RTOS ceiling
+
+The prebuilt `zig-espressif-bootstrap` Xtensa backend emits **no callable body for
+a normal Zig function call**. This was verified exhaustively: a plain `fn`, a
+`pub fn`, and even an `export fn`, when called from Zig, all fail to link with
+`undefined symbol: <name>`. Only three things work — `inline` functions (folded
+into the caller), the compiler-runtime builtins (`memcpy`/`memset`/`memmove`,
+which compiler-generated code references), and `main`/`Reset` reached through the
+hand-written `call8` in `startup.vector()`. That is why the entire HAL is
+`inline`, drivers are comptime-parameterised on their register addresses, and
+`hal.runTasks` requires its tasks to be `inline`.
+
+This sets a hard ceiling on what can be ported from esp-hal / esp-idf / microzig:
+
+- **WiFi** needs to *call into* precompiled blob libraries and hand them callbacks
+  — i.e. ordinary (non-inline) cross-module calls, which don't link here. It also
+  needs a general heap (`std.mem.Allocator` dispatches through a vtable — an
+  indirect call) and a preemptive scheduler. None are reachable.
+- **A preemptive RTOS** needs a tick-interrupt-driven context switch through an
+  app-owned vector table; the project instead relies on the ROM `VECBASE` (which
+  carries the windowed-ABI window handlers), and a forced context switch would be
+  a non-inline call besides.
+
+So the feasible adaptation of the RTOS idea is the *cooperative* `hal.runTasks`
+super-loop (inline tasks, no preemption). Full WiFi/RTOS in Zig is demonstrated by
+**microzig — but only on the RISC-V esp32 chips** (e.g. esp32-c3), whose standard
+LLVM backend emits ordinary far calls; reaching parity here would require those
+chips or a far-call-capable Xtensa backend, not this fork.
