@@ -3,14 +3,15 @@
 
 //! A bare-metal bump arena — fixed-capacity and typed.
 //!
-//! `std.mem.Allocator` now *links* (the build dropped `-fstrip`, so its vtable
-//! dispatch and the alignment-check panic path both resolve — see
-//! docs/internals.md), but `FixedBufferAllocator` still hangs at runtime on this
-//! backend (a std-internals issue, not yet root-caused). So this is a *typed*
-//! arena over a static `[capacity]T` buffer — naturally `@alignOf(T)`-aligned and
-//! sliced through a many-item pointer, so every operation is `inline` and
-//! panic-free (no bounds/alignment check) and works reliably today. `reset()`
-//! frees the whole region at once.
+//! `std.mem.Allocator` now works in **Release** builds: dropping `-fstrip` made
+//! its vtable dispatch and panic path link (see docs/internals.md), and
+//! `FixedBufferAllocator.alloc` runs correctly under `ReleaseSmall`/`ReleaseFast`
+//! (QEMU-verified). In **Debug** it still hangs — a safety check inside std's
+//! allocator fires and the panic can't report — so it isn't safe across all
+//! modes. This typed arena, by contrast, is `inline` and panic-free (a static
+//! `[capacity]T` buffer, naturally `@alignOf(T)`-aligned, sliced through a
+//! many-item pointer — no bounds/alignment check) and works in every build mode,
+//! so it stays the default. `reset()` frees the whole region at once.
 //!
 //! (There is no OS page allocator freestanding; for reference `std.heap` reports a
 //! 4 KiB page size for the esp32* targets.)
