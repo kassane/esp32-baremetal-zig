@@ -220,7 +220,12 @@ fn addFirmware(
     mod.addImport("panic", panic_mod);
     mod.addImport("hal", hal);
     mod.addImport("startup", startup);
-    mod.strip = true;
+    // Do NOT compile-time strip (`-fstrip`): this fork strips local function
+    // symbols while leaving the call relocation, so a non-inline call fails to
+    // link (`undefined symbol`). Keeping symbols enables non-inline code and lets
+    // addr2line resolve the panic backtrace; the flashed .bin is unaffected
+    // (objcopy drops the symbol table anyway).
+    mod.strip = false;
     // No UBSan runtime on bare metal; Debug safety still traps via our panic.
     mod.sanitize_c = .off;
     const exe = b.addExecutable(.{ .name = name, .root_module = mod });

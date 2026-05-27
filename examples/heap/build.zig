@@ -84,7 +84,7 @@ fn firmware(
     });
     inline for (.{ "mmio", "heap", "init", "panic", "startup" }) |m| mod.addImport(m, core.module(m));
     mod.addImport("regs", core.module("esp32_regs"));
-    mod.strip = true;
+    mod.strip = false;
     mod.sanitize_c = .off;
     const exe = b.addExecutable(.{ .name = name, .root_module = mod });
     exe.entry = .{ .symbol_name = "Reset" };

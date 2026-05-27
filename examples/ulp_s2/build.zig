@@ -30,7 +30,7 @@ pub fn build(b: *std.Build) void {
     const mod = b.createModule(.{ .root_source_file = b.path("main.zig"), .target = target, .optimize = optimize });
     inline for (.{ "mmio", "hal", "panic", "startup" }) |m| mod.addImport(m, core.module(m));
     mod.addImport("regs", core.module("esp32s2-ulp_regs"));
-    mod.strip = true;
+    mod.strip = false;
     mod.sanitize_c = .off;
     const exe = b.addExecutable(.{ .name = "ulp_s2", .root_module = mod });
     exe.entry = .{ .symbol_name = "reset_vector" };

@@ -41,7 +41,7 @@ pub fn build(b: *std.Build) void {
     mod.addImport("hal", core.module("hal"));
     mod.addImport("startup", core.module("startup"));
     mod.addImport("regs", core.module(regs_module));
-    mod.strip = true;
+    mod.strip = false;
     mod.sanitize_c = .off;
 
     const hw = b.addExecutable(.{ .name = "esp32s2_baremetal_zig", .root_module = mod });

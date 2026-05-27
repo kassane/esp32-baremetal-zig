@@ -95,7 +95,7 @@ fn firmware(
     mod.addImport("hal", core.module("hal"));
     mod.addImport("startup", core.module("startup"));
     mod.addImport("regs", core.module(regs_module));
-    mod.strip = true;
+    mod.strip = false;
     mod.sanitize_c = .off;
     const exe = b.addExecutable(.{ .name = name, .root_module = mod });
     exe.entry = .{ .symbol_name = entry_sym };

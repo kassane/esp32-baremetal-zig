@@ -20,7 +20,7 @@ pub fn build(b: *std.Build) void {
     const mod = b.createModule(.{ .root_source_file = b.path("main.zig"), .target = target, .optimize = optimize });
     inline for (.{ "mmio", "hal", "init", "panic", "startup" }) |m| mod.addImport(m, core.module(m));
     mod.addImport("regs", core.module("esp32_regs"));
-    mod.strip = true;
+    mod.strip = false;
     mod.sanitize_c = .off;
     const exe = b.addExecutable(.{ .name = "flash", .root_module = mod });
     exe.entry = .{ .symbol_name = "Reset" };
