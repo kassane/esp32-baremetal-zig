@@ -169,6 +169,11 @@ jobs:
         shell: bash
         run: cd examples/cffi && zig build demo
 
+      - name: ESP32 example — software CRC-32 (std.hash.Crc32) over UART
+        if: matrix.run_qemu
+        shell: bash
+        run: cd examples/crc && zig build demo
+
       - name: ESP32-S2 example — FFT spectrum, build-only (no Espressif QEMU machine)
         if: matrix.run_qemu
         shell: bash

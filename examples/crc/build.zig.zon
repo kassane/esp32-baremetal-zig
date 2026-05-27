@@ -1,0 +1,7 @@
+.{
+    .name = .crc_example,
+    .version = "0.1.0",
+    .fingerprint = 0x4a650c9aa0b0d0ed,
+    .dependencies = .{ .esp32_hal = .{ .path = "../.." } },
+    .paths = .{ "build.zig", "build.zig.zon", "main.zig" },
+}

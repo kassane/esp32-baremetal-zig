@@ -123,8 +123,9 @@ Single-feature programs live alongside them, each its own package you build with
   on the RSA accelerator), `heap` (ESP32 — typed bump-arena allocation),
   `rtc_time` (ESP32 — RTC main-timer uptime), `critical` (ESP32 — interrupt-masking
   critical section), `tasks` (ESP32 — cooperative super-loop scheduler), `cffi`
-  (ESP32 — links a precompiled C object and calls it) and `systimer` (ESP32-S3 —
-  system-timer uptime over UART)
+  (ESP32 — links a precompiled C object and calls it), `crc` (ESP32 — software
+  CRC-32 via `std.hash.Crc32`) and `systimer` (ESP32-S3 — system-timer uptime
+  over UART)
 - **Build-only**: `pwm` (LEDC) on ESP32-S2; `i2c` (I2C master), `spi` (SPI master),
   `rmt` (IR remote transmit), `ws2812` (addressable RGB over RMT), `twai`
   (CAN 2.0 transmit), `mcpwm` (motor-control PWM),
