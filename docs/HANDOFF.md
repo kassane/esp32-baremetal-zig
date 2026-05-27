@@ -86,6 +86,44 @@ cd examples/<name> && zig build demo      # run one example's UART output
 Toolchain: the `zig-espressif-bootstrap` 0.16.0-xtensa fork + Espressif QEMU
 (versions pinned in `.github/workflows/ci.yml`). No esp-idf / `IDF_PATH` needed.
 
+## Continuing on silicon (esp32 / -s2 / -s3)
+
+Where the deferred items get validated. Flash with the README's espflash/esptool
+flow (the image is already hardware-shaped: app descriptor, IRAM/flash layout).
+Validate in this order — each unblocks the next:
+
+1. **Deep *indirect* calls — check this first; it gates everything else.** QEMU
+   hangs an indirect (`callx8`) chain at the window-overflow point (~6–7) while
+   *direct* calls work (see [internals.md](internals.md)); silicon's hardware
+   window overflow should handle both. Flash a probe and watch UART:
+
+   ```zig
+   const FnPtr = *const fn (u32) callconv(.c) u32;
+   var tab: [64]FnPtr = undefined;
+   fn ind(n: u32) callconv(.c) u32 {
+       if (n == 0) return 0;
+       return tab[n & 63](n - 1) +% n; // indirect callx8, non-tail
+   }
+   // in main, after init: fill tab[*]=&ind through an asm("") barrier so LLVM
+   // can't devirtualise, then print @call(.never_inline, ind, .{40}) — expect 820.
+   ```
+
+   If `ind(40)` returns **820** on-device, the limit was purely QEMU's emulation
+   and the whole WiFi/RTOS deep-dispatch path is viable. If it faults, it's a real
+   startup/ABI issue (chase the bootloader-set `VECBASE` window handlers / `PS`).
+2. **crt0** — on real SRAM `.bss`/`.data` actually matter (QEMU pre-zeroes RAM, so
+   `init.runtimeInit()` is a no-op there). Confirm a `.data` global keeps its
+   initialiser and a `.bss` global reads zero after boot.
+3. **Watchdogs** — the TIMG0 flash-boot WDT really resets on silicon; confirm
+   `init.disableWatchdogs()` holds (app runs >10 s without a reset).
+4. **CPU clock** 160/240 MHz (analog `regi2c`/BBPLL — [internals.md](internals.md)),
+   then **PSRAM** (cache/MMU + SPIRAM bring-up).
+5. **WiFi**: provide the ESP-IDF OSI shim (esp-rs `esp-wifi`'s `os_adapter` is the
+   reference for the ~100 funcs — FreeRTOS task/queue/sem/mutex, heap, timers,
+   interrupt alloc, NVS calibration), link the `espressif/esp32-wifi-lib` blobs,
+   and stand up a preemptive RTOS + interrupt context switch first. This is the
+   real bring-up; QEMU can't host it (no radio model + the indirect-call hang).
+
 ## esp-rs ecosystem map (for further exploration)
 
 What the esp-rs workspace contributes and where it landed (or why not):
