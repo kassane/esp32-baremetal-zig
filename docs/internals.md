@@ -60,6 +60,32 @@ the boot:
   whose `regs` expose the unlock register under the expected name (resolved with
   `comptime @hasDecl`), so one routine is correct for every target.
 
+### What the bootloader handles, and what we rely on
+
+The boot chain is ROM → ESP-IDF second-stage bootloader → this app. Cross-checked
+against esp-idf and esp-rs/esp-hal, the bootloader has already done the following
+by the time the app's reset vector runs, so the app must *not* redo them:
+
+- **Flash cache / MMU** mapping, so `irom_seg`/`drom_seg` are addressable (this is
+  why hardware flashing needs the vendor bootloader — see the README).
+- **Initial CPU clock** — a valid frequency (default ~80 MHz). Reconfiguring it to
+  160/240 MHz is optional; esp-hal does it through analog `regi2c`/BBPLL writes,
+  which can't be validated in QEMU, so this project leaves the clock as the
+  bootloader set it and asks `hal.Delay` callers to pass the matching `cpu_hz`.
+- **The exception/interrupt vector base (`VECBASE`)** points at the ROM vector
+  table, which carries the windowed-ABI overflow/underflow handlers that register
+  spills depend on. The app deliberately does *not* install its own `VECBASE`:
+  doing so without re-providing those window handlers would crash on the first
+  deep call chain. The trade-off is that a genuine CPU exception is handled by the
+  ROM (reset), not routed to `mmio.panic`; our panic path is for explicit/`std`
+  panics, which are called directly, not dispatched through a vector.
+
+So the mandatory app-side init reduces to exactly what `main` already does:
+`runtimeInit()` (`.bss`/`.data`) and `disableWatchdogs()`. The interrupt
+controller, an app-owned vector table, and the ESP-IDF app descriptor
+(`esp_app_desc_t`, OTA/tooling metadata — not required to boot) are intentionally
+left out; they're only needed for interrupt-driven drivers or the OTA ecosystem.
+
 ## Panic handler & `std.log`
 
 Both avoid `std.fmt` — its formatter (`Io.Writer`) references the same panic
