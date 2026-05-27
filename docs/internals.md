@@ -67,7 +67,13 @@ against esp-idf and esp-rs/esp-hal, the bootloader has already done the followin
 by the time the app's reset vector runs, so the app must *not* redo them:
 
 - **Flash cache / MMU** mapping, so `irom_seg`/`drom_seg` are addressable (this is
-  why hardware flashing needs the vendor bootloader — see the README).
+  why hardware flashing needs the vendor bootloader — see the README). The same
+  cache/MMU path is what maps external **PSRAM** into the data window
+  (`0x3F800000` on ESP32): the DPORT `*_CACHE_*`/`*_MMU_*` and SPI0/1 registers it
+  needs are in the SVD, but bringing it up means SPIRAM-controller init + mode
+  detection (esp-idf's `esp_psram`, run from the bootloader) and can't be
+  validated under QEMU `-kernel`, so it's deferred to silicon alongside clock
+  reconfig and WiFi. The HAL stays on internal DRAM (`heap.Arena`).
 - **Initial CPU clock** — a valid frequency (default ~80 MHz). Reconfiguring it to
   160/240 MHz is optional; esp-hal does it through analog `regi2c`/BBPLL writes,
   which can't be validated in QEMU, so this project leaves the clock as the
