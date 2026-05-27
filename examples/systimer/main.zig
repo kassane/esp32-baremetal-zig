@@ -19,7 +19,7 @@ const con = hal.Console(regs.UART0.FIFO);
 pub const panic = con.panic;
 
 // Route `std.log` through UART0 instead of std.fmt's (unlinkable) default.
-pub const std_options: std.Options = .{ .logFn = con.logFn };
+pub const std_options = con.options;
 
 const Timer = hal.SysTimer(regs.SYSTIMER);
 // GPIO48 (onboard RGB LED data pin) is in the second bank (pins 32-53) → OUT1.

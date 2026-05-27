@@ -4,7 +4,7 @@
 // Bare-metal Zig for ESP32 — RMT IR transmit (build-only). Streams an NEC-style
 // remote frame (9 ms leader, then a few data bits) out RMT channel 0 in a loop.
 // IR is the one wireless protocol a from-scratch register HAL can drive — the
-// Wi-Fi/Bluetooth radios need Espressif's closed RF blobs. **Build-only:** no
+// Wi-Fi/Bluetooth radios need Espressif's closed RF blobs. Build-only: no
 // Espressif QEMU machine models RMT, so this links and runs on real hardware (route
 // channel 0 to an IR-LED pad via the GPIO matrix, ideally with a 38 kHz carrier).
 

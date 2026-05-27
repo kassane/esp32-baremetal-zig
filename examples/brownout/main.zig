@@ -4,7 +4,7 @@
 // Bare-metal Zig for ESP32 — brownout detector (build-only). Arms the RTC brownout
 // detector (hal.Brownout) to reset the chip if VDD sags below the trip threshold —
 // the power-supply guard production firmware enables at boot — then idles, polling
-// the detected flag. **Build-only:** QEMU has no analog supply model, so the
+// the detected flag. Build-only: QEMU has no analog supply model, so the
 // detector never trips under emulation.
 
 const mmio = @import("mmio");

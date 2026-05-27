@@ -18,7 +18,7 @@ const startup = @import("startup");
 const con = hal.Console(regs.UART0.FIFO);
 pub const panic = con.panic;
 
-pub const std_options: std.Options = .{ .logFn = con.logFn };
+pub const std_options = con.options;
 
 const Scratch = hal.RtcStore(regs.RTC_CNTL.STORE0);
 const magic: u32 = 0xC0FFEE42;

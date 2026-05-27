@@ -3,7 +3,7 @@
 
 // Bare-metal Zig for ESP32 — SPI master write + read (build-only). Configures SPI2
 // as a master, sends a JEDEC read-ID command, then clocks the 3-byte response back
-// in over MISO (hal.Spi `write` + `read`). **Build-only:** the Espressif QEMU does
+// in over MISO (hal.Spi `write` + `read`). Build-only: the Espressif QEMU does
 // not model an SPI controller, so this links and runs on real hardware (route SPI2's
 // CS/CLK/MOSI/MISO to pads through the GPIO matrix first) but has no emulator output.
 

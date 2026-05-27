@@ -3,7 +3,7 @@
 
 // Bare-metal Zig for ESP32 — SAR ADC1 software one-shot (build-only). Triggers a
 // conversion on ADC1 channel 0 (GPIO36) and logs the raw value over UART.
-// **Build-only:** QEMU has no observable analog input; a real reading also needs
+// Build-only: QEMU has no observable analog input; a real reading also needs
 // attenuation, the SAR clock and RTC power configured (see hal.Adc docs).
 
 const mmio = @import("mmio");

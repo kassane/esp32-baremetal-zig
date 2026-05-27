@@ -26,6 +26,25 @@ zig build esp32                    # just one chip (esp32 / esp32s2 / esp32s3)
 zig build -Doptimize=ReleaseSmall  # size-optimized
 ```
 
+### Build-time configuration
+
+A few HAL knobs are set at build time as typed `-D` options (exposed to the code
+as `@import("config")`, enforced by `mmio.log` and `hal.Console`):
+
+| Option          | Type             | Default | Effect                                                              |
+| --------------- | ---------------- | ------- | ------------------------------------------------------------------- |
+| `-Dlog-level`   | err/warn/info/debug | `info`  | Minimum log level compiled in; `mmio.log` / `std.log` calls below it are dropped at comptime. |
+| `-Dpanic-trace` | bool             | `true`  | Print a UART stack backtrace from the panic handler; `false` shrinks the panic path. |
+
+```bash
+zig build esp32 -Dlog-level=debug      # compile in debug-level logging
+zig build esp32 -Dpanic-trace=false    # drop the backtrace walk
+```
+
+The same options work from any example directory — each example's `build.zig`
+forwards them to the `esp32_hal` dependency, so `cd examples/heap && zig build
+-Dlog-level=warn` reconfigures the HAL it links.
+
 ## 3. Run it in QEMU (optional)
 
 Install the Espressif QEMU fork from <https://github.com/espressif/qemu/releases>

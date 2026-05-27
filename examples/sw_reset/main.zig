@@ -4,7 +4,7 @@
 // Bare-metal Zig for ESP32 — reset reason + software reset (build-only). On a
 // power-on boot it logs the cause and triggers one software reset; on the
 // resulting software-reset boot it logs and idles (so it doesn't loop). Shows
-// hal.ResetReason and hal.softwareReset together. **Build-only:** a live reset
+// hal.ResetReason and hal.softwareReset together. Build-only: a live reset
 // restarts the chip, which the QEMU boot test would flag.
 
 const mmio = @import("mmio");

@@ -4,7 +4,7 @@
 // Bare-metal Zig for ESP32 — IO_MUX pad config (build-only). Enables GPIO0's input
 // buffer with an internal pull-up, then mirrors the boot button onto GPIO2.
 // Shows hal.IoMux (electrical config) alongside hal.Input/Output (logic level).
-// **Build-only:** the pull-resistor effect isn't observable in QEMU.
+// Build-only: the pull-resistor effect isn't observable in QEMU.
 
 const mmio = @import("mmio");
 const hal = @import("hal");

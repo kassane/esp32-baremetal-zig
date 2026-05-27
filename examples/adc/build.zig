@@ -4,11 +4,19 @@
 const std = @import("std");
 
 // Standalone package for the 'adc' example (ESP32) — SAR ADC1 software one-shot.
-// **Build-only:** QEMU has no observable analog input. Consumes the workspace
+// Build-only: QEMU has no observable analog input. Consumes the workspace
 // root (`esp32_hal`) as a local path dependency.
 pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
-    const core = b.dependency("esp32_hal", .{});
+    // Forward the workspace config knobs so `-Dlog-level` / `-Dpanic-trace` work
+    // from this example dir (they reconfigure the prebuilt mmio/hal in the dep).
+    const log_level = b.option(std.log.Level, "log-level", "Minimum std.log level compiled in (err|warn|info|debug)") orelse .info;
+    const panic_trace = b.option(bool, "panic-trace", "Print a UART stack backtrace from the panic handler") orelse true;
+    const core = b.dependency("esp32_hal", .{
+        .optimize = optimize,
+        .@"log-level" = log_level,
+        .@"panic-trace" = panic_trace,
+    });
     const target = b.resolveTargetQuery(.{
         .cpu_arch = .xtensa,
         .os_tag = .esp32,

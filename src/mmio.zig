@@ -6,6 +6,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const config = @import("config"); // build-time knobs (see root build.zig)
 
 pub inline fn writeReg(addr: u32, value: u32) void {
     const ptr: *volatile u32 = @ptrFromInt(addr);
@@ -149,14 +150,21 @@ pub inline fn format(fifo: u32, comptime fmt: []const u8, args: anytype) void {
     }
 }
 
+/// The build-time `-Dlog-level` (see root build.zig). Also the threshold `log`
+/// itself enforces, so a direct `mmio.log` call is filtered the same as one that
+/// arrives via `std.log` / `hal.Console.options`.
+pub const log_level: std.log.Level = @enumFromInt(config.log_level);
+
 /// `std.options.logFn` backend: `[level] message` per line over UART. Wire it in
 /// the root module with `pub const std_options: std.Options = .{ .logFn = … }`.
+/// Messages below the build-time `log_level` are dropped at comptime.
 pub inline fn log(
     fifo: u32,
     comptime level: std.log.Level,
     comptime fmt: []const u8,
     args: anytype,
 ) void {
+    if (comptime @intFromEnum(level) > @intFromEnum(log_level)) return;
     puts(fifo, "[" ++ comptime level.asText() ++ "] ");
     format(fifo, fmt, args);
     puts(fifo, "\r\n");
@@ -167,11 +175,17 @@ pub inline fn log(
 pub inline fn panic(fifo: u32, msg: []const u8, first_addr: ?usize) noreturn {
     puts(fifo, "\r\n!! PANIC: ");
     puts(fifo, msg);
-    puts(fifo, "\r\nbacktrace:\r\n");
-    printFrame(fifo, first_addr orelse @returnAddress());
-    // The frame walk below is Xtensa windowed-ABI specific; the RISC-V ULP just
-    // prints the first frame and halts.
-    if (builtin.cpu.arch == .xtensa) walkWindowedStack(fifo);
+    // The backtrace is opt-out via `-Dpanic-trace=false`, which drops the frame
+    // walk (and its hex formatting) for a smaller panic path.
+    if (config.panic_trace) {
+        puts(fifo, "\r\nbacktrace:\r\n");
+        printFrame(fifo, first_addr orelse @returnAddress());
+        // The frame walk is Xtensa windowed-ABI specific; the RISC-V ULP just
+        // prints the first frame and halts.
+        if (builtin.cpu.arch == .xtensa) walkWindowedStack(fifo);
+    } else {
+        puts(fifo, "\r\n");
+    }
     halt();
 }
 

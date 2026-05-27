@@ -3,7 +3,7 @@
 
 // Bare-metal Zig for ESP32 — SPI-flash read via the ROM (build-only). Reads the
 // first 16 bytes of flash (the app image header) through esp_rom_spiflash_read
-// (hal.FlashRom) and logs the result. **Build-only:** the ROM address is fixed per
+// (hal.FlashRom) and logs the result. Build-only: the ROM address is fixed per
 // chip, and the QEMU `-kernel` flow has no flash image to read.
 
 const std = @import("std");
@@ -16,7 +16,7 @@ const startup = @import("startup");
 const con = hal.Console(regs.UART0.FIFO);
 pub const panic = con.panic;
 
-pub const std_options: std.Options = .{ .logFn = con.logFn };
+pub const std_options = con.options;
 
 const Flash = hal.FlashRom(0x4006_2ED8); // ESP32 ROM esp_rom_spiflash_read
 

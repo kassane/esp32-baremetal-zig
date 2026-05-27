@@ -4,12 +4,20 @@
 const std = @import("std");
 
 // Standalone package for the 'twai' example (ESP32) — CAN 2.0 frame transmit over
-// the TWAI controller. **Build-only:** routing TX/RX to pads plus an external CAN
+// the TWAI controller. Build-only: routing TX/RX to pads plus an external CAN
 // transceiver is board-specific, so there is no emulator target. Consumes the
 // workspace root (`esp32_hal`) as a local path dependency.
 pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
-    const core = b.dependency("esp32_hal", .{});
+    // Forward the workspace config knobs so `-Dlog-level` / `-Dpanic-trace` work
+    // from this example dir (they reconfigure the prebuilt mmio/hal in the dep).
+    const log_level = b.option(std.log.Level, "log-level", "Minimum std.log level compiled in (err|warn|info|debug)") orelse .info;
+    const panic_trace = b.option(bool, "panic-trace", "Print a UART stack backtrace from the panic handler") orelse true;
+    const core = b.dependency("esp32_hal", .{
+        .optimize = optimize,
+        .@"log-level" = log_level,
+        .@"panic-trace" = panic_trace,
+    });
     const target = b.resolveTargetQuery(.{
         .cpu_arch = .xtensa,
         .os_tag = .esp32,

@@ -3,7 +3,7 @@
 
 // Bare-metal Zig for ESP32 — poll-based GPIO edge detection. Latches falling edges
 // on GPIO0 (the boot button) and toggles GPIO2's LED on each press, catching brief
-// transitions a level poll could miss. **Build-only:** QEMU drives no button edges.
+// transitions a level poll could miss. Build-only: QEMU drives no button edges.
 
 const mmio = @import("mmio");
 const hal = @import("hal");

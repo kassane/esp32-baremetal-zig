@@ -4,11 +4,19 @@
 const std = @import("std");
 
 // Standalone package for the 'usb_serial' example (ESP32-S3) — USB Serial/JTAG
-// CDC-ACM console TX. **Build-only:** the Espressif QEMU provides no USB host, so
+// CDC-ACM console TX. Build-only: the Espressif QEMU provides no USB host, so
 // there's no emulator target. Consumes the workspace root (`esp32_hal`).
 pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
-    const core = b.dependency("esp32_hal", .{});
+    // Forward the workspace config knobs so `-Dlog-level` / `-Dpanic-trace` work
+    // from this example dir (they reconfigure the prebuilt mmio/hal in the dep).
+    const log_level = b.option(std.log.Level, "log-level", "Minimum std.log level compiled in (err|warn|info|debug)") orelse .info;
+    const panic_trace = b.option(bool, "panic-trace", "Print a UART stack backtrace from the panic handler") orelse true;
+    const core = b.dependency("esp32_hal", .{
+        .optimize = optimize,
+        .@"log-level" = log_level,
+        .@"panic-trace" = panic_trace,
+    });
     const target = b.resolveTargetQuery(.{
         .cpu_arch = .xtensa,
         .os_tag = .esp32s3,

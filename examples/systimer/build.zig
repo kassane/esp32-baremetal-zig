@@ -15,7 +15,15 @@ pub fn build(b: *std.Build) void {
         (b.findProgram(&.{"qemu-system-xtensa"}, &.{}) catch "qemu-system-xtensa");
     const smoke_seconds = b.option(u32, "smoke-seconds", "Seconds to run during `zig build smoke`") orelse 5;
 
-    const core = b.dependency("esp32_hal", .{});
+    // Forward the workspace config knobs so `-Dlog-level` / `-Dpanic-trace` work
+    // from this example dir (they reconfigure the prebuilt mmio/hal in the dep).
+    const log_level = b.option(std.log.Level, "log-level", "Minimum std.log level compiled in (err|warn|info|debug)") orelse .info;
+    const panic_trace = b.option(bool, "panic-trace", "Print a UART stack backtrace from the panic handler") orelse true;
+    const core = b.dependency("esp32_hal", .{
+        .optimize = optimize,
+        .@"log-level" = log_level,
+        .@"panic-trace" = panic_trace,
+    });
     const target = b.resolveTargetQuery(.{
         .cpu_arch = .xtensa,
         .os_tag = .esp32s3,

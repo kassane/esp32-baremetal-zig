@@ -19,7 +19,7 @@ const gpio = regs.GPIO;
 const con = hal.Console(regs.UART0.FIFO);
 pub const panic = con.panic;
 
-pub const std_options: std.Options = .{ .logFn = con.logFn };
+pub const std_options = con.options;
 
 const led_mask: u32 = @as(u32, 1) << 2; // GPIO2 onboard LED
 const blink_half: u32 = 480_000;

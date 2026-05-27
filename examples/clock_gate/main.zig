@@ -5,7 +5,7 @@
 // reset line and ungates the bus clock of the I2C0 controller through DPORT
 // (hal.ClockGate) before a driver would touch its registers — the explicit form
 // of the clock bring-up the boot ROM performs for the peripherals the other
-// examples assume are already running. **Build-only:** the gating has no
+// examples assume are already running. Build-only: the gating has no
 // UART-observable effect under QEMU.
 
 const mmio = @import("mmio");

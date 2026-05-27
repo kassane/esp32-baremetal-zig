@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Bare-metal Zig for ESP32-S3 — on-chip temperature sensor (build-only). Powers
-// the sensor and logs its raw reading over UART0. **Build-only:** QEMU has no
+// the sensor and logs its raw reading over UART0. Build-only: QEMU has no
 // thermal model; the raw value maps to °C via a per-chip calibration curve.
 
 const mmio = @import("mmio");

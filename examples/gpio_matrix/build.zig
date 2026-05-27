@@ -7,7 +7,15 @@ const std = @import("std");
 // routing. Consumes the workspace root (`esp32_hal`). Build-only.
 pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
-    const core = b.dependency("esp32_hal", .{});
+    // Forward the workspace config knobs so `-Dlog-level` / `-Dpanic-trace` work
+    // from this example dir (they reconfigure the prebuilt mmio/hal in the dep).
+    const log_level = b.option(std.log.Level, "log-level", "Minimum std.log level compiled in (err|warn|info|debug)") orelse .info;
+    const panic_trace = b.option(bool, "panic-trace", "Print a UART stack backtrace from the panic handler") orelse true;
+    const core = b.dependency("esp32_hal", .{
+        .optimize = optimize,
+        .@"log-level" = log_level,
+        .@"panic-trace" = panic_trace,
+    });
     const target = b.resolveTargetQuery(.{ .cpu_arch = .xtensa, .os_tag = .esp32, .abi = .none });
     const mod = b.createModule(.{ .root_source_file = b.path("main.zig"), .target = target, .optimize = optimize });
     inline for (.{ "mmio", "hal", "init", "panic", "startup" }) |m| mod.addImport(m, core.module(m));

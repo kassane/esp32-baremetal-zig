@@ -4,7 +4,7 @@
 // Bare-metal Zig for ESP32-S3 — stack-overflow monitor (build-only). Arms the
 // ASSIST_DEBUG SP-spill monitor over the main stack region (hal.StackMonitor); the
 // hardware records a violation if the stack pointer ever leaves the range, which a
-// firmware can poll or take as an interrupt. **Build-only:** the Espressif QEMU
+// firmware can poll or take as an interrupt. Build-only: the Espressif QEMU
 // does not model ASSIST_DEBUG.
 
 const std = @import("std");
@@ -17,7 +17,7 @@ const startup = @import("startup");
 const con = hal.Console(regs.UART0.FIFO);
 pub const panic = con.panic;
 
-pub const std_options: std.Options = .{ .logFn = con.logFn };
+pub const std_options = con.options;
 
 const Stack = hal.StackMonitor(regs.ASSIST_DEBUG);
 // The ESP32-S3 main stack sits near the top of DRAM (startup sets SP = 0x3FCD3000).

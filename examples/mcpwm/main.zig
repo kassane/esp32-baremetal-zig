@@ -3,7 +3,7 @@
 
 // Bare-metal Zig for ESP32 — MCPWM duty sweep (build-only). Configures an
 // edge-aligned PWM (timer 0 → operator 0, generator A) and ramps the duty up and
-// down, the classic motor/servo/LED-dimming pattern. **Build-only:** QEMU models
+// down, the classic motor/servo/LED-dimming pattern. Build-only: QEMU models
 // no MCPWM; on hardware, route operator 0's output to a pad via the GPIO matrix.
 
 const mmio = @import("mmio");

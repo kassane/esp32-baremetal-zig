@@ -12,15 +12,15 @@ const builtin = @import("builtin");
 const mmio = @import("mmio");
 const reg = @import("reg");
 const panic_ns = @import("panic");
+const config = @import("config"); // build-time knobs (see root build.zig)
 
 /// A UART console bound to a `fifo` register — bundles the freestanding panic
 /// handler and the `std.log` backend an example wires into its root, so each one
-/// needn't hand-roll them:
-/// ```
-/// const con = hal.Console(regs.UART0.FIFO);
-/// pub const panic = con.panic;
-/// pub const std_options: std.Options = .{ .logFn = con.logFn };
-/// ```
+/// needn't hand-roll them. `options` carries the build-time `-Dlog-level`. Wire it
+/// into the root module as:
+///     const con = hal.Console(regs.UART0.FIFO);
+///     pub const panic = con.panic;
+///     pub const std_options = con.options;
 pub fn Console(comptime fifo: u32) type {
     return struct {
         fn onPanic(msg: []const u8, ret_addr: ?usize) noreturn {
@@ -32,6 +32,9 @@ pub fn Console(comptime fifo: u32) type {
         pub fn logFn(comptime level: std.log.Level, comptime _: @TypeOf(.enum_literal), comptime fmt: []const u8, args: anytype) void {
             mmio.log(fifo, level, fmt, args);
         }
+        /// Drop-in `std_options`: routes `std.log` to UART and applies the
+        /// build-time `-Dlog-level` (default `info`).
+        pub const options: std.Options = .{ .logFn = logFn, .log_level = @enumFromInt(config.log_level) };
     };
 }
 
@@ -283,7 +286,7 @@ pub fn Aes(comptime key_bits: u32, comptime key_reg: u32, comptime text_reg: u32
     };
 }
 
-/// LEDC PWM (low-speed timer + channel). **Build-only:** the Espressif QEMU does
+/// LEDC PWM (low-speed timer + channel). Build-only: the Espressif QEMU does
 /// not emulate LEDC, so this writes the timer/channel registers per the TRM field
 /// layout but produces no emulator-observable waveform; routing the channel's
 /// output to a pad (via the GPIO matrix, a chip-specific signal index) is left to
@@ -333,7 +336,7 @@ pub fn Pwm(comptime timer_conf: u32, comptime ch_conf0: u32, comptime ch_conf1: 
     };
 }
 
-/// I2C master, single-shot blocking `write` and `read`. **Build-only:** the
+/// I2C master, single-shot blocking `write` and `read`. Build-only: the
 /// Espressif QEMU machines do not model an I2C controller, so this programs the
 /// controller per the TRM register/field layout but has no emulator-observable bus
 /// activity — it links and is correct against the SVD, but is exercised only on
@@ -443,7 +446,7 @@ pub fn I2c(comptime P: type) type {
 /// /Bluetooth radios need Espressif's closed RF blobs, but IR is pure registers.
 ///
 /// Pass one channel's CONF0/CONF1/DATA registers plus the shared APB_CONF (e.g.
-/// `regs.RMT.CH0CONF0`, `CH0CONF1`, `CH0DATA`, `RMT.APB_CONF`). **Build-only:** no
+/// `regs.RMT.CH0CONF0`, `CH0CONF1`, `CH0DATA`, `RMT.APB_CONF`). Build-only: no
 /// Espressif QEMU machine models RMT, so this links and runs on hardware but has
 /// no emulator output (and the channel still needs routing to a pad + a 38 kHz
 /// carrier — `CARRIER_EN`/`CHnCARRIER_DUTY` — for a real IR LED). Field layout per
@@ -499,7 +502,7 @@ pub fn Rmt(comptime conf0: u32, comptime conf1: u32, comptime data: u32, comptim
 
 /// SPI master, half-duplex single transfer (≤ 64 bytes / one data-buffer load):
 /// `write` clocks bytes out MOSI, `read` clocks them in over MISO. Takes the
-/// generated peripheral namespace (e.g. `regs.SPI2`). **Build-only:** the Espressif
+/// generated peripheral namespace (e.g. `regs.SPI2`). Build-only: the Espressif
 /// QEMU machines model no SPI controller, so this programs the controller per the
 /// TRM/SVD field layout and runs on hardware (route the CS/CLK/MOSI/MISO signals to
 /// pads via the GPIO matrix first) but has no emulator activity.
@@ -578,7 +581,7 @@ pub fn Spi(comptime P: type) type {
 /// The memory-block writes unroll over comptime indices, keeping every MMIO
 /// address a compile-time constant (no `@ptrFromInt` panic path).
 ///
-/// **Build-only here:** the demo example just exercises the register sequence;
+/// Build-only here: the demo example just exercises the register sequence;
 /// the Espressif QEMU *does* model RSA, so a value-checked run is a natural future
 /// step once a comptime big-integer reference (`std.math.big`) is wired up.
 pub fn Rsa(comptime P: type, comptime words: u32) type {
@@ -618,7 +621,7 @@ pub fn Rsa(comptime P: type, comptime words: u32) type {
 /// TWAI (CAN 2.0) controller — transmit a standard (11-bit ID) data frame. The
 /// ESP32 TWAI is SJA1000-compatible: configure bit timing in reset mode, drop to
 /// operating mode, write the frame to the TX buffer (`DATA_*`), then request TX.
-/// Takes the peripheral namespace (`regs.TWAI0`). **Build-only:** routing TX/RX to
+/// Takes the peripheral namespace (`regs.TWAI0`). Build-only: routing TX/RX to
 /// pads and a transceiver is board-specific, and the data-byte writes unroll over
 /// comptime indices (constant MMIO addresses, no panic path).
 pub fn Twai(comptime P: type) type {
@@ -657,7 +660,7 @@ pub fn Twai(comptime P: type) type {
 /// generator A, the building block for motor/servo drive. Takes the peripheral
 /// namespace (`regs.MCPWM0`). The generator raises the output at the period start
 /// (timer == 0, UTEZ) and lowers it when the up-counter reaches comparator A
-/// (UTEA), so duty = `cmp / period`. **Build-only:** QEMU models no MCPWM, and the
+/// (UTEA), so duty = `cmp / period`. Build-only: QEMU models no MCPWM, and the
 /// output still needs routing to a pad via the GPIO matrix.
 pub fn Mcpwm(comptime P: type) type {
     return struct {
@@ -693,7 +696,7 @@ pub fn Mcpwm(comptime P: type) type {
 /// I2S master transmitter in *single-data* mode — drives BCK/WS and shifts out a
 /// constant 32-bit sample continuously, no DMA descriptor chain required (the
 /// streaming/DMA path is a larger future piece). Takes the peripheral namespace
-/// (`regs.I2S0`). Philips (MSB-shift) framing. **Build-only:** QEMU models no I2S,
+/// (`regs.I2S0`). Philips (MSB-shift) framing. Build-only: QEMU models no I2S,
 /// and BCK/WS/DATA still need routing to pads via the GPIO matrix.
 pub fn I2s(comptime P: type) type {
     return struct {
@@ -736,7 +739,7 @@ pub fn I2s(comptime P: type) type {
 /// DAC — 8-bit analog output on an RTC DAC pad (`regs.RTC_IO.PAD_DAC_0` = DAC1 on
 /// GPIO25, `PAD_DAC_1` = DAC2 on GPIO26). Writing forces the pad's DAC power-up
 /// control to this register and drives `level` (0..255 ≈ 0..Vref), the standard
-/// software-driven DAC output path. **Build-only:** QEMU has no observable
+/// software-driven DAC output path. Build-only: QEMU has no observable
 /// analog output (the cosine-wave generator is left disabled, its reset default).
 pub fn Dac(comptime pad_dac_reg: u32) type {
     return struct {
@@ -756,7 +759,7 @@ pub fn Dac(comptime pad_dac_reg: u32) type {
 /// `SAR_MEAS_START2` (ADC2). Forces software pad-select + start, triggers a
 /// conversion of `channel` and returns the raw result. This is the trigger/read
 /// core — a real reading also needs attenuation (`SAR_ATTEN*`), the SAR clock
-/// (`SAR_READ_CTRL`) and RTC power configured. **Build-only:** QEMU has no analog
+/// (`SAR_READ_CTRL`) and RTC power configured. Build-only: QEMU has no analog
 /// input. Fields from the SVD, via reg.zig.
 pub fn Adc(comptime meas_reg: u32) type {
     return struct {
@@ -782,7 +785,7 @@ pub fn Adc(comptime meas_reg: u32) type {
 /// console). Pass the peripheral's `EP1` FIFO byte register and `EP1_CONF`
 /// (e.g. `regs.USB_DEVICE.EP1`, `EP1_CONF`). `write` pushes bytes into the IN FIFO
 /// — gating on `SERIAL_IN_EP_DATA_FREE` — then sets `WR_DONE` to flush the packet
-/// to the host. `[*]` indexing keeps it bounds-check-free. **Build-only:** needs a
+/// to the host. `[*]` indexing keeps it bounds-check-free. Build-only: needs a
 /// USB host attached, which the Espressif QEMU does not provide.
 pub fn UsbSerial(comptime ep1: u32, comptime ep1_conf: u32) type {
     return struct {
@@ -805,7 +808,7 @@ pub fn UsbSerial(comptime ep1: u32, comptime ep1_conf: u32) type {
 /// On-chip temperature sensor (ESP32-S2/-S3) — `regs.SENS.SAR_TSENS_CTRL`. Powers
 /// the sensor (software-forced) and returns its raw 8-bit reading once ready; the
 /// raw value maps to °C through a per-chip calibration curve the caller applies.
-/// **Build-only:** QEMU has no thermal model. Fields from the SVD, via reg.zig.
+/// Build-only: QEMU has no thermal model. Fields from the SVD, via reg.zig.
 pub fn TempSensor(comptime ctrl_reg: u32) type {
     return struct {
         const out = reg.Field(0, 8); // SAR_TSENS_OUT
@@ -966,7 +969,7 @@ pub fn SysTimer(comptime P: type) type {
 /// single-wire NRZ line code); the 24 bits of a pixel stream out a pad in G-R-B,
 /// MSB-first order, and the transmitter's trailing idle doubles as the > 50 µs
 /// latch/reset. Takes the same four channel registers as `Rmt`, and reuses it
-/// wholesale. **Build-only:** no Espressif QEMU machine models RMT (route the
+/// wholesale. Build-only: no Espressif QEMU machine models RMT (route the
 /// channel to the LED's data pad via the GPIO matrix on hardware). The bit timing
 /// folds from the datasheet nanoseconds to source-clock ticks at comptime — no
 /// hand-tuned tick counts.
@@ -1063,7 +1066,7 @@ pub fn RtcStore(comptime store_reg: u32) type {
 /// (0..7, higher = higher trip voltage) and resets the chip on a brownout;
 /// `detected()` reads the live flag. The detector bits share their register with
 /// unrelated RTC-memory-CRC fields, so `arm` read-modify-writes to leave those
-/// intact. **Build-only:** QEMU has no analog supply to trip. Fields from the SVD.
+/// intact. Build-only: QEMU has no analog supply to trip. Fields from the SVD.
 pub fn Brownout(comptime brown_out_reg: u32) type {
     return struct {
         const ena = reg.bit(30); // BROWN_OUT.ENA — detector enable
@@ -1090,7 +1093,7 @@ pub fn Brownout(comptime brown_out_reg: u32) type {
 /// Pads share result registers two-up: pad 2n/2n+1 → `SAR_TOUCH_OUT_n`, the even
 /// pad in the low half and the odd pad in the high. Pass the SENS namespace `P`,
 /// the pad's `RTC_IO.TOUCH_PADn` config register, its touch number `nr` (0..9) and
-/// the matching `SAR_TOUCH_OUT_*` register. **Build-only:** QEMU has no touch model,
+/// the matching `SAR_TOUCH_OUT_*` register. Build-only: QEMU has no touch model,
 /// and a real reading also needs the RTC touch FSM timing tuned for the board.
 /// Field bits from the SVD, via reg.zig.
 pub fn Touch(comptime P: type, comptime pad_reg: u32, comptime nr: u4, comptime out_reg: u32) type {
@@ -1160,7 +1163,7 @@ pub fn RtcTime(comptime P: type) type {
 /// current RTC time (reusing `RtcTime`), programs the wakeup alarm `ticks` RTC
 /// slow-clock ticks ahead, enables the timer wakeup source and sets `SLEEP_EN` — the
 /// chip powers down and resets on wake (so it does not return). Takes the RTC_CNTL
-/// namespace. **Build-only:** a live deep sleep powers the chip down (which the QEMU
+/// namespace. Build-only: a live deep sleep powers the chip down (which the QEMU
 /// boot test would flag), and a production sleep also configures the RTC power
 /// domains. Pairs with `ResetReason`; field bits from the SVD, via reg.zig.
 pub fn DeepSleep(comptime P: type) type {
@@ -1191,7 +1194,7 @@ pub fn DeepSleep(comptime P: type) type {
 /// never leaves the chip). `configure(purpose, key_block)` selects the key and
 /// purpose and returns `false` on a key-purpose mismatch; `hashBlock` feeds one
 /// caller-prepared 512-bit message block and reads the 256-bit MAC. Takes the
-/// peripheral namespace (`regs.HMAC`). **Build-only:** the key comes from eFuse,
+/// peripheral namespace (`regs.HMAC`). Build-only: the key comes from eFuse,
 /// which QEMU leaves blank (so a live run reports a key error) — this programs the
 /// documented register sequence and runs on real silicon with a programmed key.
 /// `[*]` indexing keeps the result read panic-free.
@@ -1234,7 +1237,7 @@ pub fn Hmac(comptime P: type) type {
 /// encoders, frequency/event counting). Configures channel 0 to increment the
 /// 16-bit signed counter on each positive edge. Pass the unit's `UNIT_n_CONF0_0`
 /// and `U_CNT_n` registers, the shared `CTRL_0` register and the unit number
-/// (0..7) — its reset/pause bits in CTRL are at `2·unit` / `2·unit+1`. **Build-only:**
+/// (0..7) — its reset/pause bits in CTRL are at `2·unit` / `2·unit+1`. Build-only:
 /// QEMU models no PCNT, and the input still needs routing to a pad via the GPIO
 /// matrix. CONF0's count-mode field and CTRL's per-unit bits come from the chip
 /// register map (the vendored SVD omits them); expressed through reg.zig.
@@ -1263,7 +1266,7 @@ pub fn Pcnt(comptime conf0_reg: u32, comptime ctrl_reg: u32, comptime cnt_reg: u
 /// `watchStack(low, high)` arms the SP-spill monitor: the hardware records a
 /// violation (and the offending PC) if the stack pointer leaves `[low, high]` — a
 /// stack overflow or underflow — which `tripped()` reports. Takes the peripheral
-/// namespace (`regs.ASSIST_DEBUG`). **Build-only:** QEMU doesn't model ASSIST_DEBUG.
+/// namespace (`regs.ASSIST_DEBUG`). Build-only: QEMU doesn't model ASSIST_DEBUG.
 /// Field bits from the SVD, via reg.zig.
 pub fn StackMonitor(comptime P: type) type {
     return struct {
@@ -1295,7 +1298,7 @@ pub fn StackMonitor(comptime P: type) type {
 /// ROM function's address for your chip (ESP32: `0x4006_2ED8`). `read(src, words)`
 /// copies `words.len` 32-bit words from flash byte-offset `src` into `words` and
 /// returns true on success. Read-only by design (erase/write can brick a running
-/// image). **Build-only:** the ROM address is fixed per chip/ROM revision, and the
+/// image). Build-only: the ROM address is fixed per chip/ROM revision, and the
 /// QEMU `-kernel` flow has no flash image to read.
 pub fn FlashRom(comptime read_addr: u32) type {
     return struct {
@@ -1349,7 +1352,7 @@ pub const Critical = struct {
 /// comptime (so the MMIO stays panic-free, like the pin drivers); pass the pad's
 /// `GPIO.FUNC_OUT_SEL_CFG_<n>` to drive a signal out, or an input signal's
 /// `GPIO.FUNC_IN_SEL_CFG_<m>` to capture a pad. Signal indices come from the chip's
-/// signal map. **Build-only:** the routing has no QEMU-observable effect. Field bits
+/// signal map. Build-only: the routing has no QEMU-observable effect. Field bits
 /// from the SVD, via reg.zig.
 pub const GpioMatrix = struct {
     // FUNCn_OUT_SEL_CFG
