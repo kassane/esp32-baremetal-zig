@@ -136,21 +136,30 @@ relocations are already resolved — via `llvm-strip`/`objcopy`, or just letting
 for compile-time `-fstrip`, not a backend ceiling — non-inline Zig links on Xtensa
 without it.
 
-That reframes WiFi/RTOS: the function-call blocker is a fixable config choice, not
-a wall. The remaining obstacles are real but ordinary embedded work, not
-toolchain impossibilities:
+That fixes the *linking* side. But a separate **runtime** limit then surfaces: a
+deep non-inline call chain crashes. Measured in QEMU, a chain *or* recursion
+deeper than ~5 nested `call8`s — i.e. the first windowed-ABI **register-window
+overflow** — faults, regardless of the linker script or whether `VECBASE` points
+at the ROM table or an app-owned table with correct (xtensa-lx-rt-identical)
+overflow/underflow handlers. The inline examples never nest that deep, so it
+stayed latent until a deliberate deep-recursion test. Root cause is unconfirmed —
+likely the windowed-ABI frame/spill-area setup in this Zig fork's codegen, or
+QEMU's window-overflow emulation; esp-idf/esp-hal run deep calls on real silicon,
+so it may not reproduce on hardware. Telling them apart needs a board.
 
-- **WiFi** still needs the closed RF blob libraries wired up, an interrupt-driven
-  scheduler, and real-silicon validation. The foundations are no longer blockers,
-  though: external/precompiled objects link and their functions run (the
-  `examples/cffi` demo compiles a C object and calls it — the same path vendor
-  `.a` blobs use), and the general heap works — `std.mem.Allocator`/
-  `FixedBufferAllocator` runs in `ReleaseSmall`/`ReleaseFast` now `-fstrip` is gone
-  (only the Debug build still hangs in std's allocator safety path).
-- **A preemptive RTOS** still needs a tick-interrupt context switch through an
-  app-owned vector table (the project currently relies on the ROM `VECBASE`, which
-  carries the windowed-ABI window handlers).
+Honest picture, then:
 
-The shipped `hal.runTasks` cooperative super-loop remains the right *inline*
-adaptation; a fuller port would start by dropping compile-time `-fstrip` (strip
-post-link) and building up from there, the same shape esp-hal/microzig use.
+- Shallow non-inline calls — direct, indirect/vtable, ≤~5 deep — link and run.
+- `std.mem.Allocator`/`FixedBufferAllocator` runs under `ReleaseSmall`/`ReleaseFast`
+  (the alloc chain inlines shallow); the Debug hang is this deep-call limit, not
+  the std safety path as first supposed.
+- External/precompiled objects link and shallow calls in **both** directions run
+  (`examples/cffi` — firmware↔blob), the vendor-blob path.
+- **WiFi/RTOS** inherently need deep call chains (the blobs, a scheduler), so the
+  window-overflow crash — not the toolchain's ability to *emit* calls — is now the
+  gating issue, alongside an interrupt-driven context switch and silicon
+  validation.
+
+The shipped `hal.runTasks` cooperative super-loop stays the right *inline*
+adaptation. A real WiFi/RTOS port must first resolve the deep-call window-overflow
+crash (a codegen/QEMU/hardware investigation), then build up.

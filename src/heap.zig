@@ -4,14 +4,16 @@
 //! A bare-metal bump arena — fixed-capacity and typed.
 //!
 //! `std.mem.Allocator` now works in **Release** builds: dropping `-fstrip` made
-//! its vtable dispatch and panic path link (see docs/internals.md), and
-//! `FixedBufferAllocator.alloc` runs correctly under `ReleaseSmall`/`ReleaseFast`
-//! (QEMU-verified). In **Debug** it still hangs — a safety check inside std's
-//! allocator fires and the panic can't report — so it isn't safe across all
-//! modes. This typed arena, by contrast, is `inline` and panic-free (a static
-//! `[capacity]T` buffer, naturally `@alignOf(T)`-aligned, sliced through a
-//! many-item pointer — no bounds/alignment check) and works in every build mode,
-//! so it stays the default. `reset()` frees the whole region at once.
+//! its vtable dispatch link (see docs/internals.md), and `FixedBufferAllocator
+//! .alloc` runs correctly under `ReleaseSmall`/`ReleaseFast` (QEMU-verified). In
+//! **Debug** it hangs — its non-inline alloc chain nests past the windowed-ABI
+//! register-window overflow that this Zig fork / QEMU mishandle for deep calls
+//! (see docs/internals.md); Release inlines the chain shallow, so it survives. So
+//! the std allocator isn't safe across all modes. This typed arena, by contrast,
+//! is `inline` and panic-free (a static `[capacity]T` buffer, naturally
+//! `@alignOf(T)`-aligned, sliced through a many-item pointer — no bounds/alignment
+//! check) and works in every build mode, so it stays the default. `reset()` frees
+//! the whole region at once.
 //!
 //! (There is no OS page allocator freestanding; for reference `std.heap` reports a
 //! 4 KiB page size for the esp32* targets.)
