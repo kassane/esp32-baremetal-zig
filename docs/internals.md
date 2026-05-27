@@ -142,48 +142,50 @@ relocations are already resolved — via `llvm-strip`/`objcopy`, or just letting
 for compile-time `-fstrip`, not a backend ceiling — non-inline Zig links on Xtensa
 without it.
 
-That fixes the *linking* side. But a separate **runtime** limit then surfaces: a
-deep non-inline call chain crashes. Measured in QEMU, a chain *or* recursion
-deeper than ~5 nested `call8`s — i.e. the first windowed-ABI **register-window
-overflow** — faults. It was narrowed by elimination, and is independent of every
-layer we control:
+That fixes the *linking* side. A separate **runtime** limit then surfaces under
+QEMU: a deep non-inline call chain past the first windowed-ABI **register-window
+overflow** (~6 nested calls) stops dead. Pinned down by a controlled experiment
+(`-Doptimize=ReleaseSmall`, an opaque barrier so LLVM can't flatten the nesting
+into a loop, plus a real-vs-spin handler control):
 
-- not the vector table — under `-kernel` the boot `VECBASE` reads back as
-  `0x40000000` (the un-mapped ROM), whose window-overflow vectors are all-zero,
-  so the *first* overflow does jump into zeroed memory. But installing a correct
-  app-owned table in IRAM doesn't fix it: with `VECBASE` confirmed moved (read
-  back) and the standard spill/fill handlers byte-verified at their offsets
-  (`0x0`/`0x80`/`0x100`), a genuine 40-deep `callx8` chain still hangs — only an
-  *optimised-flat* recursion (no real overflow) "passes", so the missing ROM
-  handlers are a symptom, not the whole cause;
-- not the linker script, and not `PS` (`WOE` vs `WOE|UM` both crash);
-- not the Zig frontend — a **C** function compiled by `zig cc` (clang on the same
-  `espressif/llvm` backend) recursing 40 deep crashes too.
-
-The deciding clue: QEMU's own default `-bios` (the ESP32 ROM) recurses deeply
-without trouble, so QEMU emulates window overflow *correctly*. The crash is
-therefore specific to our **minimal `-kernel` boot**, which jumps straight to the
-app reset vector without the ROM/second-stage-bootloader's full CPU + stack
-initialisation. On real hardware the flashed image boots *through* that bootloader
-(as esp-rs/esp-idf do — same `espressif/llvm` backend, deep calls everywhere), so
-the deep-call path very likely works there; it's a QEMU-direct-boot artifact, not
-a believed hardware limitation. The inline examples never nest that deep, so it
-stays latent for the current HAL. Confirming on silicon (or replicating the
-bootloader's init for a QEMU flash-boot) is the way to close it out.
+- **Under `-kernel` it's the missing ROM handlers.** The boot `VECBASE` reads
+  back as `0x40000000` (the ROM), but under `-kernel` QEMU does **not** map the
+  ROM — those window-overflow vectors are all-zero, so the first overflow jumps
+  into zeroed memory. (QEMU even warns: with `-kernel` it loads only the kernel
+  and ignores the machine's `-bios` ROM.)
+- **Boot *through* the ROM and direct calls work.** Wrap the IRAM-only QEMU ELF
+  as an esptool image (`elf2image`), write it at flash `0x1000`, and boot with no
+  `-kernel` (`-drive file=flash.bin,if=mtd`): the ROM runs, prints its banner,
+  loads the segments, and jumps to `Reset` — now `VECBASE=0x40000000` carries the
+  **real** ROM handlers (`OF8` reads back as `s32e …`). A genuine **direct**
+  `call8` chain then runs **40 deep** and returns correctly.
+- **But indirect (`callx8`) calls still hang at overflow — a QEMU bug.** Same ROM
+  boot, same depth: an indirect chain through a runtime-filled function-pointer
+  table survives ≤5 deep and **hangs at ~6–7** (the overflow point). Direct vs.
+  indirect is the *only* variable. So QEMU's esp32 mis-handles a window overflow
+  *triggered by* `callx8` (most likely the spill clobbers the target register, so
+  the `rfwo` re-execution jumps to garbage). Real silicon handles both — esp-idf
+  and esp-rs run deep indirect calls (vtables, scheduler hops, blob callbacks)
+  everywhere on the same `espressif/llvm` backend — so this is a QEMU-emulation
+  limit, not a hardware one.
 
 Honest picture, then:
 
-- Shallow non-inline calls — direct, indirect/vtable, ≤~5 deep — link and run.
+- Shallow non-inline calls — direct or indirect/vtable, ≤~5 deep — link and run
+  under plain `-kernel`.
+- **Deep direct** call chains run under QEMU **ROM flash-boot** (verified 40 deep);
+  under `-kernel` they need the ROM handlers that boot path doesn't provide.
+- **Deep indirect** calls are the one thing with no QEMU answer (the `callx8`
+  overflow bug above); they want silicon.
 - `std.mem.Allocator`/`FixedBufferAllocator` runs under `ReleaseSmall`/`ReleaseFast`
   (the alloc chain inlines shallow); the Debug hang is this deep-call limit, not
   the std safety path as first supposed.
 - External/precompiled objects link and shallow calls in **both** directions run
   (`examples/cffi` — firmware↔blob), the vendor-blob path.
-- **WiFi/RTOS** inherently need deep call chains (the blobs, a scheduler), so the
-  window-overflow crash — not the toolchain's ability to *emit* calls — is now the
-  gating issue, alongside an interrupt-driven context switch and silicon
-  validation.
 
-The shipped `hal.runTasks` cooperative super-loop stays the right *inline*
-adaptation. A real WiFi/RTOS port must first resolve the deep-call window-overflow
-crash (a codegen/QEMU/hardware investigation), then build up.
+So for **WiFi/RTOS**: the toolchain emits the calls (the `-fstrip` fix), and deep
+*direct* chains are reachable in QEMU via ROM flash-boot. What's left is genuinely
+silicon-gated — the proprietary RF blobs, an interrupt-driven context switch, and
+the heavy *indirect* dispatch a scheduler/OSI shim needs (which QEMU can't even
+emulate past the window-overflow point). The shipped `hal.runTasks` cooperative
+super-loop stays the right *inline* adaptation until that hardware bring-up.
