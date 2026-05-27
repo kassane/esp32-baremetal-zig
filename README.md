@@ -206,6 +206,8 @@ Guides and implementation notes live under [`docs/`](docs/):
   PIE/SIMD vector path.
 - **[docs/heap.md](docs/heap.md)** — the bare-metal typed bump arena, and why the
   std allocator interface doesn't lower on this backend.
+- **[docs/HANDOFF.md](docs/HANDOFF.md)** — current state, what's QEMU-verified vs.
+  silicon-deferred, the deep-call gating issue, and the esp-rs ecosystem map.
 
 ---
 
