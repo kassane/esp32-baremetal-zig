@@ -140,11 +140,13 @@ That reframes WiFi/RTOS: the function-call blocker is a fixable config choice, n
 a wall. The remaining obstacles are real but ordinary embedded work, not
 toolchain impossibilities:
 
-- **WiFi** still needs to link the closed RF blob libraries, an interrupt-driven
-  scheduler, and real-silicon validation. (The general heap is no longer a
-  blocker: `std.mem.Allocator`/`FixedBufferAllocator` works in `ReleaseSmall`/
-  `ReleaseFast` now `-fstrip` is gone — only the Debug build still hangs in std's
-  allocator safety path.)
+- **WiFi** still needs the closed RF blob libraries wired up, an interrupt-driven
+  scheduler, and real-silicon validation. The foundations are no longer blockers,
+  though: external/precompiled objects link and their functions run (the
+  `examples/cffi` demo compiles a C object and calls it — the same path vendor
+  `.a` blobs use), and the general heap works — `std.mem.Allocator`/
+  `FixedBufferAllocator` runs in `ReleaseSmall`/`ReleaseFast` now `-fstrip` is gone
+  (only the Debug build still hangs in std's allocator safety path).
 - **A preemptive RTOS** still needs a tick-interrupt context switch through an
   app-owned vector table (the project currently relies on the ROM `VECBASE`, which
   carries the windowed-ABI window handlers).

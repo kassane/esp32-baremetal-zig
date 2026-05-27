@@ -1,0 +1,9 @@
+.{
+    .name = .cffi_example,
+    .version = "0.1.0",
+    .fingerprint = 0xcfc7c2afe97741cd,
+    .dependencies = .{
+        .esp32_hal = .{ .path = "../.." },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "main.zig", "blob.c" },
+}

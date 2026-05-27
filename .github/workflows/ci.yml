@@ -164,6 +164,11 @@ jobs:
         shell: bash
         run: cd examples/tasks && zig build demo
 
+      - name: ESP32 example — link a precompiled C object (blob) and call it
+        if: matrix.run_qemu
+        shell: bash
+        run: cd examples/cffi && zig build demo
+
       - name: ESP32-S2 example — FFT spectrum, build-only (no Espressif QEMU machine)
         if: matrix.run_qemu
         shell: bash
