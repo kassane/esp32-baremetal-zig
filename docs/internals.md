@@ -142,8 +142,14 @@ deeper than ~5 nested `call8`s — i.e. the first windowed-ABI **register-window
 overflow** — faults. It was narrowed by elimination, and is independent of every
 layer we control:
 
-- not the vector table — crashes identically with the ROM `VECBASE` and an
-  app-owned table whose handlers are byte-identical to xtensa-lx-rt;
+- not the vector table — under `-kernel` the boot `VECBASE` reads back as
+  `0x40000000` (the un-mapped ROM), whose window-overflow vectors are all-zero,
+  so the *first* overflow does jump into zeroed memory. But installing a correct
+  app-owned table in IRAM doesn't fix it: with `VECBASE` confirmed moved (read
+  back) and the standard spill/fill handlers byte-verified at their offsets
+  (`0x0`/`0x80`/`0x100`), a genuine 40-deep `callx8` chain still hangs — only an
+  *optimised-flat* recursion (no real overflow) "passes", so the missing ROM
+  handlers are a symptom, not the whole cause;
 - not the linker script, and not `PS` (`WOE` vs `WOE|UM` both crash);
 - not the Zig frontend — a **C** function compiled by `zig cc` (clang on the same
   `espressif/llvm` backend) recursing 40 deep crashes too.
