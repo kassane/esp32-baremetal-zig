@@ -252,6 +252,7 @@ fn flashLinker(b: *std.Build, comptime chip: Chip) []const u8 {
         \\  }} > irom_seg
         \\  .rodata : ALIGN(4) {{
         \\    _rodata_start = ABSOLUTE(.);
+        \\    KEEP(*(.rodata_desc))
         \\    *(.rodata .rodata.*)
         \\    _rodata_end = ABSOLUTE(.);
         \\  }} > drom_seg
@@ -302,6 +303,7 @@ fn qemuLinker(b: *std.Build, comptime entry: []const u8, comptime q: Qemu) []con
         \\  }} > iram_seg
         \\  .rodata : ALIGN(4) {{
         \\    _rodata_start = ABSOLUTE(.);
+        \\    KEEP(*(.rodata_desc))
         \\    *(.rodata .rodata.*)
         \\    _rodata_end = ABSOLUTE(.);
         \\  }} > dram_seg

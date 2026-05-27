@@ -58,3 +58,54 @@ pub inline fn disableWatchdogs(comptime R: type) void {
         mmio.writeReg(R.RTC_CNTL.WDTWPROTECT, 0);
     }
 }
+
+// ── ESP-IDF application descriptor ──────────────────────────────────────────
+// The ESP-IDF image format expects a 256-byte `esp_app_desc_t` at the start of
+// the DROM mapping (image offset 0x20, right after the image + first-segment
+// headers). It isn't needed to boot — the second-stage bootloader checks the
+// image header — but emitting it makes the firmware introspectable by the
+// vendor tooling (`esptool image_info`, `espflash`, idf-monitor) and OTA-ready.
+// The linker scripts place `.rodata_desc` first in `drom_seg` and `KEEP` it.
+
+const EspAppDesc = extern struct {
+    magic_word: u32, // ESP_APP_DESC_MAGIC_WORD
+    secure_version: u32,
+    reserv1: [2]u32,
+    version: [32]u8,
+    project_name: [32]u8,
+    time: [16]u8,
+    date: [16]u8,
+    idf_ver: [32]u8,
+    app_elf_sha256: [32]u8, // filled in by the image tool
+    min_efuse_blk_rev_full: u16,
+    max_efuse_blk_rev_full: u16,
+    mmu_page_size: u8, // log2(page) — 64 KiB on every chip here
+    reserv3: [3]u8,
+    reserv2: [18]u32,
+};
+
+/// A `[n]u8` holding `s`, zero-padded (a C string field). Comptime only.
+fn cField(comptime n: usize, comptime s: []const u8) [n]u8 {
+    var a = [_]u8{0} ** n;
+    for (s, 0..) |c, i| a[i] = c;
+    return a;
+}
+
+/// Emitted into every flash firmware (kept by the linker's `KEEP`). `export` so
+/// the tooling can find it by name as well as by offset.
+pub export const esp_app_desc: EspAppDesc linksection(".rodata_desc") = .{
+    .magic_word = 0xABCD_5432,
+    .secure_version = 0,
+    .reserv1 = .{ 0, 0 },
+    .version = cField(32, "0.1.0"),
+    .project_name = cField(32, "esp32-baremetal-zig"),
+    .time = cField(16, ""),
+    .date = cField(16, ""),
+    .idf_ver = cField(32, ""),
+    .app_elf_sha256 = [_]u8{0} ** 32,
+    .min_efuse_blk_rev_full = 0,
+    .max_efuse_blk_rev_full = 0,
+    .mmu_page_size = 16,
+    .reserv3 = .{ 0, 0, 0 },
+    .reserv2 = [_]u32{0} ** 18,
+};

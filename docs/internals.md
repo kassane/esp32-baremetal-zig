@@ -82,9 +82,16 @@ by the time the app's reset vector runs, so the app must *not* redo them:
 
 So the mandatory app-side init reduces to exactly what `main` already does:
 `runtimeInit()` (`.bss`/`.data`) and `disableWatchdogs()`. The interrupt
-controller, an app-owned vector table, and the ESP-IDF app descriptor
-(`esp_app_desc_t`, OTA/tooling metadata — not required to boot) are intentionally
-left out; they're only needed for interrupt-driven drivers or the OTA ecosystem.
+controller and an app-owned vector table are intentionally left out — they're only
+needed for interrupt-driven drivers.
+
+For ecosystem compatibility `src/init.zig` also emits an **ESP-IDF application
+descriptor** (`esp_app_desc_t`, magic `0xABCD5432`) — a 256-byte record the
+linker scripts `KEEP` at the very start of `drom_seg`, i.e. the start of the DROM
+mapping where `esptool`/`espflash`/idf-monitor and the OTA machinery look for it.
+It isn't required to boot (the second-stage bootloader checks the image header,
+not this), but it lets the vendor tooling read the firmware's version/project
+metadata and makes the image OTA-shaped.
 
 ## Panic handler & `std.log`
 
